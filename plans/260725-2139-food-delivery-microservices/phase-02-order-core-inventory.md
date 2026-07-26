@@ -1,0 +1,69 @@
+# Phase 2 — Order core + Inventory (gRPC, no events yet)
+
+Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
+
+## Overview
+- **Priority**: P0
+- **Status**: Not started
+- **Brief**: Build the order lifecycle as an explicit state machine with idempotency, optimistic + distributed locking. Split stock into `inventory` service. Introduce gRPC for east-west calls (order↔catalog↔inventory). Still synchronous — no Kafka. This exposes WHY events are needed (P3).
+
+## Key insights
+- Deliberately synchronous first: place-order calls inventory.reserve over gRPC inline. It works but couples services + blocks on failures — the pain that motivates the Saga in P3.
+- Order does NOT own stock. Inventory owns reserve/release with its own consistency.
+- Idempotency key on create-order prevents double-charge on client retry. Optimistic lock (version col) guards concurrent order edits; Redis distributed lock guards the reserve critical section.
+
+## Requirements
+**Functional**: create order (validate menu via catalog gRPC), reserve stock (inventory gRPC), state machine PENDING→RESERVED→CONFIRMED / CANCELLED; cancel releases stock; idempotent create.
+**Non-functional**: reserve is atomic (no oversell under concurrency); optimistic-lock conflict → 409 retry; distributed lock TTL-bounded; identity + tenant propagated over gRPC metadata.
+
+## Architecture
+- gRPC contracts in `shared/contracts` (`.proto`): `CatalogService.GetMenuItems`, `InventoryService.Reserve/Release`.
+- Order state machine: explicit transitions table; illegal transition rejected. Persist state + version.
+- Inventory: `stock(item_id, available)`, `reservations(order_id, item_id, qty, status)`; reserve decrements available in a tx guarded by Redis lock keyed per item.
+- Idempotency: `idempotency_keys(key, order_id, response)` — replay returns stored response.
+
+## Related code files (to create)
+- `apps/order/*` — controller (REST via gateway), state-machine module, gRPC client to catalog+inventory, idempotency store
+- `apps/inventory/*` — gRPC server, reserve/release service, stock+reservation entities
+- `libs/shared/contracts/*.proto` (catalog, inventory) + generated stubs
+- `libs/shared/messaging` NOT yet (P3); `libs/shared/locking` (Redis lock helper)
+- Migrations: `orders`, `order_items`, `idempotency_keys` (order DB); `stock`, `reservations` (inventory DB)
+
+## Implementation steps
+1. Define `.proto` for catalog + inventory; generate stubs into `shared/contracts`.
+2. Add gRPC server to catalog (`GetMenuItems`) — extends P0 catalog.
+3. Build inventory service: entities, reserve/release with Redis distributed lock + DB tx; gRPC server.
+4. Build order: state machine (transition guard), create-order flow (catalog validate → inventory reserve), optimistic-lock version col.
+5. Idempotency middleware on create-order (Redis + persisted key).
+6. Propagate identity/tenant/correlation-ID via gRPC metadata interceptor (shared).
+7. E2E: place order → stock decremented + order RESERVED; concurrent orders don't oversell; duplicate idempotency key returns same order; cancel releases stock.
+
+## Todo
+- [ ] catalog + inventory `.proto` + gRPC servers
+- [ ] inventory reserve/release + Redis lock + tx
+- [ ] order state machine + optimistic lock
+- [ ] create-order flow calls catalog + inventory over gRPC
+- [ ] idempotency key store
+- [ ] gRPC metadata propagation (identity/tenant/correlation)
+- [ ] E2E: place/cancel/concurrency/idempotency pass
+
+## Success criteria
+- Placing an order reserves exactly the ordered qty; 100 concurrent orders on 10 stock → 10 succeed, 90 rejected, zero oversell.
+- Duplicate create with same idempotency key → identical response, one order.
+- Cancel returns stock; illegal state transition → 409/422.
+
+## Risk assessment
+| Risk | L×I | Mitigation |
+|------|-----|-----------|
+| Oversell under concurrency | M×H | Redis lock + DB tx + row check; concurrency test in CI |
+| Distributed lock held on crash | M×M | Short TTL + fencing token; reserve idempotent |
+| Sync gRPC coupling cascades failures | H×M | Accept for now; documented as motivation for P3 Saga |
+| Deadlock ordering multi-item reserve | M×M | Lock items in deterministic (sorted) order |
+
+## Security considerations
+- Order ownership = token `sub`; users can only act on own orders (except admin). Tenant-scoped.
+- Validate menu item belongs to tenant before reserve. gRPC internal-only (not exposed via Nginx).
+- Idempotency keys scoped per user+tenant to prevent cross-user replay.
+
+## Next steps
+Unblocks P3: replace inline gRPC reserve/charge with Kafka Saga + Outbox; add payment step. Order state machine becomes Saga-driven.
