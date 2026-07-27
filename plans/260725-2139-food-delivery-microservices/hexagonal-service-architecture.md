@@ -47,7 +47,7 @@ apps/catalog/src/
 - **Mapper**: static `toDomain(orm)` / `toOrm(domain)`.
 - **DI wiring**: infra modules `provide` each port token with its adapter `useClass`. `app.module` imports infra modules + registers application handlers (providers) + controllers.
 - Filenames kebab-case; `import` (not `import type`) for anything NestJS needs at runtime (injected classes, `@Body` DTOs). No `phase` token anywhere.
-- **Path aliases (mandatory)**: NO relative imports for in-app modules — use the per-service alias `@<service>/*` → `apps/<service>/src/*` (e.g. `@catalog/domain/...`), defined in `tsconfig.base.json` `paths`. Cross-service is forbidden anyway (cruiser); libs use `@food-delivery-api/*`. Jest/webpack/cruiser resolve these OOTB (Nx). TypeORM CLI migrations run via ts-node with `-r tsconfig-paths/register` (see `package.json` migration scripts) so aliases resolve at CLI runtime.
+- **Path aliases (mandatory)**: NO relative imports for in-app modules — use the per-service alias `@<service>/*` → `apps/<service>/src/*` (e.g. `@catalog/domain/...`), defined in `tsconfig.base.json` `paths`. Cross-service is forbidden anyway (cruiser); libs use `@food-delivery-api/*`. Jest/webpack/cruiser resolve these OOTB (Nx). TypeORM CLI migrations run via **tsx** with `--tsconfig tsconfig.base.json` (shared `typeorm` base script in `package.json`) so aliases resolve at CLI runtime — no ts-node/tsconfig-paths needed.
 
 ## Test strategy (faster + layered)
 
