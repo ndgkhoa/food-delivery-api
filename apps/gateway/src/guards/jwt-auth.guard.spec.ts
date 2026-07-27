@@ -7,6 +7,7 @@ import {
 import type { AuthenticatedRequest } from '@gateway/guards/authenticated-request';
 import { JwtAuthGuard } from '@gateway/guards/jwt-auth.guard';
 import { type ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 
 const ISSUER = 'https://idp.test/realms/food-delivery';
 const AUDIENCE = 'food-delivery-api';
@@ -16,8 +17,14 @@ function contextForRequest(request: Partial<AuthenticatedRequest>): {
   request: AuthenticatedRequest;
 } {
   const req = { headers: {}, ...request } as AuthenticatedRequest;
+  // Reflector reads metadata off real handler/class refs — a no-op fn + empty
+  // class carry no @Public() metadata, so the guard treats the route as protected.
+  const handlerRef = (): void => undefined;
+  class ClassRef {}
   const context = {
     switchToHttp: () => ({ getRequest: () => req }),
+    getHandler: () => handlerRef,
+    getClass: () => ClassRef,
   } as unknown as ExecutionContext;
   return { context, request: req };
 }
@@ -25,6 +32,7 @@ function contextForRequest(request: Partial<AuthenticatedRequest>): {
 describe('JwtAuthGuard', () => {
   let keys: TestKeySet;
   let guard: JwtAuthGuard;
+  let reflector: Reflector;
 
   beforeAll(async () => {
     keys = await createTestKeySet({ issuer: ISSUER, audience: AUDIENCE });
@@ -33,7 +41,14 @@ describe('JwtAuthGuard', () => {
       issuer: ISSUER,
       audience: AUDIENCE,
     });
-    guard = new JwtAuthGuard(verifier);
+    reflector = new Reflector();
+    guard = new JwtAuthGuard(verifier, reflector);
+  });
+
+  it('lets a @Public() route through without a token', async () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValueOnce(true);
+    const { context } = contextForRequest({ headers: {} });
+    await expect(guard.canActivate(context)).resolves.toBe(true);
   });
 
   it('passes and attaches the verified identity for a valid token', async () => {

@@ -85,6 +85,22 @@ describe('Gateway authorization matrix with real Keycloak (e2e)', () => {
       .expect(401);
   });
 
+  it('locks the auth-proxy admin path with no token — GET /auth/tenants (401)', async () => {
+    // Proves the global JwtAuthGuard covers the auth reverse-proxy, not just
+    // catalog: the request is rejected at the gateway before any forward.
+    await request(gateway.url).get('/api/v1/auth/tenants').expect(401);
+  });
+
+  it('locks the auth-proxy admin path with no token — POST /auth/tenants (401)', async () => {
+    await request(gateway.url).post('/api/v1/auth/tenants').send({ name: 'No Auth' }).expect(401);
+  });
+
+  it('serves the public health probe without a token (200)', async () => {
+    // @Public() + @SkipRateLimit(): no auth, never throttled.
+    const res = await request(gateway.url).get('/api/v1/health').expect(200);
+    expect(res.body).toEqual({ status: 'ok' });
+  });
+
   it('forbids a customer from creating a restaurant (403)', async () => {
     await request(gateway.url)
       .post('/api/v1/catalog/restaurants')

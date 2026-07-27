@@ -48,6 +48,10 @@ export async function startCatalog(): Promise<CatalogHandle> {
  * (issuer/JWKS are derived from these, matching the app's config). Pass
  * `keyResolver` to swap the remote JWKS for a local test key set (no live IdP);
  * omit it to verify against a real Keycloak reachable at `keycloakBaseUrl`.
+ *
+ * Rate limiting is OFF unless `rateLimit` is supplied, so the container-less
+ * suites neither require Redis nor get throttled; the rate-limit e2e opts in
+ * with a low `max` + a real Redis `url`.
  */
 export async function startGateway(config: {
   catalogUrl: string;
@@ -55,6 +59,7 @@ export async function startGateway(config: {
   realm: string;
   audience: string;
   keyResolver?: JwksKeyResolver;
+  rateLimit?: { max: number; windowSec: number; redisUrl: string };
 }): Promise<GatewayHandle> {
   process.env.NODE_ENV = 'test';
   process.env.LOG_LEVEL = 'fatal';
@@ -62,6 +67,15 @@ export async function startGateway(config: {
   process.env.KEYCLOAK_URL = config.keycloakBaseUrl;
   process.env.KEYCLOAK_REALM = config.realm;
   process.env.JWT_AUDIENCE = config.audience;
+
+  if (config.rateLimit) {
+    process.env.RATE_LIMIT_ENABLED = 'true';
+    process.env.RATE_LIMIT_MAX = String(config.rateLimit.max);
+    process.env.RATE_LIMIT_WINDOW_SEC = String(config.rateLimit.windowSec);
+    process.env.REDIS_URL = config.rateLimit.redisUrl;
+  } else {
+    process.env.RATE_LIMIT_ENABLED = 'false';
+  }
 
   const { AppModule } = await import('@gateway/app.module');
   const builder = Test.createTestingModule({ imports: [AppModule] });

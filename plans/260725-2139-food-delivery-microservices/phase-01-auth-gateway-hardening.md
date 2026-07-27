@@ -58,13 +58,14 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 - [x] `RolesGuard` (RBAC) enforced at the SERVICE on catalog writes (restaurant-owner/admin, reads trusted `x-roles`); reads open to any authenticated tenant
 - [x] E2E: authz matrix (401 no-token / 403 customer-write / 201 owner-write / 200 customer-read) with REAL Keycloak-issued tokens (testcontainer + direct-grant)
 
-**Slice B2a — auth service (PR #4, open):**
+**Slice B2a — auth service (PR #4 ✅ MERGED):**
 - [x] `auth` service (hexagonal): tenant registry (Postgres db `auth`) + user↔tenant map + provisioning admin API (`@Roles('admin')`); gateway proxy `/api/v1/auth/*`
 - [x] Keycloak admin adapter (hand-rolled REST/fetch): create user + assign role + set validated `tenant_id` UUID attribute (enforces review M-2). Keycloak 24+ gotchas fixed: set firstName/lastName (User Profile requires them → else "account not fully set up") + realm `unmanagedAttributePolicy=ENABLED` (else admin-set `tenant_id` is dropped)
 
-**Slice B2b — gateway sessions + rate limit:**
-- [ ] Redis-backed per-identity rate limiter (429 on trip)
-- [ ] Refresh-token rotation + logout/session revoke; Authorization Code + PKCE login wired end-to-end
+**Slice B2b — gateway sessions + rate limit (PR #5, open):**
+- [x] Redis-backed per-identity rate limiter at the gateway (ioredis fixed-window, keyed by `sub`→IP; 429 + Retry-After; `RATE_LIMIT_*` config, opt-out in tests)
+- [x] Gateway auth proxies to Keycloak OIDC (`@Public`, stateless): token (code+PKCE), refresh (rotation), logout/session revoke; realm `revokeRefreshToken` + `refreshTokenMaxReuse:0`
+- [x] E2E (real Keycloak + Redis): rate-limit trips 429; refresh rotates + old-reuse rejected; logout revokes session
 
 ## Success criteria
 - Unauthed write → 401; wrong role → 403; valid owner → 200, all audit-logged with `sub`+`tenant_id`.
