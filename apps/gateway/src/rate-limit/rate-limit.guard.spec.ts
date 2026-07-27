@@ -1,11 +1,17 @@
 import type { AuthenticatedRequest } from '@gateway/guards/authenticated-request';
 import { RateLimitGuard } from '@gateway/rate-limit/rate-limit.guard';
 import type { RateLimitStore } from '@gateway/rate-limit/rate-limit-store';
-import { type ExecutionContext, HttpException } from '@nestjs/common';
+import { type ExecutionContext, HttpException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
 
 const MAX = 3;
 const WINDOW_SEC = 60;
+
+/** Reflector stub — returns `skip` for the SkipRateLimit metadata lookup. */
+function reflectorStub(skip = false): Reflector {
+  return { getAllAndOverride: () => skip } as unknown as Reflector;
+}
 
 function configStub(overrides: Record<string, unknown> = {}): ConfigService {
   const values: Record<string, unknown> = {
@@ -28,6 +34,9 @@ function contextFor(request: Partial<AuthenticatedRequest>): {
   const req = { headers: {}, ...request } as AuthenticatedRequest;
   const context = {
     switchToHttp: () => ({ getRequest: () => req, getResponse: () => ({ setHeader }) }),
+    // Reflector metadata lookup reads the handler/class off the context.
+    getHandler: () => undefined,
+    getClass: () => undefined,
   } as unknown as ExecutionContext;
   return { context, setHeader };
 }
@@ -41,7 +50,7 @@ describe('RateLimitGuard', () => {
 
   it('keys by the verified sub when authenticated and allows under the limit', async () => {
     store.hit.mockResolvedValue({ count: MAX, ttlSec: WINDOW_SEC });
-    const guard = new RateLimitGuard(store, configStub());
+    const guard = new RateLimitGuard(store, reflectorStub(), configStub());
     const { context } = contextFor({ identity: { sub: 'user-1', tenantId: 't', roles: [] } });
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
@@ -50,7 +59,7 @@ describe('RateLimitGuard', () => {
 
   it('falls back to the client IP when unauthenticated', async () => {
     store.hit.mockResolvedValue({ count: 1, ttlSec: WINDOW_SEC });
-    const guard = new RateLimitGuard(store, configStub());
+    const guard = new RateLimitGuard(store, reflectorStub(), configStub());
     const { context } = contextFor({ ip: '10.0.0.9' });
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
@@ -59,7 +68,7 @@ describe('RateLimitGuard', () => {
 
   it('rejects with 429 + Retry-After once over the limit', async () => {
     store.hit.mockResolvedValue({ count: MAX + 1, ttlSec: 42 });
-    const guard = new RateLimitGuard(store, configStub());
+    const guard = new RateLimitGuard(store, reflectorStub(), configStub());
     const { context, setHeader } = contextFor({
       identity: { sub: 'user-1', tenantId: 't', roles: [] },
     });
@@ -76,7 +85,34 @@ describe('RateLimitGuard', () => {
   });
 
   it('short-circuits (never touches the store) when disabled', async () => {
-    const guard = new RateLimitGuard(store, configStub({ RATE_LIMIT_ENABLED: false }));
+    const guard = new RateLimitGuard(
+      store,
+      reflectorStub(),
+      configStub({ RATE_LIMIT_ENABLED: false }),
+    );
+    const { context } = contextFor({ ip: '10.0.0.9' });
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(store.hit).not.toHaveBeenCalled();
+  });
+
+  it('fails open (allows + warns) when the store is unavailable', async () => {
+    // Redis down / unreachable → store.hit rejects. The limiter is a protective
+    // edge layer, so it must ALLOW the request (never 500) and log a warning with
+    // the derived key rather than take the gateway offline.
+    store.hit.mockRejectedValue(new Error('redis unreachable'));
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const guard = new RateLimitGuard(store, reflectorStub(), configStub());
+    const { context } = contextFor({ ip: '10.0.0.9' });
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(store.hit).toHaveBeenCalledWith('rl:ip:10.0.0.9', WINDOW_SEC);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('rl:ip:10.0.0.9'));
+    warn.mockRestore();
+  });
+
+  it('skips the limiter (never touches the store) for @SkipRateLimit routes', async () => {
+    const guard = new RateLimitGuard(store, reflectorStub(true), configStub());
     const { context } = contextFor({ ip: '10.0.0.9' });
 
     await expect(guard.canActivate(context)).resolves.toBe(true);

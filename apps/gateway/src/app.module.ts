@@ -3,6 +3,7 @@ import { SharedConfigModule } from '@food-delivery-api/shared-config';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import { gatewayEnvSchema } from '@gateway/config/gateway-env-schema';
 import { JwtAuthGuard } from '@gateway/guards/jwt-auth.guard';
+import { HealthController } from '@gateway/health/health.controller';
 import { AuthProxyController } from '@gateway/proxy/auth-proxy.controller';
 import { CatalogProxyController } from '@gateway/proxy/catalog-proxy.controller';
 import { HttpForwarder } from '@gateway/proxy/http-forwarder';
@@ -42,7 +43,13 @@ import { APP_GUARD } from '@nestjs/core';
   ],
   // Session controller first: its specific `/auth/token|refresh|logout` routes
   // must be matched before AuthProxyController's `@All('*path')` catch-all.
-  controllers: [KeycloakSessionController, CatalogProxyController, AuthProxyController],
+  // HealthController owns a distinct `/health` path so its order is immaterial.
+  controllers: [
+    HealthController,
+    KeycloakSessionController,
+    CatalogProxyController,
+    AuthProxyController,
+  ],
   providers: [
     HttpForwarder,
     KeycloakOidcClient,

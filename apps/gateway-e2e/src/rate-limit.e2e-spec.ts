@@ -83,4 +83,23 @@ describe('Gateway per-identity rate limiting (e2e)', () => {
     expect(overLimit.headers['retry-after']).toBeDefined();
     expect(Number(overLimit.headers['retry-after'])).toBeGreaterThan(0);
   });
+
+  it('trips 429 on a public IP-keyed route from one IP (unauthenticated /auth/refresh)', async () => {
+    // Public session route → no `sub`, so it buckets by client IP (`rl:ip:*`).
+    // The invalid refresh token is irrelevant: the guard counts each request
+    // BEFORE the controller runs, so a single IP hammering past `max` trips 429.
+    for (let i = 0; i < MAX; i += 1) {
+      await request(gateway.url)
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: 'invalid-token' });
+    }
+
+    const overLimit = await request(gateway.url)
+      .post('/api/v1/auth/refresh')
+      .send({ refreshToken: 'invalid-token' });
+
+    expect(overLimit.status).toBe(429);
+    expect(overLimit.headers['retry-after']).toBeDefined();
+    expect(Number(overLimit.headers['retry-after'])).toBeGreaterThan(0);
+  });
 });
