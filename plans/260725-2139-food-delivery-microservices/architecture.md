@@ -6,6 +6,8 @@ Consolidated design reference. All planning docs point here for the layering, se
 
 Nginx is L7 load balancer + TLS termination ONLY. It is NOT the application gateway. The API Gateway (NestJS) owns app cross-cutting concerns.
 
+**Trust-boundary invariant (deployment):** the gateway is the SOLE ingress that verifies JWTs and stamps trusted identity headers (`x-tenant-id`/`x-user-id`/`x-roles`). Downstream services trust those headers and therefore MUST NOT be publicly reachable — they live on the internal network behind Nginx→gateway only. Dev enforces this by convention; prod enforces it (K8s NetworkPolicy / never publishing service ports). Hardening backlog: cryptographically-signed internal identity (HMAC/JWT) or mTLS so a directly-reachable service can't be spoofed on network position alone.
+
 ```
 Internet
    │  HTTPS
