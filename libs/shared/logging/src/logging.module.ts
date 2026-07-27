@@ -1,7 +1,7 @@
 import type { DynamicModule } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
-import { CORRELATION_ID_HEADER } from './correlation-id.constant';
+import { CORRELATION_ID_HEADER } from './correlation-id.constants';
 
 /**
  * Structured (pino) logging wired to the correlation ID set by

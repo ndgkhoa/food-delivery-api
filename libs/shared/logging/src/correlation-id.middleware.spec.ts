@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { CORRELATION_ID_HEADER } from './correlation-id.constant';
+import { CORRELATION_ID_HEADER } from './correlation-id.constants';
 import { correlationIdMiddleware } from './correlation-id.middleware';
 
 function createMockReq(headers: Record<string, string | string[]> = {}): Request {
