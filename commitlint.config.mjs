@@ -25,6 +25,7 @@ export default {
         'shared-logging',
         'shared-auth',
         'shared-tenancy',
+        'shared-locking',
         'shared-audit',
         'shared-messaging',
         'shared-contracts',

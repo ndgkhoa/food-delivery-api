@@ -1,5 +1,5 @@
 import type Redis from 'ioredis';
-import { LockContentionError } from './lock-contention.error';
+import { LockContentionError } from './errors';
 import { RedisDistributedLock } from './redis-distributed-lock';
 
 /**
