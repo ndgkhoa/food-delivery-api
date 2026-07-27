@@ -31,4 +31,17 @@ export class TypeOrmReservationRepository implements ReservationRepository {
     });
     return rows.map(ReservationMapper.toDomain);
   }
+
+  async releaseIfActive(reservation: Reservation): Promise<boolean> {
+    // Conditional flip is the concurrency gate: the row lock serialises two
+    // concurrent releases, and the loser re-evaluates status='ACTIVE' as false
+    // → 0 rows → its caller skips increaseAvailable, so stock is returned once.
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(ReservationOrmEntity)
+      .set({ status: 'RELEASED', updatedAt: () => 'now()' })
+      .where('id = :id AND status = :active', { id: reservation.id, active: 'ACTIVE' })
+      .execute();
+    return (result.affected ?? 0) > 0;
+  }
 }

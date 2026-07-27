@@ -61,11 +61,15 @@ export class ReleaseStockHandler {
       return;
     }
 
-    // One atomic increment per hold — no read-modify-write, so concurrent
-    // reserve/release on the same item can't lose an update.
+    // Flip the hold first (the atomic ACTIVE→RELEASED gate); only the winner of
+    // that transition returns the units. This makes a concurrent double-release
+    // add stock exactly once — no phantom units even if the Redis lock was lost.
+    // Both writes run in the caller's transaction, so they commit together.
     for (const reservation of current) {
-      await this.stockRepository.increaseAvailable(tenantId, reservation.itemId, reservation.qty);
-      await this.reservationRepository.save(reservation.release());
+      const released = await this.reservationRepository.releaseIfActive(reservation);
+      if (released) {
+        await this.stockRepository.increaseAvailable(tenantId, reservation.itemId, reservation.qty);
+      }
     }
   }
 }

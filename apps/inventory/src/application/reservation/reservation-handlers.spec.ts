@@ -1,7 +1,7 @@
 import type { DistributedLock } from '@food-delivery-api/shared-locking';
 import { ReleaseStockHandler } from '@inventory/application/reservation/commands/release-stock.handler';
 import { ReserveStockHandler } from '@inventory/application/reservation/commands/reserve-stock.handler';
-import type { Reservation } from '@inventory/domain/reservation/reservation';
+import { Reservation } from '@inventory/domain/reservation/reservation';
 import type { ReservationRepository } from '@inventory/domain/reservation/reservation.repository';
 import type { TransactionPort } from '@inventory/domain/shared/transaction.port';
 import { Stock } from '@inventory/domain/stock/stock';
@@ -70,6 +70,27 @@ class FakeReservationRepository implements ReservationRepository {
     return [...this.rows.values()].filter(
       (r) => r.tenantId === t && r.orderId === order && r.status === 'ACTIVE',
     );
+  }
+
+  async releaseIfActive(reservation: Reservation): Promise<boolean> {
+    const stored = this.rows.get(reservation.id);
+    if (stored?.status !== 'ACTIVE') {
+      return false;
+    }
+    this.rows.set(
+      stored.id,
+      Reservation.reconstitute({
+        id: stored.id,
+        tenantId: stored.tenantId,
+        orderId: stored.orderId,
+        itemId: stored.itemId,
+        qty: stored.qty,
+        status: 'RELEASED',
+        createdAt: stored.createdAt,
+        updatedAt: stored.updatedAt,
+      }),
+    );
+    return true;
   }
 
   all(): Reservation[] {

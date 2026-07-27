@@ -98,3 +98,36 @@ Inventory is a pure microservice with no global pipe. `qty` (proto `int32`) is u
 1. Is C2's lock-expiry oversell an accepted risk for Slice 2a (documented, deferred to a DB-guard hardening ticket), or must it close before merge? The invariant is the slice's headline.
 2. Expected caller (order-service) behavior on gRPC `UNKNOWN`/contention — retry or fail the order? Determines H2 severity.
 3. Is `orderId` globally unique per cart (guarantees H1/L2 assumptions), or can it be reused?
+
+---
+
+# Re-review — fix commit c2073f8 (delta 2da8ca5..c2073f8)
+
+Verified each finding against the pushed code. **Original: 2 Critical, 2 High, 3 Medium, 3 Low → now all CONFIRMED closed. 1 NEW Medium (release-path asymmetry).**
+
+## Per-finding status
+
+- **C1 (duplicate itemId oversell) — CONFIRMED CLOSED.** `normalizeItems` (`reserve-stock.handler.ts:55-71`) sums qty per itemId and sorts before locking, so duplicate line items collapse to one atomic decrement. e2e proof added (`items=[{6},{6}]` vs stock 10 → ok:false, available stays 10, 0 reservations). No read-modify-write remains.
+- **C2 (lost-update oversell on lock expiry) — CONFIRMED CLOSED.** `decrementIfAvailable` (`typeorm-stock.repository.ts:30-45`) is a single `UPDATE ... SET available = available - :byQty WHERE ... AND available >= :byQty` checking `result.affected`. Under Postgres READ COMMITTED this is genuinely concurrency-safe: a concurrent UPDATE blocks on the row lock and re-evaluates the `available >= qty` predicate against the committed post-update value (EvalPlanQual), so no lost update and `available` can never go negative — correctness no longer depends on the Redis lock. Domain read-modify-write (`Stock.reserve/release`) removed; `Stock` is now a read-only value object. DB `CHECK(available>=0)` remains as a third line. The earlier `manager.query` RETURNING bug (driver tuple always truthy) is gone.
+- **H1 (idempotency not DB-enforced) — CONFIRMED CLOSED.** Partial unique index `uq_reservations_active_order_item (tenant_id, order_id, item_id) WHERE status='ACTIVE'` (migration `1753747300000` + entity `@Index`, registered in `inventory-test-database.ts`). Concurrent duplicate that slips the read-check → 23505 → mapped to `IdempotencyConflictError` (`reserve-stock.handler.ts:73-77,136-138`); the losing tx rolls back its decrement too, so no double-decrement. `assertReplayMatches` rejects orderId reuse with different items/qty (closes original L2).
+- **H2 (LockContentionError → opaque UNKNOWN + flaky test) — CONFIRMED CLOSED.** `inventory.grpc.controller.ts:61-81` maps LockContentionError→ABORTED (retryable), InvalidReserveRequestError→INVALID_ARGUMENT, IdempotencyConflictError→ALREADY_EXISTS, everything else→INTERNAL with stack logged and no internal message leaked.
+- **M1 (no boundary validation) — CONFIRMED CLOSED.** `normalizeItems` rejects empty items and non-positive/non-integer qty → InvalidReserveRequestError → INVALID_ARGUMENT.
+- **M2 (hold-and-wait) — CONFIRMED CLOSED.** `withLocks` is now all-or-nothing: `tryAcquireAll` stops at the first contended key and returns the held subset; the caller releases the whole subset and retries the batch — never blocks while holding a partial set. No deadlock (sorted) and no systematic livelock (sorted order means the holder of the lowest key makes progress; the partial-hold+contended case only arises transiently from lock expiry). Give-up releases held before throwing — no leak.
+- **M3 (constant poll) — CONFIRMED CLOSED.** `nextDelayMs` = base + up to one base of jitter.
+- **L1 — CLOSED** (fence counter `PEXPIRE` 1h). **L2 — CLOSED** (`assertReplayMatches`). **L3 — CLOSED** (`releaseAll` logs on failed/expired release).
+
+Regression checks: `StockMapper.toOrm` removal is clean (no callers). No lingering `Stock.reserve/release` domain calls. Unit-test fakes were updated to model the atomic counter (`decrementIfAvailable` checks `units < qty`), so unit tests exercise real semantics rather than masking the DB guard. SET-fragment named param `:byQty` binds correctly (e2e green).
+
+## NEW finding
+
+### N1 (Medium) — Release path is NOT hardened to the same standard as reserve; concurrent double-release under lock loss inflates stock
+`release-stock.handler.ts:58-70`, `typeorm-reservation.repository.ts:23-26`
+
+Reserve is now DB-safe even if the Redis lock is lost (atomic conditional decrement + unique index). Release is not. `increaseAvailable` is an unconditional `available = available + qty`, and marking the hold released is a plain `save()` overwrite by PK — no `WHERE status='ACTIVE'` guard. Release's only concurrency protection is the in-tx `findActiveByOrder` re-read, which under READ COMMITTED does NOT stop a second concurrent release: if R1's lock expires mid-tx, R2 acquires the freed lock, reads the still-ACTIVE rows (R1 uncommitted), and both add qty → **stock inflated by an extra qty per hold → phantom stock → later oversell** (the reserve-side hardening can't catch this; the phantom units are real rows). Requires (a) two concurrent releases for the same order and (b) lock expiry — plausible with at-least-once delivery, saga compensation, or client retry on the new ABORTED. The commit's comment "correctness holds even if the Redis lock expires" is true for reserve but false for release.
+
+Fix: make release idempotent at the DB — conditional `UPDATE reservations SET status='RELEASED', updated_at=now() WHERE id=:id AND status='ACTIVE'` and only `increaseAvailable` when `affected === 1`. Then a double-release is a no-op regardless of the lock.
+
+## Unresolved questions (re-review)
+
+1. Is N1 in scope for 2a, or acceptable to defer to the order/saga slice that introduces retried releases? It is lower-probability than the reserve paths but the same bug class the commit set out to eliminate.
+2. Confirm order-service treats ABORTED (contention) as retryable and ALREADY_EXISTS (idempotency conflict) as terminal — the status mapping is only useful if the caller honors it.

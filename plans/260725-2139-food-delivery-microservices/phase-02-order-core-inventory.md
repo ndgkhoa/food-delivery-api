@@ -51,6 +51,7 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 - [x] No-oversell backstop moved to the DB: atomic conditional `UPDATE ... WHERE available >= qty` (not read-modify-write) — correctness holds even if the Redis lock is lost. Duplicate line items summed per item; items sorted for deadlock-free row-lock order.
 - [x] DB-enforced idempotency: partial unique index `reservations(tenant_id, order_id, item_id) WHERE status='ACTIVE'`; replay must carry identical items/qty.
 - [x] gRPC status mapping: contention→ABORTED (retryable), invalid request→INVALID_ARGUMENT, idempotency conflict→ALREADY_EXISTS, faults→INTERNAL (logged, no leak).
+- [x] Release path hardened symmetrically (review round 2, N1): ACTIVE→RELEASED is an atomic conditional UPDATE gate so a concurrent double-release returns stock exactly once (no phantom units) — e2e proves it. All 10 round-1 findings verified closed.
 
 **Slice 2b — order + flow:**
 - [ ] order state machine (PENDING→RESERVED→CONFIRMED/CANCELLED) + optimistic lock

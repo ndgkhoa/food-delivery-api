@@ -188,4 +188,34 @@ describe('Inventory reserve — no-oversell under concurrency (e2e)', () => {
     );
     expect(Number(rows[0].available)).toBe(3);
   });
+
+  it('concurrent double-release returns the stock exactly once (no phantom units)', async () => {
+    const tenantId = randomUUID();
+    const itemId = randomUUID();
+    const orderId = randomUUID();
+    await db.dataSource.query(
+      'INSERT INTO "stock" ("tenant_id", "item_id", "available") VALUES ($1, $2, $3)',
+      [tenantId, itemId, 10],
+    );
+
+    const { ReleaseStockHandler } = await import(
+      '@inventory/application/reservation/commands/release-stock.handler'
+    );
+    const releaseStock = app.get(ReleaseStockHandler);
+
+    await reserveStock.execute({ tenantId, orderId, items: [{ itemId, qty: 4 }] });
+
+    // Two releases of the same order raced: the ACTIVE→RELEASED gate must let
+    // only one add the units back, so available lands on 10 — never 14.
+    await Promise.all([
+      releaseStock.execute({ tenantId, orderId }),
+      releaseStock.execute({ tenantId, orderId }),
+    ]);
+
+    const rows = await db.dataSource.query(
+      'SELECT "available" FROM "stock" WHERE "tenant_id" = $1 AND "item_id" = $2',
+      [tenantId, itemId],
+    );
+    expect(Number(rows[0].available)).toBe(10);
+  });
 });
