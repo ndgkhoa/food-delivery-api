@@ -5,14 +5,18 @@
     "@auth/*": ["apps/auth/src/*"],
     "@catalog/*": ["apps/catalog/src/*"],
     "@gateway/*": ["apps/gateway/src/*"],
+    "@inventory/*": ["apps/inventory/src/*"],
     "@food-delivery-api/shared-auth": ["libs/shared/auth/src/index.ts"],
     "@food-delivery-api/shared-auth/testing": ["libs/shared/auth/src/testing/test-jwks.ts"],
-    "@food-delivery-api/shared-tenancy": ["libs/shared/tenancy/src/index.ts"]
+    "@food-delivery-api/shared-tenancy": ["libs/shared/tenancy/src/index.ts"],
+    "@food-delivery-api/shared-contracts": ["libs/shared/contracts/src/index.ts"],
+    "@food-delivery-api/shared-locking": ["libs/shared/locking/src/index.ts"]
   },
   "entry": [
     "apps/*/src/main.ts",
     "apps/auth/src/infrastructure/persistence/data-source.ts",
     "apps/catalog/src/infrastructure/persistence/data-source.ts",
+    "apps/inventory/src/infrastructure/persistence/data-source.ts",
     "apps/**/*.spec.ts",
     "apps/**/*.e2e-spec.ts",
     "apps/*/src/testing/**/*.ts",

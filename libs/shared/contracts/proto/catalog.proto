@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package catalog;
+
+// Internal east-west contract: order/inventory validate menu items against the
+// catalog over gRPC (never the public REST edge). Tenant scope travels in gRPC
+// metadata (`x-tenant-id`), not in the request body — the body id list is the
+// only trusted payload here.
+service CatalogService {
+  rpc GetMenuItems (GetMenuItemsRequest) returns (MenuItemsResponse);
+}
+
+message GetMenuItemsRequest {
+  // Informational only; the authoritative tenant is read from gRPC metadata.
+  string tenant_id = 1;
+  repeated string ids = 2;
+}
+
+message MenuItem {
+  string id = 1;
+  string tenant_id = 2;
+  string restaurant_id = 3;
+  string name = 4;
+  string description = 5;
+  // Integer cents, mirroring the catalog domain model (never a float).
+  int32 price_cents = 6;
+  bool is_available = 7;
+}
+
+message MenuItemsResponse {
+  repeated MenuItem items = 1;
+}

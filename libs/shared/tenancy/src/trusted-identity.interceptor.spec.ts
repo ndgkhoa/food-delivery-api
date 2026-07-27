@@ -6,6 +6,7 @@ import { TrustedIdentityInterceptor } from './trusted-identity.interceptor';
 
 function executionContextWith(headers: Record<string, string>): ExecutionContext {
   return {
+    getType: () => 'http',
     switchToHttp: () => ({ getRequest: () => ({ headers }) }),
   } as unknown as ExecutionContext;
 }
@@ -59,5 +60,19 @@ describe('TrustedIdentityInterceptor', () => {
     const next: CallHandler = { handle: () => of(null) };
 
     expect(() => interceptor.intercept(context, next)).toThrow(UnauthorizedException);
+  });
+
+  it('passes non-HTTP (e.g. gRPC) calls straight through without touching an HTTP request', async () => {
+    const context = {
+      getType: () => 'rpc',
+      switchToHttp: () => {
+        throw new Error('must not read an HTTP request for a non-HTTP call');
+      },
+    } as unknown as ExecutionContext;
+    const next: CallHandler = { handle: () => of('grpc-result') };
+
+    const result = await firstValueFrom(interceptor.intercept(context, next));
+
+    expect(result).toBe('grpc-result');
   });
 });

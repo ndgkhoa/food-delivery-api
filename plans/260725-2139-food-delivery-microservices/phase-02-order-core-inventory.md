@@ -40,11 +40,12 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 7. E2E: place order → stock decremented + order RESERVED; concurrent orders don't oversell; duplicate idempotency key returns same order; cancel releases stock.
 
 ## Todo
-**Slice 2a — contracts + inventory + catalog gRPC (🔨 in progress):**
-- [ ] catalog + inventory `.proto` in `shared/contracts` + generated stubs
-- [ ] catalog gRPC server (`GetMenuItems`) — extends P0 catalog
-- [ ] inventory service (hexagonal): stock/reservations + reserve/release + Redis distributed lock + DB tx + gRPC server
-- [ ] `libs/shared/locking` (Redis lock helper, TTL + fencing)
+**Slice 2a — contracts + inventory + catalog gRPC (✅ done, PR pending):**
+- [x] catalog + inventory `.proto` in `shared/contracts` + hand-written contract types; shared `PROTO_LOADER_OPTIONS` (camelCase + empty repeated → `[]`, not `undefined`) used by every server + client
+- [x] catalog gRPC server (`GetMenuItems`) — hybrid HTTP+gRPC extending P0 catalog; tenant-scoped; e2e proves cross-tenant returns `[]`
+- [x] inventory service (hexagonal): stock/reservations + reserve/release + Redis distributed lock + DB tx + gRPC server
+- [x] `libs/shared/locking` (Redis lock helper: fencing token + sorted multi-key + Lua compare-and-del + **blocking acquire** so a contended reserve serialises rather than failing fast)
+- [x] E2E proof (real Postgres + Redis): 50 concurrent reserves on stock=10 → exactly 10 succeed, 40 out-of-stock, available=0, zero oversell
 
 **Slice 2b — order + flow:**
 - [ ] order state machine (PENDING→RESERVED→CONFIRMED/CANCELLED) + optimistic lock
