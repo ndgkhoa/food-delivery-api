@@ -4,6 +4,12 @@ import type { PageResult, Pagination } from '@catalog/domain/shared/pagination';
 export interface MenuItemRepository {
   save(menuItem: MenuItem): Promise<MenuItem>;
   findById(id: string, restaurantId: string, tenantId: string): Promise<MenuItem | null>;
+  /**
+   * Bulk lookup by id within a tenant, for east-west callers (order/inventory
+   * over gRPC) that validate a cart's items. Restaurant-agnostic on purpose —
+   * a cart may span restaurants. Missing/soft-deleted ids are simply absent.
+   */
+  findManyByIds(ids: string[], tenantId: string): Promise<MenuItem[]>;
   findAndCountByRestaurant(
     tenantId: string,
     restaurantId: string,

@@ -83,6 +83,12 @@ class FakeMenuItemRepository implements MenuItemRepository {
       }
     }
   }
+
+  async findManyByIds(ids: string[], tenantId: string): Promise<MenuItem[]> {
+    return [...this.rows.values()].filter(
+      (item) => ids.includes(item.id) && item.tenantId === tenantId,
+    );
+  }
 }
 
 class FakeTenantContext implements TenantContextPort {

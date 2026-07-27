@@ -1,0 +1,7 @@
+{
+  "name": "shared-locking",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/locking/src",
+  "projectType": "library",
+  "tags": ["scope:shared", "type:locking"]
+}

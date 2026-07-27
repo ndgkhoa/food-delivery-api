@@ -34,6 +34,14 @@ export class TrustedIdentityInterceptor implements NestInterceptor {
   constructor(@Inject(TENANT_CONTEXT_PORT) private readonly tenantContext: TenantContextPort) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    // HTTP-only: this reads Express request headers. A hybrid app (e.g. catalog,
+    // which also serves gRPC) routes non-HTTP calls through here too — those
+    // transports establish tenant scope their own way, so skip rather than
+    // dereference an absent HTTP request.
+    if (context.getType() !== 'http') {
+      return next.handle();
+    }
+
     const request = context.switchToHttp().getRequest<Request>();
     const tenantId = firstHeaderValue(request.headers[TENANT_ID_HEADER]);
 

@@ -6,7 +6,7 @@ import { MenuItemMapper } from '@catalog/infrastructure/persistence/mappers/menu
 import { getTransactionalEntityManager } from '@catalog/infrastructure/persistence/transaction/transactional-entity-manager';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { Repository } from 'typeorm';
+import { In, type Repository } from 'typeorm';
 
 @Injectable()
 export class TypeOrmMenuItemRepository implements MenuItemRepository {
@@ -29,6 +29,15 @@ export class TypeOrmMenuItemRepository implements MenuItemRepository {
   async findById(id: string, restaurantId: string, tenantId: string): Promise<MenuItem | null> {
     const orm = await this.repository.findOne({ where: { id, restaurantId, tenantId } });
     return orm ? MenuItemMapper.toDomain(orm) : null;
+  }
+
+  async findManyByIds(ids: string[], tenantId: string): Promise<MenuItem[]> {
+    // `In([])` would generate `IN (NULL)` in some drivers — short-circuit instead.
+    if (ids.length === 0) {
+      return [];
+    }
+    const rows = await this.repository.find({ where: { id: In(ids), tenantId } });
+    return rows.map(MenuItemMapper.toDomain);
   }
 
   async findAndCountByRestaurant(

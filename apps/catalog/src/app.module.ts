@@ -2,6 +2,7 @@ import { CreateMenuItemHandler } from '@catalog/application/menu-item/commands/c
 import { DeleteMenuItemHandler } from '@catalog/application/menu-item/commands/delete-menu-item.handler';
 import { UpdateMenuItemHandler } from '@catalog/application/menu-item/commands/update-menu-item.handler';
 import { GetMenuItemHandler } from '@catalog/application/menu-item/queries/get-menu-item.handler';
+import { GetMenuItemsByIdsHandler } from '@catalog/application/menu-item/queries/get-menu-items-by-ids.handler';
 import { ListMenuItemsHandler } from '@catalog/application/menu-item/queries/list-menu-items.handler';
 import { CreateRestaurantHandler } from '@catalog/application/restaurant/commands/create-restaurant.handler';
 import { DeleteRestaurantHandler } from '@catalog/application/restaurant/commands/delete-restaurant.handler';
@@ -10,6 +11,8 @@ import { GetRestaurantHandler } from '@catalog/application/restaurant/queries/ge
 import { ListRestaurantsHandler } from '@catalog/application/restaurant/queries/list-restaurants.handler';
 import { AuditModule } from '@catalog/infrastructure/audit/audit.module';
 import { PersistenceModule } from '@catalog/infrastructure/persistence/persistence.module';
+import { CatalogGrpcController } from '@catalog/interface/grpc/catalog.grpc.controller';
+import { GrpcTenantContextInterceptor } from '@catalog/interface/grpc/grpc-tenant-context.interceptor';
 import { EntityNotFoundFilter } from '@catalog/interface/http/filters/entity-not-found.filter';
 import { MenuItemsController } from '@catalog/interface/http/menu-items.controller';
 import { RestaurantsController } from '@catalog/interface/http/restaurants.controller';
@@ -37,7 +40,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
     TenancyModule,
     AuditModule,
   ],
-  controllers: [RestaurantsController, MenuItemsController],
+  controllers: [RestaurantsController, MenuItemsController, CatalogGrpcController],
   providers: [
     // Restaurant use cases
     CreateRestaurantHandler,
@@ -51,6 +54,10 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
     DeleteMenuItemHandler,
     ListMenuItemsHandler,
     GetMenuItemHandler,
+    GetMenuItemsByIdsHandler,
+    // Establishes tenant scope for gRPC calls from their metadata (per-controller
+    // interceptor on the gRPC controller — not global, so HTTP is untouched).
+    GrpcTenantContextInterceptor,
     // RBAC on write routes: the guard reads the roles the gateway verified and
     // stamped, denying writes without `restaurant-owner`/`admin`. Runs before the
     // interceptor, so reads stay open to any authenticated tenant.

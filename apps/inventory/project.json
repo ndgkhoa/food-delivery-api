@@ -1,0 +1,39 @@
+{
+  "name": "inventory",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/inventory/src",
+  "projectType": "application",
+  "tags": ["scope:inventory", "type:app"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "webpack-cli build",
+        "env": { "NODE_ENV": "production" },
+        "cwd": "apps/inventory"
+      },
+      "configurations": {
+        "development": {
+          "env": { "NODE_ENV": "development" }
+        }
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "inventory:build",
+        "runBuildTargetDependencies": false
+      },
+      "configurations": {
+        "development": { "buildTarget": "inventory:build:development" },
+        "production": { "buildTarget": "inventory:build:production" }
+      }
+    },
+    "test": {
+      "options": { "passWithNoTests": true }
+    }
+  }
+}
