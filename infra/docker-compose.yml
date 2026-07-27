@@ -1,0 +1,47 @@
+# Bring up only what a slice needs (see architecture.md §6). This slice only
+# needs the `core` profile: Postgres for catalog + Redis reserved for later
+# caching work. Run with: docker compose -f infra/docker-compose.yml --profile core up -d
+# Explicit project name so this stack never collides with other local compose
+# projects (e.g. a shared `infra` stack) that default to their folder name.
+name: food-delivery
+
+services:
+  postgres:
+    image: postgres:18.4
+    container_name: food-delivery-postgres
+    profiles: [core]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-catalog}
+    ports:
+      - '${DB_PORT:-5432}:5432'
+    volumes:
+      # Postgres 18+ Docker images store data in a major-version subdirectory and
+      # expect the mount at /var/lib/postgresql (NOT /var/lib/postgresql/data).
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_NAME:-catalog}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8.8.0-alpine
+    container_name: food-delivery-redis
+    profiles: [core]
+    restart: unless-stopped
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:
+  redis-data:

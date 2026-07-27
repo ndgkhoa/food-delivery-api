@@ -48,3 +48,9 @@ Audit log · soft delete · multi-tenant · correlation ID · feature flags · O
 ## Guiding principles
 
 YAGNI / KISS / DRY. Simplest tech that teaches each concept. Latest stable library versions (see architecture.md tech table). Enterprise business logic and code quality throughout — this is a portfolio piece.
+
+## Deferred (tracked backlog)
+
+- **Global error envelope**: a shared `GlobalExceptionFilter` giving every response (400/401/403/404/500) one consistent JSON shape. Currently only `EntityNotFoundError → 404` is mapped. Do it when the gateway/auth work lands so all services + edge stay consistent — don't one-off individual codes.
+- **Optimistic locking** on updates (version column) to prevent lost updates + misleading audit on concurrent PATCH. Introduce in the `order` service work (where concurrency matters); apply back to catalog then.
+- Audit on cascade: a restaurant DELETE keeps a single audit entry covering its menu-item cascade (decided — not per-item).
