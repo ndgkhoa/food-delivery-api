@@ -2,42 +2,43 @@ import { CORRELATION_ID_HEADER } from '@food-delivery-api/shared-logging';
 import { applyTrustedIdentityHeaders } from '@food-delivery-api/shared-tenancy';
 import type { AuthenticatedRequest } from '@gateway/guards/authenticated-request';
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 
-/** Prefix the gateway exposes; the remainder is forwarded onto catalog's own `/api/v1`. */
-const GATEWAY_CATALOG_PREFIX = '/api/v1/catalog';
 const BODYLESS_METHODS = new Set(['GET', 'HEAD']);
 /** Hop-by-hop / content-negotiation headers that must not be copied verbatim onto the client response. */
 const SKIP_RESPONSE_HEADERS = new Set(['content-encoding', 'content-length', 'transfer-encoding']);
-/** Bound the upstream call so a slow/hung catalog can never hang the gateway (fail closed with 504). */
+/** Bound the upstream call so a slow/hung upstream can never hang the gateway (fail closed with 504). */
 const FORWARD_TIMEOUT_MS = 10_000;
 
+/** Where a proxy route relays to: the gateway-exposed prefix + the upstream base URL. */
+export interface ForwardTarget {
+  /** Prefix the gateway exposes (e.g. `/api/v1/catalog`); the remainder is forwarded onto the upstream's own `/api/v1`. */
+  gatewayPrefix: string;
+  /** Base URL of the upstream service (no trailing slash required — normalised here). */
+  baseUrl: string;
+}
+
 /**
- * Thin HTTP forwarder (native fetch) that relays a verified request to the
- * catalog service. Chosen over http-proxy-middleware because it runs AFTER the
- * NestJS guard (so identity is already verified) and lets us build the outbound
- * header set from scratch — the client's `Authorization` and any spoofed
- * identity headers are never copied; only the gateway-derived identity is sent.
+ * Thin HTTP forwarder (native fetch) that relays a verified request to a
+ * downstream service. Chosen over http-proxy-middleware because it runs AFTER
+ * the NestJS guard (so identity is already verified) and lets us build the
+ * outbound header set from scratch — the client's `Authorization` and any
+ * spoofed identity headers are never copied; only the gateway-derived identity
+ * is sent. Stateless: each proxy controller passes its own `ForwardTarget`.
  */
 @Injectable()
 export class HttpForwarder {
-  private readonly catalogBaseUrl: string;
-
-  constructor(config: ConfigService) {
-    this.catalogBaseUrl = config.getOrThrow<string>('CATALOG_SERVICE_URL').replace(/\/$/, '');
-  }
-
-  async forward(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async forward(req: AuthenticatedRequest, res: Response, target: ForwardTarget): Promise<void> {
     if (!req.identity) {
       // Guard guarantees this; defensive check keeps the type non-optional below.
       throw new Error('forward() called without a verified identity');
     }
 
+    const baseUrl = target.baseUrl.replace(/\/$/, '');
     const suffix = req.originalUrl.slice(
-      req.originalUrl.indexOf(GATEWAY_CATALOG_PREFIX) + GATEWAY_CATALOG_PREFIX.length,
+      req.originalUrl.indexOf(target.gatewayPrefix) + target.gatewayPrefix.length,
     );
-    const targetUrl = `${this.catalogBaseUrl}/api/v1${suffix}`;
+    const targetUrl = `${baseUrl}/api/v1${suffix}`;
 
     const headers: Record<string, string> = { 'content-type': 'application/json' };
     const correlationId = req.headers[CORRELATION_ID_HEADER];

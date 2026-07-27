@@ -5,29 +5,31 @@ import { All, Controller, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 
-const GATEWAY_CATALOG_PREFIX = '/api/v1/catalog';
+const GATEWAY_AUTH_PREFIX = '/api/v1/auth';
 
 /**
- * Reverse-proxy edge for the catalog bounded context. Every route under
- * `/api/v1/catalog/*` requires a valid token (JwtAuthGuard) and is relayed to
- * the catalog service with the verified identity attached as trusted headers.
+ * Reverse-proxy edge for the auth bounded context (tenant registry + user
+ * provisioning). Every route under `/api/v1/auth/*` requires a valid token
+ * (JwtAuthGuard) and is relayed to the auth service with the verified identity
+ * attached as trusted headers. Admin RBAC (`@Roles('admin')`) is enforced at
+ * the auth service itself — the gateway only proves the caller is authenticated.
  */
-@Controller('catalog')
+@Controller('auth')
 @UseGuards(JwtAuthGuard)
-export class CatalogProxyController {
+export class AuthProxyController {
   private readonly baseUrl: string;
 
   constructor(
     private readonly forwarder: HttpForwarder,
     config: ConfigService,
   ) {
-    this.baseUrl = config.getOrThrow<string>('CATALOG_SERVICE_URL');
+    this.baseUrl = config.getOrThrow<string>('AUTH_SERVICE_URL');
   }
 
   @All('*path')
   proxy(@Req() req: AuthenticatedRequest, @Res() res: Response): Promise<void> {
     return this.forwarder.forward(req, res, {
-      gatewayPrefix: GATEWAY_CATALOG_PREFIX,
+      gatewayPrefix: GATEWAY_AUTH_PREFIX,
       baseUrl: this.baseUrl,
     });
   }

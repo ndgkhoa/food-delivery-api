@@ -3,6 +3,7 @@ import { SharedConfigModule } from '@food-delivery-api/shared-config';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import { gatewayEnvSchema } from '@gateway/config/gateway-env-schema';
 import { JwtAuthGuard } from '@gateway/guards/jwt-auth.guard';
+import { AuthProxyController } from '@gateway/proxy/auth-proxy.controller';
 import { CatalogProxyController } from '@gateway/proxy/catalog-proxy.controller';
 import { HttpForwarder } from '@gateway/proxy/http-forwarder';
 import { Module } from '@nestjs/common';
@@ -33,7 +34,7 @@ import { ConfigService } from '@nestjs/config';
       },
     }),
   ],
-  controllers: [CatalogProxyController],
+  controllers: [CatalogProxyController, AuthProxyController],
   providers: [JwtAuthGuard, HttpForwarder],
 })
 export class AppModule {}

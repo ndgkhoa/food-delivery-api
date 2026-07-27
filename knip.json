@@ -2,6 +2,7 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignore": ["**/jest.config.{ts,cts}", "**/jest.preset.js", "**/webpack.config.js"],
   "paths": {
+    "@auth/*": ["apps/auth/src/*"],
     "@catalog/*": ["apps/catalog/src/*"],
     "@gateway/*": ["apps/gateway/src/*"],
     "@food-delivery-api/shared-auth": ["libs/shared/auth/src/index.ts"],
@@ -10,6 +11,7 @@
   },
   "entry": [
     "apps/*/src/main.ts",
+    "apps/auth/src/infrastructure/persistence/data-source.ts",
     "apps/catalog/src/infrastructure/persistence/data-source.ts",
     "apps/**/*.spec.ts",
     "apps/**/*.e2e-spec.ts",
