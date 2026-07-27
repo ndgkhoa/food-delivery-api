@@ -80,5 +80,14 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 - Store no passwords in app DB (Keycloak owns credentials). Secrets via env/compose secrets.
 - Row-level tenant isolation enforced centrally; add negative tests for cross-tenant access.
 
+## Security note — realm export is DEV-ONLY
+`infra/keycloak/realm-export.json` is a development/test artifact and is **not** safe to promote to any non-dev environment as-is. It intentionally ships:
+- `directAccessGrantsEnabled: true` (password grant, so integration/e2e can mint tokens);
+- `redirectUris: ["*"]` and `webOrigins: ["*"]` (wildcards);
+- `sslRequired: "none"` (allows token transit in clear);
+- a `food-delivery-shortlived` public client with a 2s access-token lifespan (used only by the e2e expired-token case).
+
+These are acceptable for the dev realm this phase adds, but wildcard redirects on a public PKCE client plus the password grant broaden the token-exfiltration / credential-stuffing surface. Any non-dev environment requires a **separate hardened realm** with explicit `redirectUris`/`webOrigins`, `directAccessGrantsEnabled: false`, `sslRequired: "external"`, and real confidential client secrets. Do not copy-promote the dev export.
+
 ## Next steps
 Unblocks P2 (order needs authenticated user + tenant for ownership). gRPC calls will propagate identity via metadata.
