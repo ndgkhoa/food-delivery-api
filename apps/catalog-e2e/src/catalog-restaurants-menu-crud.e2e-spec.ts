@@ -84,8 +84,10 @@ describe('Catalog REST API (e2e)', () => {
     expect(menuListRes.body.data[0].priceCents).toBe(8500);
   });
 
-  it('rejects requests missing the required x-tenant-id header', async () => {
-    await request(app.getHttpServer()).get('/api/v1/restaurants').expect(400);
+  it('rejects requests with no verified tenant identity (401)', async () => {
+    // No gateway-stamped identity header → the trusted-identity interceptor fails
+    // closed with 401 (unauthenticated), never trusting a client-supplied value.
+    await request(app.getHttpServer()).get('/api/v1/restaurants').expect(401);
   });
 
   it('rejects an invalid create payload', async () => {

@@ -10,13 +10,12 @@ import { GetRestaurantHandler } from '@catalog/application/restaurant/queries/ge
 import { ListRestaurantsHandler } from '@catalog/application/restaurant/queries/list-restaurants.handler';
 import { AuditModule } from '@catalog/infrastructure/audit/audit.module';
 import { PersistenceModule } from '@catalog/infrastructure/persistence/persistence.module';
-import { TenancyModule } from '@catalog/infrastructure/tenancy/tenancy.module';
-import { TenantContextInterceptor } from '@catalog/infrastructure/tenancy/tenant-context.interceptor';
 import { EntityNotFoundFilter } from '@catalog/interface/http/filters/entity-not-found.filter';
 import { MenuItemsController } from '@catalog/interface/http/menu-items.controller';
 import { RestaurantsController } from '@catalog/interface/http/restaurants.controller';
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
+import { TenancyModule, TrustedIdentityInterceptor } from '@food-delivery-api/shared-tenancy';
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 
@@ -48,8 +47,9 @@ import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
     DeleteMenuItemHandler,
     ListMenuItemsHandler,
     GetMenuItemHandler,
-    // Every route is tenant-scoped by default — see infrastructure/tenancy/tenant-context.interceptor.ts.
-    { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
+    // Every route is tenant-scoped by default — the tenant comes from the verified identity
+    // the gateway propagates (shared-tenancy), never from a raw client header.
+    { provide: APP_INTERCEPTOR, useClass: TrustedIdentityInterceptor },
     // Maps domain not-found errors to HTTP 404 so use cases stay transport-agnostic.
     { provide: APP_FILTER, useClass: EntityNotFoundFilter },
   ],

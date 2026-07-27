@@ -20,7 +20,11 @@
     "paths": {
       "@food-delivery-api/shared-config": ["libs/shared/config/src/index.ts"],
       "@food-delivery-api/shared-logging": ["libs/shared/logging/src/index.ts"],
-      "@catalog/*": ["apps/catalog/src/*"]
+      "@food-delivery-api/shared-auth": ["libs/shared/auth/src/index.ts"],
+      "@food-delivery-api/shared-auth/testing": ["libs/shared/auth/src/testing/test-jwks.ts"],
+      "@food-delivery-api/shared-tenancy": ["libs/shared/tenancy/src/index.ts"],
+      "@catalog/*": ["apps/catalog/src/*"],
+      "@gateway/*": ["apps/gateway/src/*"]
     }
   },
   "exclude": ["node_modules", "tmp"]

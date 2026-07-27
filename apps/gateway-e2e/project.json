@@ -1,0 +1,20 @@
+{
+  "name": "gateway-e2e",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "implicitDependencies": ["gateway", "catalog"],
+  "tags": ["scope:gateway", "type:e2e"],
+  "targets": {
+    "test": {
+      "executor": "nx:noop"
+    },
+    "e2e": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/apps/gateway-e2e"],
+      "options": {
+        "jestConfig": "apps/gateway-e2e/jest.config.cts",
+        "passWithNoTests": true
+      }
+    }
+  }
+}

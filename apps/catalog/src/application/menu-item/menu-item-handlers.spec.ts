@@ -13,11 +13,8 @@ import type { RestaurantRepository } from '@catalog/domain/restaurant/restaurant
 import type { AuditEntry, AuditPort } from '@catalog/domain/shared/audit.port';
 import { AuditAction } from '@catalog/domain/shared/audit-action';
 import type { PageResult, Pagination } from '@catalog/domain/shared/pagination';
-import type {
-  TenantContextPort,
-  TenantRequestContext,
-} from '@catalog/domain/shared/tenant-context.port';
 import type { TransactionPort } from '@catalog/domain/shared/transaction.port';
+import type { TenantContextPort, TenantRequestContext } from '@food-delivery-api/shared-tenancy';
 
 class FakeRestaurantRepository implements RestaurantRepository {
   private readonly rows = new Map<string, Restaurant>();

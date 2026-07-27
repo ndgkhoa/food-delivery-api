@@ -23,15 +23,24 @@ importers:
       '@nestjs/platform-express':
         specifier: ^11.1.28
         version: 11.1.28(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)
+      '@nestjs/swagger':
+        specifier: ^11.4.6
+        version: 11.4.6(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)
       '@nestjs/typeorm':
         specifier: ^11.0.3
         version: 11.0.3(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typeorm@1.1.0(babel-plugin-macros@3.1.0)(pg@8.22.0)(ts-node@10.9.2(@types/node@22.20.1)(typescript@5.9.3)))
+      '@scalar/nestjs-api-reference':
+        specifier: ^1.2.11
+        version: 1.2.11
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
       class-validator:
         specifier: ^0.15.1
         version: 0.15.1
+      jose:
+        specifier: ^5.10.0
+        version: 5.10.0
       nestjs-pino:
         specifier: ^4.6.1
         version: 4.6.1(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(pino-http@11.0.0)(pino@10.3.1)(rxjs@7.8.2)
@@ -158,7 +167,7 @@ importers:
         version: 5.109.0(postcss@8.5.23)(webpack-cli@7.2.1)
       webpack-cli:
         specifier: ^7.0.0
-        version: 7.2.1(js-yaml@4.3.0)(json5@2.2.3)(webpack-dev-server@5.2.6)(webpack@5.109.0)
+        version: 7.2.1(js-yaml@5.2.1)(json5@2.2.3)(webpack-dev-server@5.2.6)(webpack@5.109.0)
       webpack-dev-server:
         specifier: ^5.2.1
         version: 5.2.6(tslib@2.8.1)(webpack-cli@7.2.1)(webpack@5.109.0)
@@ -1524,6 +1533,9 @@ packages:
     resolution: {integrity: sha512-Z7C/xXCiGWsg0KuKsHTKJxbWhpI3Vs5GwLfOean7MGyVFGqdRgBbAjOCh6u4bbjPc/8MJ2pZmK/0DLdCbivLDA==}
     engines: {node: '>=8'}
 
+  '@microsoft/tsdoc@0.16.0':
+    resolution: {integrity: sha512-xgAyonlVVS+q7Vc7qLW0UrJU7rSFcETRWsqdXZtjzRU8dF+6CkozTK4V4y1LwOX7j8r/vHphjDeMeGI4tNGeGA==}
+
   '@napi-rs/wasm-runtime@0.2.4':
     resolution: {integrity: sha512-9zESzOO5aDByvhIAsOy9TbpZ0Ur2AJbUI7UT73kcUTS2mxAMHOBaa1st/jAymNoCtvrit99kkzT1FZuXVcgfIQ==}
 
@@ -1596,6 +1608,23 @@ packages:
       typescript: '>=4.8.2'
     peerDependenciesMeta:
       prettier:
+        optional: true
+
+  '@nestjs/swagger@11.4.6':
+    resolution: {integrity: sha512-Le136h2WC7HGsd70+WyK1qrm+Zq7kFxBLkYC1JgAVqNRCt8kNh7bMF7Qkn65D5j2t/aks0+VbWmUVlYIwPrs3A==}
+    peerDependencies:
+      '@fastify/static': ^8.0.0 || ^9.0.0 || ^10.0.0
+      '@nestjs/common': ^11.0.1
+      '@nestjs/core': ^11.0.1
+      class-transformer: '*'
+      class-validator: '*'
+      reflect-metadata: ^0.1.12 || ^0.2.0
+    peerDependenciesMeta:
+      '@fastify/static':
+        optional: true
+      class-transformer:
+        optional: true
+      class-validator:
         optional: true
 
   '@nestjs/testing@11.1.28':
@@ -2192,6 +2221,33 @@ packages:
 
   '@protobufjs/utf8@1.1.2':
     resolution: {integrity: sha512-b1UQwcEZ4yCnMCD8DAL1VlbvBJE9/IX4FTIp7BG1xYpf29SLazLSrqUkj4w7Y5y7cCVP6E5tcqqcI0xemPkHug==}
+
+  '@scalar/client-side-rendering@0.3.4':
+    resolution: {integrity: sha512-kb3B+FGjvAUr2DU0fe9dVKBLwot1TjOO+iHCTmY8r8FUJySmYKGQYCicRzzilOyTjvKspiZBCEr03PWaWW+1gw==}
+    engines: {node: '>=22'}
+
+  '@scalar/helpers@0.9.2':
+    resolution: {integrity: sha512-hjyMpMZjTBZQhyByZmz5oUgRKUQJO5V5AOiJxsVEGbUmgA7sJRQeTrXLB+BEwzaKS5nm2opJeNyMBYLFNK4hiQ==}
+    engines: {node: '>=22'}
+
+  '@scalar/nestjs-api-reference@1.2.11':
+    resolution: {integrity: sha512-miUmMGI3ZmcfiMi8Bd2KpNXwvvQtnZuyK25NUQCYQrq8UINtbWARLMdsvRx2hUSboZ1DdqZXvwtHV0FUwhEInQ==}
+    engines: {node: '>=22'}
+
+  '@scalar/schemas@0.7.4':
+    resolution: {integrity: sha512-Or31zxR+ceGGhkVU5XBO2Zv7oyGDtjsJOjM2Rr0WRZ1/tRsQc2/FsVv+9kPmCA7sqFL8BKWlNfTXcPITI7WRHw==}
+    engines: {node: '>=22'}
+
+  '@scalar/types@0.16.4':
+    resolution: {integrity: sha512-fLf0ANAC3iQq0sIVdmH6aGM+pFSLyD8GfGBxSWcLpI0jE0iFAzX2A3p0qVZm7vqBT4TQnn0fSwg5U+h+FZ52BA==}
+    engines: {node: '>=22'}
+
+  '@scalar/validation@0.6.2':
+    resolution: {integrity: sha512-Sc1TkcwGV6aVCO51AyKeaGiP8gpwAHxEtO5d3tZzPV+KsnlC/YokQxFxwBrbIXw73k9hmcExnJyGu3k5i6n6VA==}
+    engines: {node: '>=20'}
+
+  '@scarf/scarf@1.4.0':
+    resolution: {integrity: sha512-xxeapPiUXdZAE3che6f3xogoJPeZgig6omHEy1rIY5WVsB3H2BHNnZH+gHG6x91SCWyQCzWGsuL2Hh3ClO5/qQ==}
 
   '@simple-libs/child-process-utils@2.0.0':
     resolution: {integrity: sha512-dvNoRKLijXnD0XoJAz94pbNuB5GQgDr55UhpSPhffDkTT0Cmcqh9jSCOtwfT2d4H6MI9E7c4SgtMuJXZ6F3c6A==}
@@ -4529,6 +4585,9 @@ packages:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
 
+  jose@5.10.0:
+    resolution: {integrity: sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg==}
+
   joycon@3.1.1:
     resolution: {integrity: sha512-34wB/Y7MW7bzjKRjUKTa46I2Z7eV62Rkhva+KkopW7Qvv/OSWBqvkSY7vusOPrNuZcUG3tApvdVgNB8POj3SPw==}
     engines: {node: '>=10'}
@@ -4542,6 +4601,10 @@ packages:
 
   js-yaml@4.3.0:
     resolution: {integrity: sha512-1td788aAnnZ5qs7V2QIRl1owjtYpbKt749Y3xauqQgwIIGF/xXWz1wMTEBx5O3LK3lXLVuqXPdPxj2BoFHaW9Q==}
+    hasBin: true
+
+  js-yaml@5.2.1:
+    resolution: {integrity: sha512-zfLtNfQqxVqq3uaTqSkh4x4hZw3KHobGUA0fJUj4wawW8bsQLTVqpHdXSIzidh7o+4lEW36tANuAGdaFx6Zgnw==}
     hasBin: true
 
   jsesc@3.1.0:
@@ -4949,6 +5012,11 @@ packages:
   nanoid@3.3.16:
     resolution: {integrity: sha512-bzlKTyNJ7+LdGIIwy8ijFpIqEQIvafahV7eYykJ8Cvh42EdJeODoJ6gUJXpQJvej1BddH8OqTXZNE/KfbWAu8Q==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
+    hasBin: true
+
+  nanoid@5.1.16:
+    resolution: {integrity: sha512-kVrnsrJqMR8+oLJnGEmSWw9BivK5mt7H3FZatVRjrc5wGqFYuBxX1yG7+A7Gi5AefkX6t/oCkizcQgpu0cY1dQ==}
+    engines: {node: ^18 || >=20}
     hasBin: true
 
   napi-postinstall@0.3.4:
@@ -6188,6 +6256,9 @@ packages:
     engines: {node: '>=16'}
     hasBin: true
 
+  swagger-ui-dist@5.32.8:
+    resolution: {integrity: sha512-dgMdWXIgnI4zX4OPhKEdWnlDODbgm8W3AX0Ivn/BBqcUh6xZsBxhZMnvk6DJyRz1BTrj8dPxtarmEGgkz30oyA==}
+
   sync-child-process@1.0.2:
     resolution: {integrity: sha512-8lD+t2KrrScJ/7KXCSyfhT3/hRq78rC0wBFqNJXv3mZyn6hW2ypM05JmlSvtqRbeq6jqA94oHbxAr2vYsJ8vDA==}
     engines: {node: '>=16.0.0'}
@@ -6199,6 +6270,10 @@ packages:
   synckit@0.11.13:
     resolution: {integrity: sha512-eNRKgb3z66Yp3D2CixVujOUvXLFUTij/zVnV8KRyvFdQwpz7I5DS8UfRkTeLzb64u+dkzDSdelE24izu+zSSUg==}
     engines: {node: ^14.18.0 || >=16.0.0}
+
+  tagged-tag@1.0.0:
+    resolution: {integrity: sha512-yEFYrVhod+hdNyx7g5Bnkkb0G6si8HJurOoOEgC8B/O0uXLHlaey/65KRv6cuWBNhBgHKAROVpc7QyYqE5gFng==}
+    engines: {node: '>=20'}
 
   tapable@2.3.3:
     resolution: {integrity: sha512-uxc/zpqFg6x7C8vOE7lh6Lbda8eEL9zmVm/PLeTPBRhh1xCgdWaQ+J1CUieGpIfm2HdtsUpRv+HshiasBMcc6A==}
@@ -6420,6 +6495,10 @@ packages:
   type-fest@4.41.0:
     resolution: {integrity: sha512-TeTSQ6H5YHvpqVwBRcnLDCBnDOHWYu7IvGbHT6N8AOymcr9PJGjc1GTtiWZTYg0NCgYwvnYWEkVChQAr9bjfwA==}
     engines: {node: '>=16'}
+
+  type-fest@5.8.0:
+    resolution: {integrity: sha512-YGYEVz3Fm5iy/AybuA0oyNFq7H4CgQNfRp/qfe8nurE1kuCeNm3/vfm9X4Mtl+qLyaKJUh5xrFZwogr41SMjYA==}
+    engines: {node: '>=20'}
 
   type-is@1.6.18:
     resolution: {integrity: sha512-TkRKr9sUTxEH8MdfuCSP7VizJyzRNMjj2J2do2Jr3Kym598JVdEksuzPQCnlFPW4ky9Q+iA+ma9BGm06XQBy8g==}
@@ -8498,6 +8577,8 @@ snapshots:
 
   '@lukeed/csprng@1.1.0': {}
 
+  '@microsoft/tsdoc@0.16.0': {}
+
   '@napi-rs/wasm-runtime@0.2.4':
     dependencies:
       '@emnapi/core': 1.4.5
@@ -8584,6 +8665,21 @@ snapshots:
       typescript: 5.9.3
     transitivePeerDependencies:
       - chokidar
+
+  '@nestjs/swagger@11.4.6(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)':
+    dependencies:
+      '@microsoft/tsdoc': 0.16.0
+      '@nestjs/common': 11.1.28(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 11.1.28(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.28)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/mapped-types': 2.1.1(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)
+      js-yaml: 5.2.1
+      lodash: 4.18.1
+      path-to-regexp: 8.4.2
+      reflect-metadata: 0.2.2
+      swagger-ui-dist: 5.32.8
+    optionalDependencies:
+      class-transformer: 0.5.1
+      class-validator: 0.15.1
 
   '@nestjs/testing@11.1.28(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)(@nestjs/platform-express@11.1.28)':
     dependencies:
@@ -8877,7 +8973,7 @@ snapshots:
       webpack-subresource-integrity: 5.1.0(webpack@5.109.0)
     optionalDependencies:
       webpack: 5.109.0(postcss@8.5.23)(webpack-cli@7.2.1)
-      webpack-cli: 7.2.1(js-yaml@4.3.0)(json5@2.2.3)(webpack-dev-server@5.2.6)(webpack@5.109.0)
+      webpack-cli: 7.2.1(js-yaml@5.2.1)(json5@2.2.3)(webpack-dev-server@5.2.6)(webpack@5.109.0)
       webpack-dev-server: 5.2.6(tslib@2.8.1)(webpack-cli@7.2.1)(webpack@5.109.0)
     transitivePeerDependencies:
       - '@babel/traverse'
@@ -9232,6 +9328,34 @@ snapshots:
   '@protobufjs/pool@1.1.0': {}
 
   '@protobufjs/utf8@1.1.2': {}
+
+  '@scalar/client-side-rendering@0.3.4':
+    dependencies:
+      '@scalar/schemas': 0.7.4
+      '@scalar/types': 0.16.4
+      '@scalar/validation': 0.6.2
+
+  '@scalar/helpers@0.9.2': {}
+
+  '@scalar/nestjs-api-reference@1.2.11':
+    dependencies:
+      '@scalar/client-side-rendering': 0.3.4
+
+  '@scalar/schemas@0.7.4':
+    dependencies:
+      '@scalar/helpers': 0.9.2
+      '@scalar/validation': 0.6.2
+
+  '@scalar/types@0.16.4':
+    dependencies:
+      '@scalar/helpers': 0.9.2
+      nanoid: 5.1.16
+      type-fest: 5.8.0
+      zod: 4.4.3
+
+  '@scalar/validation@0.6.2': {}
+
+  '@scarf/scarf@1.4.0': {}
 
   '@simple-libs/child-process-utils@2.0.0':
     dependencies:
@@ -12103,6 +12227,8 @@ snapshots:
 
   jiti@2.7.0: {}
 
+  jose@5.10.0: {}
+
   joycon@3.1.1: {}
 
   js-tokens@4.0.0: {}
@@ -12113,6 +12239,10 @@ snapshots:
       esprima: 4.0.1
 
   js-yaml@4.3.0:
+    dependencies:
+      argparse: 2.0.1
+
+  js-yaml@5.2.1:
     dependencies:
       argparse: 2.0.1
 
@@ -12448,6 +12578,8 @@ snapshots:
     optional: true
 
   nanoid@3.3.16: {}
+
+  nanoid@5.1.16: {}
 
   napi-postinstall@0.3.4: {}
 
@@ -13856,6 +13988,10 @@ snapshots:
       picocolors: 1.1.1
       sax: 1.6.1
 
+  swagger-ui-dist@5.32.8:
+    dependencies:
+      '@scarf/scarf': 1.4.0
+
   sync-child-process@1.0.2:
     dependencies:
       sync-message-port: 1.2.0
@@ -13865,6 +14001,8 @@ snapshots:
   synckit@0.11.13:
     dependencies:
       '@pkgr/core': 0.3.6
+
+  tagged-tag@1.0.0: {}
 
   tapable@2.3.3: {}
 
@@ -14097,6 +14235,10 @@ snapshots:
 
   type-fest@4.41.0: {}
 
+  type-fest@5.8.0:
+    dependencies:
+      tagged-tag: 1.0.0
+
   type-is@1.6.18:
     dependencies:
       media-typer: 0.3.0
@@ -14251,7 +14393,7 @@ snapshots:
     dependencies:
       defaults: 1.0.4
 
-  webpack-cli@7.2.1(js-yaml@4.3.0)(json5@2.2.3)(webpack-dev-server@5.2.6)(webpack@5.109.0):
+  webpack-cli@7.2.1(js-yaml@5.2.1)(json5@2.2.3)(webpack-dev-server@5.2.6)(webpack@5.109.0):
     dependencies:
       '@discoveryjs/json-ext': 1.1.0
       commander: 14.0.3
@@ -14263,7 +14405,7 @@ snapshots:
       webpack: 5.109.0(postcss@8.5.23)(webpack-cli@7.2.1)
       webpack-merge: 6.0.1
     optionalDependencies:
-      js-yaml: 4.3.0
+      js-yaml: 5.2.1
       json5: 2.2.3
       webpack-dev-server: 5.2.6(tslib@2.8.1)(webpack-cli@7.2.1)(webpack@5.109.0)
 
@@ -14312,7 +14454,7 @@ snapshots:
       ws: 8.21.1
     optionalDependencies:
       webpack: 5.109.0(postcss@8.5.23)(webpack-cli@7.2.1)
-      webpack-cli: 7.2.1(js-yaml@4.3.0)(json5@2.2.3)(webpack-dev-server@5.2.6)(webpack@5.109.0)
+      webpack-cli: 7.2.1(js-yaml@5.2.1)(json5@2.2.3)(webpack-dev-server@5.2.6)(webpack@5.109.0)
     transitivePeerDependencies:
       - bufferutil
       - debug
@@ -14358,7 +14500,7 @@ snapshots:
       watchpack: 2.5.2
       webpack-sources: 3.5.1
     optionalDependencies:
-      webpack-cli: 7.2.1(js-yaml@4.3.0)(json5@2.2.3)(webpack-dev-server@5.2.6)(webpack@5.109.0)
+      webpack-cli: 7.2.1(js-yaml@5.2.1)(json5@2.2.3)(webpack-dev-server@5.2.6)(webpack@5.109.0)
     transitivePeerDependencies:
       - '@minify-html/node'
       - '@swc/core'

@@ -1,4 +1,4 @@
-import { AlsTenantContextAdapter } from '@catalog/infrastructure/tenancy/als-tenant-context.adapter';
+import { AlsTenantContextAdapter } from './als-tenant-context.adapter';
 
 describe('AlsTenantContextAdapter', () => {
   let adapter: AlsTenantContextAdapter;
