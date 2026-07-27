@@ -3,5 +3,5 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/shared/tenancy/src",
   "projectType": "library",
-  "tags": ["scope:shared", "type:tenancy"]
+  "tags": ["scope:shared", "type:util"]
 }
