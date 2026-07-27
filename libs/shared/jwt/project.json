@@ -1,7 +1,7 @@
 {
-  "name": "shared-tenancy",
+  "name": "shared-jwt",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libs/shared/tenancy/src",
+  "sourceRoot": "libs/shared/jwt/src",
   "projectType": "library",
   "tags": ["scope:shared", "type:util"]
 }

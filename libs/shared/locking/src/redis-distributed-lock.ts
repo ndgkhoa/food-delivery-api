@@ -1,7 +1,7 @@
 import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
 import type Redis from 'ioredis';
 import type { DistributedLock } from './distributed-lock';
-import { LockContentionError } from './lock-contention.error';
+import { LockContentionError } from './errors';
 
 /**
  * Compare-and-delete release: only free the key if its value still equals the

@@ -1,10 +1,10 @@
 module.exports = {
-  displayName: 'shared-auth',
+  displayName: 'shared-jwt',
   preset: '../../../jest.preset.js',
   testEnvironment: 'node',
   transform: {
     '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },
   moduleFileExtensions: ['ts', 'js'],
-  coverageDirectory: '../../../coverage/libs/shared/auth',
+  coverageDirectory: '../../../coverage/libs/shared/jwt',
 };

@@ -1,4 +1,4 @@
-import { AccessTokenVerifier } from '@food-delivery-api/shared-auth';
+import { AccessTokenVerifier } from '@food-delivery-api/shared-jwt';
 import type { AuthenticatedRequest } from '@gateway/guards/authenticated-request';
 import { IS_PUBLIC_KEY } from '@gateway/guards/public.decorator';
 import {

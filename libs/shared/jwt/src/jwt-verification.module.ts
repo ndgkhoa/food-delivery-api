@@ -1,12 +1,12 @@
 import { type DynamicModule, type FactoryProvider, Module } from '@nestjs/common';
 import { AccessTokenVerifier } from './access-token-verifier';
-import { AUTH_VERIFICATION_OPTIONS, JWKS_KEY_RESOLVER } from './auth.constants';
-import type { AuthVerificationOptions } from './auth-options';
 import { createRemoteJwksResolver } from './jwks-resolver';
+import { JWKS_KEY_RESOLVER, JWT_VERIFICATION_OPTIONS } from './jwt-verification.constants';
+import type { JwtVerificationOptions } from './jwt-verification-options';
 
 interface AuthAsyncOptions {
   inject?: FactoryProvider['inject'];
-  useFactory: (...args: never[]) => AuthVerificationOptions | Promise<AuthVerificationOptions>;
+  useFactory: (...args: never[]) => JwtVerificationOptions | Promise<JwtVerificationOptions>;
 }
 
 /**
@@ -15,7 +15,7 @@ interface AuthAsyncOptions {
  * `ConfigService`. Tests override `JWKS_KEY_RESOLVER` with a local JWK set.
  */
 @Module({})
-export class SharedAuthModule {
+export class JwtVerificationModule {
   /**
    * The JWKS resolver is a separate provider (bound to the remote set from the
    * resolved options) so tests can `overrideProvider(JWKS_KEY_RESOLVER)` with a
@@ -25,36 +25,36 @@ export class SharedAuthModule {
     return [
       {
         provide: JWKS_KEY_RESOLVER,
-        useFactory: (options: AuthVerificationOptions) => createRemoteJwksResolver(options.jwksUri),
-        inject: [AUTH_VERIFICATION_OPTIONS],
+        useFactory: (options: JwtVerificationOptions) => createRemoteJwksResolver(options.jwksUri),
+        inject: [JWT_VERIFICATION_OPTIONS],
       },
       AccessTokenVerifier,
     ];
   }
 
-  static forRoot(options: AuthVerificationOptions): DynamicModule {
+  static forRoot(options: JwtVerificationOptions): DynamicModule {
     return {
-      module: SharedAuthModule,
+      module: JwtVerificationModule,
       providers: [
-        { provide: AUTH_VERIFICATION_OPTIONS, useValue: options },
-        ...SharedAuthModule.resolverProviders(),
+        { provide: JWT_VERIFICATION_OPTIONS, useValue: options },
+        ...JwtVerificationModule.resolverProviders(),
       ],
-      exports: [AccessTokenVerifier, AUTH_VERIFICATION_OPTIONS, JWKS_KEY_RESOLVER],
+      exports: [AccessTokenVerifier, JWT_VERIFICATION_OPTIONS, JWKS_KEY_RESOLVER],
     };
   }
 
   static forRootAsync(asyncOptions: AuthAsyncOptions): DynamicModule {
     return {
-      module: SharedAuthModule,
+      module: JwtVerificationModule,
       providers: [
         {
-          provide: AUTH_VERIFICATION_OPTIONS,
+          provide: JWT_VERIFICATION_OPTIONS,
           useFactory: asyncOptions.useFactory,
           inject: asyncOptions.inject ?? [],
         },
-        ...SharedAuthModule.resolverProviders(),
+        ...JwtVerificationModule.resolverProviders(),
       ],
-      exports: [AccessTokenVerifier, AUTH_VERIFICATION_OPTIONS, JWKS_KEY_RESOLVER],
+      exports: [AccessTokenVerifier, JWT_VERIFICATION_OPTIONS, JWKS_KEY_RESOLVER],
     };
   }
 }

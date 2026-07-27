@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { type JWTPayload, jwtVerify } from 'jose';
-import { AUTH_VERIFICATION_OPTIONS, JWKS_KEY_RESOLVER } from './auth.constants';
-import type { AuthVerificationOptions } from './auth-options';
 import { extractIdentity, type VerifiedIdentity } from './identity';
 import type { JwksKeyResolver } from './jwks-resolver';
+import { JWKS_KEY_RESOLVER, JWT_VERIFICATION_OPTIONS } from './jwt-verification.constants';
+import type { JwtVerificationOptions } from './jwt-verification-options';
 
 export interface VerifyAccessTokenDeps {
   keyResolver: JwksKeyResolver;
@@ -41,7 +41,7 @@ export async function verifyAccessToken(
 export class AccessTokenVerifier {
   constructor(
     @Inject(JWKS_KEY_RESOLVER) private readonly keyResolver: JwksKeyResolver,
-    @Inject(AUTH_VERIFICATION_OPTIONS) private readonly options: AuthVerificationOptions,
+    @Inject(JWT_VERIFICATION_OPTIONS) private readonly options: JwtVerificationOptions,
   ) {}
 
   async verify(token: string): Promise<VerifiedIdentity> {
