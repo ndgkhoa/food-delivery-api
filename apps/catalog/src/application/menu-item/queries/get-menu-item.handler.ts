@@ -4,10 +4,7 @@ import {
   type MenuItemRepository,
 } from '@catalog/domain/menu-item/menu-item.repository';
 import { EntityNotFoundError } from '@catalog/domain/shared/errors';
-import {
-  TENANT_CONTEXT_PORT,
-  type TenantContextPort,
-} from '@catalog/domain/shared/tenant-context.port';
+import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable } from '@nestjs/common';
 
 @Injectable()

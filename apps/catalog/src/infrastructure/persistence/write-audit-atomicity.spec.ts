@@ -1,9 +1,5 @@
 import { CreateRestaurantHandler } from '@catalog/application/restaurant/commands/create-restaurant.handler';
 import type { AuditEntry, AuditPort } from '@catalog/domain/shared/audit.port';
-import type {
-  TenantContextPort,
-  TenantRequestContext,
-} from '@catalog/domain/shared/tenant-context.port';
 import { RestaurantOrmEntity } from '@catalog/infrastructure/persistence/entities/restaurant.orm-entity';
 import { TypeOrmRestaurantRepository } from '@catalog/infrastructure/persistence/repositories/typeorm-restaurant.repository';
 import { TypeOrmTransactionAdapter } from '@catalog/infrastructure/persistence/transaction/typeorm-transaction.adapter';
@@ -13,6 +9,7 @@ import {
   stopCatalogTestDatabase,
   truncateCatalogTables,
 } from '@catalog/testing/catalog-test-database';
+import type { TenantContextPort, TenantRequestContext } from '@food-delivery-api/shared-tenancy';
 
 /**
  * Integration test for the write+audit atomicity guarantee (real Postgres via

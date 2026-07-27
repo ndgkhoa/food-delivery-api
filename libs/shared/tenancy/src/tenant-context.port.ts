@@ -1,6 +1,7 @@
 export interface TenantRequestContext {
+  /** Tenant scope for the request — sourced from the verified `tenant_id` token claim. */
   tenantId: string;
-  /** DEV-ONLY: identity of the caller, sourced from `x-actor-id`; replaced by the JWT subject once auth ships. */
+  /** Identity of the caller — the verified token subject (`sub`); `system`/`anonymous` outside a request. */
   actor: string;
 }
 
@@ -9,6 +10,9 @@ export interface TenantRequestContext {
  * chain, so use cases and adapters deep in the stack (e.g. the audit
  * adapter) can enforce tenant scoping without every method signature
  * threading a `tenantId` parameter through.
+ *
+ * Framework-agnostic on purpose (no `@nestjs/*` imports) so it can back a
+ * service's domain/application layers without coupling them to a framework.
  */
 export interface TenantContextPort {
   run<T>(context: TenantRequestContext, callback: () => T): T;

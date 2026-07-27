@@ -1,10 +1,7 @@
 import type { AuditEntry, AuditPort } from '@catalog/domain/shared/audit.port';
-import {
-  TENANT_CONTEXT_PORT,
-  type TenantContextPort,
-} from '@catalog/domain/shared/tenant-context.port';
 import { AuditLogOrmEntity } from '@catalog/infrastructure/persistence/entities/audit-log.orm-entity';
 import { getTransactionalEntityManager } from '@catalog/infrastructure/persistence/transaction/transactional-entity-manager';
+import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';

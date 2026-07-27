@@ -7,11 +7,8 @@ import {
 } from '@catalog/domain/menu-item/menu-item.repository';
 import { AUDIT_PORT, type AuditPort } from '@catalog/domain/shared/audit.port';
 import { AuditAction } from '@catalog/domain/shared/audit-action';
-import {
-  TENANT_CONTEXT_PORT,
-  type TenantContextPort,
-} from '@catalog/domain/shared/tenant-context.port';
 import { TRANSACTION_PORT, type TransactionPort } from '@catalog/domain/shared/transaction.port';
+import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable } from '@nestjs/common';
 
 export interface CreateMenuItemCommand {

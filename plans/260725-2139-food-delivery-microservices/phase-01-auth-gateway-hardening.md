@@ -4,8 +4,12 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 
 ## Overview
 - **Priority**: P0 (security foundation for all writes)
-- **Status**: Not started
+- **Status**: 🔨 In progress (started after PR #1 merged catalog). Also absorbs the gateway/Nginx/OpenAPI-Scalar items deferred from P0.
 - **Brief**: Introduce Keycloak as IdP. Gateway verifies JWT, enforces RBAC, versioning, rate limiting, validation. Refresh tokens + sessions. Multi-tenant now sourced from token claims. Catalog writes become auth-guarded.
+- **Slicing** (too big for one PR):
+  - **Slice A — identity edge** ✅ (PR #2, open): gateway app + Nginx L7 (from P0), `shared/auth` (JWKS + JWT verify + claim extractor), `JwtAuthGuard` + URI versioning + ValidationPipe + reverse-proxy, `shared/tenancy` reads `tenant_id` from verified token (drop P0 header-trust), OpenAPI + Scalar (from P0). Verify tested with signed test JWTs — **no Keycloak yet**. → verified-identity requests reach catalog.
+  - **Slice B — Keycloak + authz & sessions**: Keycloak realm/clients/roles + real login (Authorization Code + PKCE) + `auth` compose profile, `auth` service (tenant registry + provisioning), `RolesGuard` RBAC on catalog writes, Redis rate limiting, refresh-token rotation + logout/session revoke, authz-matrix e2e.
+  - Decision (locked): single Keycloak realm + `tenant_id` claim (NOT realm-per-tenant).
 
 ## Key insights
 - Keycloak does the heavy lifting (OIDC/OAuth2, refresh, session, user store) — don't hand-roll auth. The `auth` service is a thin adapter + tenant registry, not a token issuer.
@@ -39,13 +43,20 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 7. E2E: login → get token → create restaurant (allowed) vs customer token (403); refresh rotation; rate-limit trips.
 
 ## Todo
-- [ ] Keycloak realm + clients + roles imported
-- [ ] JWKS verify + claim extraction lib
-- [ ] Gateway JWT + RBAC + versioning + validation + rate limit
-- [ ] auth service tenant registry + provisioning
-- [ ] tenancy sources tenant_id from token (header-trust removed)
-- [ ] catalog writes RBAC-guarded
-- [ ] E2E: authz matrix + refresh + rate limit pass
+**Slice A — identity edge (PR #2, open):**  *(Keycloak split out to Slice B — verify tested with signed test JWTs)*
+- [x] Gateway app scaffolded (edge app) + Nginx L7 in `core` compose  *(moved from P0)*
+- [x] `shared/auth`: JWKS fetch/cache + JWT verify (issuer/audience/exp) + claim extractor (jose)
+- [x] Gateway `JwtAuthGuard` + URI versioning + global ValidationPipe + reverse-proxy → catalog
+- [x] `shared/tenancy` sources `tenant_id` from verified token (P0 header-trust removed; spoofed header ignored — tested)
+- [x] OpenAPI spec + Scalar UI served (catalog `/api/v1/reference`)  *(moved from P0)*
+
+**Slice B — authz & sessions:**
+- [ ] Keycloak realm + clients (public SPA + confidential gateway) + roles imported; `auth` compose profile + real login (PKCE)
+- [ ] `auth` service: tenant registry (Postgres) + user↔tenant map + provisioning admin API
+- [ ] Gateway `RolesGuard` (RBAC) on catalog writes; reads public/customer-scoped
+- [ ] Redis-backed per-identity rate limiter (429 on trip)
+- [ ] Refresh-token rotation + logout/session revoke
+- [ ] E2E: authz matrix (401/403/200) + refresh rotation + rate limit
 
 ## Success criteria
 - Unauthed write → 401; wrong role → 403; valid owner → 200, all audit-logged with `sub`+`tenant_id`.

@@ -4,7 +4,7 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 
 ## Overview
 - **Priority**: P0 (blocks everything)
-- **Status**: Not started
+- **Status**: ✅ Done — catalog + foundation delivered in PR #1 (Clean/Hexagonal). Gateway / Nginx / OpenAPI-Scalar deferred to P1 (they belong with the gateway).
 - **Brief**: Stand up the Nx monorepo, shared libs, `core` docker-compose profile, OpenAPI contract pipeline, and the first real E2E slice: catalog CRUD behind a minimal gateway. No auth, no events yet.
 
 ## Key insights
@@ -40,14 +40,14 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 7. Seed script: a few restaurants/menus. Smoke E2E test: list restaurants through Nginx→gateway→catalog.
 
 ## Todo
-- [ ] Nx workspace (pnpm) + dev tooling: Biome, dependency-cruiser boundaries, Lefthook, Commitlint (scope required), Knip, PR template
-- [ ] gateway + catalog apps scaffolded
-- [ ] 7 shared libs created and imported
-- [ ] config + logging + correlation ID working
-- [ ] catalog CRUD + soft delete + audit log + tenant column
-- [ ] OpenAPI spec → generated client used by gateway
-- [ ] Nginx + `core` compose profile up
-- [ ] E2E: list restaurants/menu passes
+- [x] Nx workspace (pnpm) + dev tooling: Biome, dependency-cruiser boundaries (+hexagonal layer rules), Lefthook, Commitlint (scope required), Knip, PR template
+- [x] catalog app scaffolded — Clean/Hexagonal (domain/application/infrastructure/interface); gateway app → P1
+- [x] shared libs: config (zod env) + logging (pino + correlation ID) created (others added as-needed, not all 7 upfront)
+- [x] config + logging + correlation ID working
+- [x] catalog CRUD + soft delete + audit log + tenant scoping (+ atomic write+audit tx, cascade soft-delete, `@catalog/*` aliases, tsx migrations)
+- [ ] OpenAPI spec + Scalar UI → **moved to P1** (arrives with the gateway)
+- [x] `core` compose profile up (Postgres 18 + Redis) — Nginx → P1
+- [x] E2E: catalog CRUD via supertest (through Nginx→gateway → P1)
 
 ## Success criteria
 - `docker compose --profile core up` runs on 16GB; `curl https://localhost/api/v1/catalog/restaurants` returns seeded data.

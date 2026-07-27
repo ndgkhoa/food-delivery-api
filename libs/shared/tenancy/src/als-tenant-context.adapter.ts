@@ -1,20 +1,19 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type {
-  TenantContextPort,
-  TenantRequestContext,
-} from '@catalog/domain/shared/tenant-context.port';
 import { Injectable } from '@nestjs/common';
+import type { TenantContextPort, TenantRequestContext } from './tenant-context.port';
 
 const storage = new AsyncLocalStorage<TenantRequestContext>();
 
 class TenantContextNotSetError extends Error {
   constructor() {
-    super('Tenant context is not set — ensure TenantContextInterceptor runs before this code path');
+    super(
+      'Tenant context is not set — ensure the trusted-identity interceptor runs before this code path',
+    );
     this.name = 'TenantContextNotSetError';
   }
 }
 
-/** Async-local-storage adapter for `TenantContextPort` — set once per request by `TenantContextInterceptor`. */
+/** Async-local-storage adapter for `TenantContextPort` — set once per request by the trusted-identity interceptor. */
 @Injectable()
 export class AlsTenantContextAdapter implements TenantContextPort {
   run<T>(context: TenantRequestContext, callback: () => T): T {

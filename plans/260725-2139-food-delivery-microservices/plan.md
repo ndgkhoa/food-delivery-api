@@ -19,8 +19,8 @@ See [architecture.md](./architecture.md) for the layering diagram, 13-service ma
 
 | # | Phase | E2E slice delivered | Status |
 |---|-------|---------------------|--------|
-| 0 | [Foundation — monorepo, catalog, minimal gateway](./phase-00-foundation-monorepo-catalog.md) | List restaurants/menu over HTTP | Not started |
-| 1 | [Auth & Gateway hardening](./phase-01-auth-gateway-hardening.md) | Login (Keycloak) → JWT-guarded catalog | Not started |
+| 0 | [Foundation — monorepo + catalog](./phase-00-foundation-monorepo-catalog.md) | Catalog CRUD (hexagonal) over HTTP | ✅ Done (PR #1) — gateway/Nginx/OpenAPI moved to P1 |
+| 1 | [Auth & Gateway hardening](./phase-01-auth-gateway-hardening.md) | Login (Keycloak) → JWT-guarded catalog | 🔨 In progress |
 | 2 | [Order core + Inventory](./phase-02-order-core-inventory.md) | Place order → reserve stock (gRPC) | Not started |
 | 3 | [Event-driven backbone](./phase-03-event-driven-backbone.md) | Order Saga via Kafka + Outbox + CDC; catalog CQRS read model | Not started |
 | 4 | [Search & Real-time & Media](./phase-04-search-realtime-media.md) | Search restaurants (ES), live driver location (WS), image upload (MinIO) | Not started |
@@ -54,3 +54,4 @@ YAGNI / KISS / DRY. Simplest tech that teaches each concept. Latest stable libra
 - **Global error envelope**: a shared `GlobalExceptionFilter` giving every response (400/401/403/404/500) one consistent JSON shape. Currently only `EntityNotFoundError → 404` is mapped. Do it when the gateway/auth work lands so all services + edge stay consistent — don't one-off individual codes.
 - **Optimistic locking** on updates (version column) to prevent lost updates + misleading audit on concurrent PATCH. Introduce in the `order` service work (where concurrency matters); apply back to catalog then.
 - Audit on cascade: a restaurant DELETE keeps a single audit entry covering its menu-item cascade (decided — not per-item).
+- **Internal identity trust hardening**: services trust gateway-stamped identity headers on network isolation alone; add signed internal headers (HMAC/JWT) or mTLS so a directly-reachable service can't be spoofed. Enforce network isolation (K8s NetworkPolicy) in the ops phase. (Invariant documented in architecture.md §1.)

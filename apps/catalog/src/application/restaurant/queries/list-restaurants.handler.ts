@@ -4,10 +4,7 @@ import {
   type RestaurantRepository,
 } from '@catalog/domain/restaurant/restaurant.repository';
 import type { PaginatedResult, Pagination } from '@catalog/domain/shared/pagination';
-import {
-  TENANT_CONTEXT_PORT,
-  type TenantContextPort,
-} from '@catalog/domain/shared/tenant-context.port';
+import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable } from '@nestjs/common';
 
 @Injectable()

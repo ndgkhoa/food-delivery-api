@@ -2,7 +2,11 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignore": ["**/jest.config.{ts,cts}", "**/jest.preset.js", "**/webpack.config.js"],
   "paths": {
-    "@catalog/*": ["apps/catalog/src/*"]
+    "@catalog/*": ["apps/catalog/src/*"],
+    "@gateway/*": ["apps/gateway/src/*"],
+    "@food-delivery-api/shared-auth": ["libs/shared/auth/src/index.ts"],
+    "@food-delivery-api/shared-auth/testing": ["libs/shared/auth/src/testing/test-jwks.ts"],
+    "@food-delivery-api/shared-tenancy": ["libs/shared/tenancy/src/index.ts"]
   },
   "entry": [
     "apps/*/src/main.ts",
@@ -11,6 +15,7 @@
     "apps/**/*.e2e-spec.ts",
     "apps/*/src/testing/**/*.ts",
     "libs/**/src/index.ts",
+    "libs/**/src/testing/**/*.ts",
     "nx.json"
   ],
   "project": ["apps/**/*.ts", "libs/**/*.ts"],
