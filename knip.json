@@ -28,7 +28,6 @@
     "jest-environment-node",
     "jest-util",
     "testcontainers",
-    "ts-node",
     "tslib",
     "pino-pretty"
   ]
