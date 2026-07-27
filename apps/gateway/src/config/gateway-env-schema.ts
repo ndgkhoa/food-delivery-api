@@ -24,4 +24,23 @@ export const gatewayEnvSchema = baseEnvSchema
     /** Expected `aud` claim — Keycloak stamps this via the realm's audience mapper. */
     JWT_AUDIENCE: z.string().min(1).default('food-delivery-api'),
     JWT_CLOCK_TOLERANCE_SEC: z.coerce.number().int().nonnegative().default(5),
+    /**
+     * Public PKCE client the session proxy exchanges/rotates tokens against. Same
+     * client the SPA logs in with, so a rotated refresh token stays bound to it.
+     */
+    KEYCLOAK_SPA_CLIENT_ID: z.string().min(1).default('food-delivery-spa'),
+    /**
+     * Per-identity rate limiting (fixed window in Redis). Disabled in test envs so
+     * container-less suites never require Redis and are not throttled; enabled in
+     * dev/prod. `enum().transform` instead of `coerce.boolean` because coercion
+     * treats the string "false" as truthy.
+     */
+    RATE_LIMIT_ENABLED: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((value) => value === 'true'),
+    RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+    RATE_LIMIT_WINDOW_SEC: z.coerce.number().int().positive().default(60),
+    /** Redis connection string for the rate-limit counter store. */
+    REDIS_URL: z.string().url().default('redis://localhost:6379'),
   });

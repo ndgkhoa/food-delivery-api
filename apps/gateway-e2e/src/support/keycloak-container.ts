@@ -44,17 +44,23 @@ export async function stopKeycloak(handle: KeycloakHandle): Promise<void> {
   await handle.container.stop();
 }
 
+/** Full token set from the direct-grant flow (refresh token drives the rotation/logout e2e). */
+export interface MintedTokenSet {
+  accessToken: string;
+  refreshToken: string;
+}
+
 /**
- * Mints a real access token via the direct-access (password) grant. Defaults to
- * the public SPA client; pass `clientId` to mint from another client (e.g. the
- * short-lived client whose 2s token lifespan drives the expiry test).
+ * Mints a real access + refresh token via the direct-access (password) grant.
+ * Defaults to the public SPA client; pass `clientId` to mint from another client
+ * (e.g. the short-lived client whose 2s token lifespan drives the expiry test).
  */
-export async function mintPasswordToken(config: {
+export async function mintTokenSet(config: {
   baseUrl: string;
   username: string;
   password: string;
   clientId?: string;
-}): Promise<string> {
+}): Promise<MintedTokenSet> {
   const body = new URLSearchParams({
     grant_type: 'password',
     client_id: config.clientId ?? SPA_CLIENT_ID,
@@ -70,6 +76,16 @@ export async function mintPasswordToken(config: {
   if (!response.ok) {
     throw new Error(`Failed to mint token (${response.status}): ${await response.text()}`);
   }
-  const payload = (await response.json()) as { access_token: string };
-  return payload.access_token;
+  const payload = (await response.json()) as { access_token: string; refresh_token: string };
+  return { accessToken: payload.access_token, refreshToken: payload.refresh_token };
+}
+
+/** Convenience wrapper returning just the access token (authz-matrix e2e). */
+export async function mintPasswordToken(config: {
+  baseUrl: string;
+  username: string;
+  password: string;
+  clientId?: string;
+}): Promise<string> {
+  return (await mintTokenSet(config)).accessToken;
 }

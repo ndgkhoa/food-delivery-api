@@ -1,7 +1,6 @@
 import type { AuthenticatedRequest } from '@gateway/guards/authenticated-request';
-import { JwtAuthGuard } from '@gateway/guards/jwt-auth.guard';
 import { HttpForwarder } from '@gateway/proxy/http-forwarder';
-import { All, Controller, Req, Res, UseGuards } from '@nestjs/common';
+import { All, Controller, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 
@@ -9,13 +8,14 @@ const GATEWAY_AUTH_PREFIX = '/api/v1/auth';
 
 /**
  * Reverse-proxy edge for the auth bounded context (tenant registry + user
- * provisioning). Every route under `/api/v1/auth/*` requires a valid token
- * (JwtAuthGuard) and is relayed to the auth service with the verified identity
- * attached as trusted headers. Admin RBAC (`@Roles('admin')`) is enforced at
- * the auth service itself — the gateway only proves the caller is authenticated.
+ * provisioning). Its `@All('*path')` catch-all relays every remaining
+ * `/api/v1/auth/*` route to the auth service with the verified identity attached
+ * as trusted headers; a valid token is required (global JwtAuthGuard). The
+ * session routes (`token`/`refresh`/`logout`) are handled by
+ * KeycloakSessionController, which is registered ahead of this controller.
+ * Admin RBAC (`@Roles('admin')`) is enforced at the auth service itself.
  */
 @Controller('auth')
-@UseGuards(JwtAuthGuard)
 export class AuthProxyController {
   private readonly baseUrl: string;
 
