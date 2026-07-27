@@ -16,9 +16,10 @@
     "lint:fix": "biome check --write .",
     "cruiser": "depcruise apps libs --config .dependency-cruiser.js",
     "knip": "knip --no-config-hints",
-    "migration:generate": "TS_NODE_PROJECT=apps/catalog/tsconfig.app.json node -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d apps/catalog/src/infrastructure/persistence/data-source.ts",
-    "migration:run": "TS_NODE_PROJECT=apps/catalog/tsconfig.app.json node -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d apps/catalog/src/infrastructure/persistence/data-source.ts",
-    "migration:revert": "TS_NODE_PROJECT=apps/catalog/tsconfig.app.json node -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d apps/catalog/src/infrastructure/persistence/data-source.ts",
+    "typeorm": "TS_NODE_PROJECT=apps/catalog/tsconfig.app.json node -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
+    "migration:generate": "pnpm run typeorm migration:generate -d apps/catalog/src/infrastructure/persistence/data-source.ts",
+    "migration:run": "pnpm run typeorm migration:run -d apps/catalog/src/infrastructure/persistence/data-source.ts",
+    "migration:revert": "pnpm run typeorm migration:revert -d apps/catalog/src/infrastructure/persistence/data-source.ts",
     "docker:core:up": "docker compose -f infra/docker-compose.yml --profile core up -d",
     "docker:core:down": "docker compose -f infra/docker-compose.yml --profile core down"
   },
