@@ -26,6 +26,9 @@
     "migration:inventory:generate": "pnpm run typeorm migration:generate -d apps/inventory/src/infrastructure/persistence/data-source.ts",
     "migration:inventory:run": "pnpm run typeorm migration:run -d apps/inventory/src/infrastructure/persistence/data-source.ts",
     "migration:inventory:revert": "pnpm run typeorm migration:revert -d apps/inventory/src/infrastructure/persistence/data-source.ts",
+    "migration:order:generate": "pnpm run typeorm migration:generate -d apps/order/src/infrastructure/persistence/data-source.ts",
+    "migration:order:run": "pnpm run typeorm migration:run -d apps/order/src/infrastructure/persistence/data-source.ts",
+    "migration:order:revert": "pnpm run typeorm migration:revert -d apps/order/src/infrastructure/persistence/data-source.ts",
     "docker:core:up": "docker compose -f infra/docker-compose.yml --profile core up -d",
     "docker:core:down": "docker compose -f infra/docker-compose.yml --profile core down"
   },
