@@ -54,11 +54,12 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 - [x] Release path hardened symmetrically (review round 2, N1): ACTIVE→RELEASED is an atomic conditional UPDATE gate so a concurrent double-release returns stock exactly once (no phantom units) — e2e proves it. All 10 round-1 findings verified closed.
 
 **Slice 2b — order + flow:**
-- [ ] order state machine (PENDING→RESERVED→CONFIRMED/CANCELLED) + optimistic lock
-- [ ] create-order flow calls catalog + inventory over gRPC
-- [ ] idempotency key store (per user+tenant)
-- [ ] gRPC metadata propagation (identity/tenant/correlation)
-- [ ] E2E: place/cancel/concurrency (no oversell)/idempotency pass
+- [x] order state machine (PENDING→RESERVED→CONFIRMED/CANCELLED) + optimistic lock (hexagonal `apps/order`: domain/application/infrastructure/interface, conditional `UPDATE ... WHERE version` guard)
+- [x] create-order flow calls catalog + inventory over gRPC (`PlaceOrderHandler`: validate menu → claim idempotency key → reserve → persist RESERVED/CANCELLED; compensating release on post-reserve persist failure)
+- [x] idempotency key store (per user+tenant) — composite PK `(tenant_id, user_id, key)`, real 23505 on conflict
+- [x] gRPC metadata propagation (tenant via `x-tenant-id`; `CatalogGrpcAdapter`/`InventoryGrpcAdapter` + `retryOnAborted`)
+- [x] E2E green (real Postgres×2 + Redis + real inventory gRPC + order over genuine gRPC): place→RESERVED + stock decremented, cancel→CANCELLED + stock released, idempotency (duplicate key → one order), **100-concurrent single-item on stock=10 → exactly 10 RESERVED, rest InsufficientStock, available=0, zero oversell** end-to-end. Suites run serially (each boots its own stack on a fixed inventory port). cancel/confirm return 200.
+- [x] gateway `OrderProxyController` + `ORDER_SERVICE_URL` wiring
 
 ## Success criteria
 - Placing an order reserves exactly the ordered qty; 100 concurrent orders on 10 stock → 10 succeed, 90 rejected, zero oversell.

@@ -34,3 +34,11 @@ export interface CatalogGrpcService {
     request: GetMenuItemsRequest,
   ): Promise<MenuItemsResponse> | Observable<MenuItemsResponse> | MenuItemsResponse;
 }
+
+/**
+ * Client-side contract (methods return Observables under NestJS's gRPC client).
+ * Used by the order service to validate menu items over gRPC.
+ */
+export interface CatalogGrpcClient {
+  getMenuItems(request: GetMenuItemsRequest): Observable<MenuItemsResponse>;
+}

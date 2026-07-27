@@ -28,7 +28,8 @@
       "@auth/*": ["apps/auth/src/*"],
       "@catalog/*": ["apps/catalog/src/*"],
       "@gateway/*": ["apps/gateway/src/*"],
-      "@inventory/*": ["apps/inventory/src/*"]
+      "@inventory/*": ["apps/inventory/src/*"],
+      "@order/*": ["apps/order/src/*"]
     }
   },
   "exclude": ["node_modules", "tmp"]
