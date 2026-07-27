@@ -1,7 +1,7 @@
+import { CreateCatalogTables1753574400000 } from '@catalog/infrastructure/persistence/migrations/1753574400000-create-catalog-tables';
+import { catalogOrmEntities } from '@catalog/infrastructure/persistence/typeorm-options';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
-import { CreateCatalogTables1753574400000 } from '../infrastructure/persistence/migrations/1753574400000-create-catalog-tables';
-import { catalogOrmEntities } from '../infrastructure/persistence/typeorm-options';
 
 export interface CatalogTestDatabase {
   container: StartedPostgreSqlContainer;

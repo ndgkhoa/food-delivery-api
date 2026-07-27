@@ -1,5 +1,5 @@
-import type { PageResult, Pagination } from '../shared/pagination';
-import type { MenuItem } from './menu-item';
+import type { MenuItem } from '@catalog/domain/menu-item/menu-item';
+import type { PageResult, Pagination } from '@catalog/domain/shared/pagination';
 
 export interface MenuItemRepository {
   save(menuItem: MenuItem): Promise<MenuItem>;

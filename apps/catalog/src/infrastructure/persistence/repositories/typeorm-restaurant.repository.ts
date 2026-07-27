@@ -1,11 +1,11 @@
+import type { Restaurant } from '@catalog/domain/restaurant/restaurant';
+import type { RestaurantRepository } from '@catalog/domain/restaurant/restaurant.repository';
+import type { PageResult, Pagination } from '@catalog/domain/shared/pagination';
+import { RestaurantOrmEntity } from '@catalog/infrastructure/persistence/entities/restaurant.orm-entity';
+import { RestaurantMapper } from '@catalog/infrastructure/persistence/mappers/restaurant.mapper';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
-import type { Restaurant } from '../../../domain/restaurant/restaurant';
-import type { RestaurantRepository } from '../../../domain/restaurant/restaurant.repository';
-import type { PageResult, Pagination } from '../../../domain/shared/pagination';
-import { RestaurantOrmEntity } from '../entities/restaurant.orm-entity';
-import { RestaurantMapper } from '../mappers/restaurant.mapper';
 
 @Injectable()
 export class TypeOrmRestaurantRepository implements RestaurantRepository {

@@ -1,5 +1,5 @@
+import type { AuditAction } from '@catalog/domain/shared/audit-action';
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
-import type { AuditAction } from '../../../domain/shared/audit-action';
 
 /**
  * Append-only ledger of every write in catalog. No update/delete repository

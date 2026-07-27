@@ -1,5 +1,5 @@
-import { MenuItem } from '../../../domain/menu-item/menu-item';
-import { MenuItemOrmEntity } from '../entities/menu-item.orm-entity';
+import { MenuItem } from '@catalog/domain/menu-item/menu-item';
+import { MenuItemOrmEntity } from '@catalog/infrastructure/persistence/entities/menu-item.orm-entity';
 
 export class MenuItemMapper {
   static toDomain(orm: MenuItemOrmEntity): MenuItem {

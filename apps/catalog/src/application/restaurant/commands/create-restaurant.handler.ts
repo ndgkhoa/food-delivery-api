@@ -1,16 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
-import { Restaurant } from '../../../domain/restaurant/restaurant';
+import { Restaurant } from '@catalog/domain/restaurant/restaurant';
 import {
   RESTAURANT_REPOSITORY,
   type RestaurantRepository,
-} from '../../../domain/restaurant/restaurant.repository';
-import { AUDIT_PORT, type AuditPort } from '../../../domain/shared/audit.port';
-import { AuditAction } from '../../../domain/shared/audit-action';
+} from '@catalog/domain/restaurant/restaurant.repository';
+import { AUDIT_PORT, type AuditPort } from '@catalog/domain/shared/audit.port';
+import { AuditAction } from '@catalog/domain/shared/audit-action';
 import {
   TENANT_CONTEXT_PORT,
   type TenantContextPort,
-} from '../../../domain/shared/tenant-context.port';
+} from '@catalog/domain/shared/tenant-context.port';
+import { Inject, Injectable } from '@nestjs/common';
 
 export interface CreateRestaurantCommand {
   name: string;

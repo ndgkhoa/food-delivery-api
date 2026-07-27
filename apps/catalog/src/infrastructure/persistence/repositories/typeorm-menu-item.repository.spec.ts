@@ -1,17 +1,17 @@
-import { Test } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { MenuItem } from '../../../domain/menu-item/menu-item';
-import { Restaurant } from '../../../domain/restaurant/restaurant';
+import { MenuItem } from '@catalog/domain/menu-item/menu-item';
+import { Restaurant } from '@catalog/domain/restaurant/restaurant';
+import { MenuItemOrmEntity } from '@catalog/infrastructure/persistence/entities/menu-item.orm-entity';
+import { RestaurantOrmEntity } from '@catalog/infrastructure/persistence/entities/restaurant.orm-entity';
+import { TypeOrmMenuItemRepository } from '@catalog/infrastructure/persistence/repositories/typeorm-menu-item.repository';
+import { TypeOrmRestaurantRepository } from '@catalog/infrastructure/persistence/repositories/typeorm-restaurant.repository';
 import {
   type CatalogTestDatabase,
   startCatalogTestDatabase,
   stopCatalogTestDatabase,
   truncateCatalogTables,
-} from '../../../testing/catalog-test-database';
-import { MenuItemOrmEntity } from '../entities/menu-item.orm-entity';
-import { RestaurantOrmEntity } from '../entities/restaurant.orm-entity';
-import { TypeOrmMenuItemRepository } from './typeorm-menu-item.repository';
-import { TypeOrmRestaurantRepository } from './typeorm-restaurant.repository';
+} from '@catalog/testing/catalog-test-database';
+import { Test } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 
 /**
  * Integration test: real Postgres via testcontainers, real migrated schema.

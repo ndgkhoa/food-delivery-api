@@ -1,5 +1,5 @@
-import type { PageResult, Pagination } from '../shared/pagination';
-import type { Restaurant } from './restaurant';
+import type { Restaurant } from '@catalog/domain/restaurant/restaurant';
+import type { PageResult, Pagination } from '@catalog/domain/shared/pagination';
 
 export interface RestaurantRepository {
   save(restaurant: Restaurant): Promise<Restaurant>;

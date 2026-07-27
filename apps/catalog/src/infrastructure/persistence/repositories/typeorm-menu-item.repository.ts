@@ -1,11 +1,11 @@
+import type { MenuItem } from '@catalog/domain/menu-item/menu-item';
+import type { MenuItemRepository } from '@catalog/domain/menu-item/menu-item.repository';
+import type { PageResult, Pagination } from '@catalog/domain/shared/pagination';
+import { MenuItemOrmEntity } from '@catalog/infrastructure/persistence/entities/menu-item.orm-entity';
+import { MenuItemMapper } from '@catalog/infrastructure/persistence/mappers/menu-item.mapper';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
-import type { MenuItem } from '../../../domain/menu-item/menu-item';
-import type { MenuItemRepository } from '../../../domain/menu-item/menu-item.repository';
-import type { PageResult, Pagination } from '../../../domain/shared/pagination';
-import { MenuItemOrmEntity } from '../entities/menu-item.orm-entity';
-import { MenuItemMapper } from '../mappers/menu-item.mapper';
 
 @Injectable()
 export class TypeOrmMenuItemRepository implements MenuItemRepository {

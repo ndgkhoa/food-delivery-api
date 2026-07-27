@@ -1,8 +1,8 @@
 import { join } from 'node:path';
+import { AuditLogOrmEntity } from '@catalog/infrastructure/persistence/entities/audit-log.orm-entity';
+import { MenuItemOrmEntity } from '@catalog/infrastructure/persistence/entities/menu-item.orm-entity';
+import { RestaurantOrmEntity } from '@catalog/infrastructure/persistence/entities/restaurant.orm-entity';
 import type { DataSourceOptions } from 'typeorm';
-import { AuditLogOrmEntity } from './entities/audit-log.orm-entity';
-import { MenuItemOrmEntity } from './entities/menu-item.orm-entity';
-import { RestaurantOrmEntity } from './entities/restaurant.orm-entity';
 
 export const catalogOrmEntities = [RestaurantOrmEntity, MenuItemOrmEntity, AuditLogOrmEntity];
 

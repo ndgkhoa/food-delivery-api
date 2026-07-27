@@ -1,14 +1,14 @@
-import { Test } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Restaurant } from '../../../domain/restaurant/restaurant';
+import { Restaurant } from '@catalog/domain/restaurant/restaurant';
+import { RestaurantOrmEntity } from '@catalog/infrastructure/persistence/entities/restaurant.orm-entity';
+import { TypeOrmRestaurantRepository } from '@catalog/infrastructure/persistence/repositories/typeorm-restaurant.repository';
 import {
   type CatalogTestDatabase,
   startCatalogTestDatabase,
   stopCatalogTestDatabase,
   truncateCatalogTables,
-} from '../../../testing/catalog-test-database';
-import { RestaurantOrmEntity } from '../entities/restaurant.orm-entity';
-import { TypeOrmRestaurantRepository } from './typeorm-restaurant.repository';
+} from '@catalog/testing/catalog-test-database';
+import { Test } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 
 /**
  * Integration test: real Postgres via testcontainers, real migrated schema.

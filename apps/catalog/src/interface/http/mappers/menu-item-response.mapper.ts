@@ -1,5 +1,5 @@
-import type { MenuItem } from '../../../domain/menu-item/menu-item';
-import type { MenuItemResponse } from '../dto/menu-item.response';
+import type { MenuItem } from '@catalog/domain/menu-item/menu-item';
+import type { MenuItemResponse } from '@catalog/interface/http/dto/menu-item.response';
 
 export class MenuItemResponseMapper {
   static toResponse(menuItem: MenuItem): MenuItemResponse {

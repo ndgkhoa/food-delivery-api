@@ -1,14 +1,14 @@
+import { MENU_ITEM_REPOSITORY } from '@catalog/domain/menu-item/menu-item.repository';
+import { RESTAURANT_REPOSITORY } from '@catalog/domain/restaurant/restaurant.repository';
+import { AuditLogOrmEntity } from '@catalog/infrastructure/persistence/entities/audit-log.orm-entity';
+import { MenuItemOrmEntity } from '@catalog/infrastructure/persistence/entities/menu-item.orm-entity';
+import { RestaurantOrmEntity } from '@catalog/infrastructure/persistence/entities/restaurant.orm-entity';
+import { TypeOrmMenuItemRepository } from '@catalog/infrastructure/persistence/repositories/typeorm-menu-item.repository';
+import { TypeOrmRestaurantRepository } from '@catalog/infrastructure/persistence/repositories/typeorm-restaurant.repository';
+import { buildDataSourceOptions } from '@catalog/infrastructure/persistence/typeorm-options';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { MENU_ITEM_REPOSITORY } from '../../domain/menu-item/menu-item.repository';
-import { RESTAURANT_REPOSITORY } from '../../domain/restaurant/restaurant.repository';
-import { AuditLogOrmEntity } from './entities/audit-log.orm-entity';
-import { MenuItemOrmEntity } from './entities/menu-item.orm-entity';
-import { RestaurantOrmEntity } from './entities/restaurant.orm-entity';
-import { TypeOrmMenuItemRepository } from './repositories/typeorm-menu-item.repository';
-import { TypeOrmRestaurantRepository } from './repositories/typeorm-restaurant.repository';
-import { buildDataSourceOptions } from './typeorm-options';
 
 /**
  * Owns the Postgres connection + binds the domain repository ports to their

@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import 'reflect-metadata';
+import { buildDataSourceOptions } from '@catalog/infrastructure/persistence/typeorm-options';
 import { DataSource } from 'typeorm';
-import { buildDataSourceOptions } from './typeorm-options';
 
 /**
  * Standalone DataSource for the `typeorm-ts-node-commonjs` CLI (migration

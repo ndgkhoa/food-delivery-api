@@ -1,12 +1,12 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import type { Repository } from 'typeorm';
-import type { AuditEntry, AuditPort } from '../../domain/shared/audit.port';
+import type { AuditEntry, AuditPort } from '@catalog/domain/shared/audit.port';
 import {
   TENANT_CONTEXT_PORT,
   type TenantContextPort,
-} from '../../domain/shared/tenant-context.port';
-import { AuditLogOrmEntity } from '../persistence/entities/audit-log.orm-entity';
+} from '@catalog/domain/shared/tenant-context.port';
+import { AuditLogOrmEntity } from '@catalog/infrastructure/persistence/entities/audit-log.orm-entity';
+import { Inject, Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import type { Repository } from 'typeorm';
 
 /**
  * Writes one immutable row per create/update/delete. Tenant + actor are read

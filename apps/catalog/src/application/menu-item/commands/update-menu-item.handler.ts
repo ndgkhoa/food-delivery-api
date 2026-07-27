@@ -1,12 +1,12 @@
-import { Inject, Injectable } from '@nestjs/common';
-import type { MenuItem, UpdateMenuItemProps } from '../../../domain/menu-item/menu-item';
+import { GetMenuItemHandler } from '@catalog/application/menu-item/queries/get-menu-item.handler';
+import type { MenuItem, UpdateMenuItemProps } from '@catalog/domain/menu-item/menu-item';
 import {
   MENU_ITEM_REPOSITORY,
   type MenuItemRepository,
-} from '../../../domain/menu-item/menu-item.repository';
-import { AUDIT_PORT, type AuditPort } from '../../../domain/shared/audit.port';
-import { AuditAction } from '../../../domain/shared/audit-action';
-import { GetMenuItemHandler } from '../queries/get-menu-item.handler';
+} from '@catalog/domain/menu-item/menu-item.repository';
+import { AUDIT_PORT, type AuditPort } from '@catalog/domain/shared/audit.port';
+import { AuditAction } from '@catalog/domain/shared/audit-action';
+import { Inject, Injectable } from '@nestjs/common';
 
 export type UpdateMenuItemCommand = UpdateMenuItemProps;
 

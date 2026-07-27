@@ -1,4 +1,4 @@
-import { Restaurant } from './restaurant';
+import { Restaurant } from '@catalog/domain/restaurant/restaurant';
 
 describe('Restaurant', () => {
   const tenantId = '11111111-1111-4111-8111-111111111111';

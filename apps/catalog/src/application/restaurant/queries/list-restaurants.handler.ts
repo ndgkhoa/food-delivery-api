@@ -1,14 +1,14 @@
-import { Inject, Injectable } from '@nestjs/common';
-import type { Restaurant } from '../../../domain/restaurant/restaurant';
+import type { Restaurant } from '@catalog/domain/restaurant/restaurant';
 import {
   RESTAURANT_REPOSITORY,
   type RestaurantRepository,
-} from '../../../domain/restaurant/restaurant.repository';
-import type { PaginatedResult, Pagination } from '../../../domain/shared/pagination';
+} from '@catalog/domain/restaurant/restaurant.repository';
+import type { PaginatedResult, Pagination } from '@catalog/domain/shared/pagination';
 import {
   TENANT_CONTEXT_PORT,
   type TenantContextPort,
-} from '../../../domain/shared/tenant-context.port';
+} from '@catalog/domain/shared/tenant-context.port';
+import { Inject, Injectable } from '@nestjs/common';
 
 @Injectable()
 export class ListRestaurantsHandler {

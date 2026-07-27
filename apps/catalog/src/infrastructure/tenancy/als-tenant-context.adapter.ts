@@ -1,9 +1,9 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { Injectable } from '@nestjs/common';
 import type {
   TenantContextPort,
   TenantRequestContext,
-} from '../../domain/shared/tenant-context.port';
+} from '@catalog/domain/shared/tenant-context.port';
+import { Injectable } from '@nestjs/common';
 
 const storage = new AsyncLocalStorage<TenantRequestContext>();
 

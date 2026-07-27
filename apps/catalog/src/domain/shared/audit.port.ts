@@ -1,4 +1,4 @@
-import type { AuditAction } from './audit-action';
+import type { AuditAction } from '@catalog/domain/shared/audit-action';
 
 export interface AuditEntry {
   action: AuditAction;

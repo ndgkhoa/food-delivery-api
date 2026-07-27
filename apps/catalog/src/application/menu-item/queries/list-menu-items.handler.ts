@@ -1,15 +1,15 @@
-import { Inject, Injectable } from '@nestjs/common';
-import type { MenuItem } from '../../../domain/menu-item/menu-item';
+import { GetRestaurantHandler } from '@catalog/application/restaurant/queries/get-restaurant.handler';
+import type { MenuItem } from '@catalog/domain/menu-item/menu-item';
 import {
   MENU_ITEM_REPOSITORY,
   type MenuItemRepository,
-} from '../../../domain/menu-item/menu-item.repository';
-import type { PaginatedResult, Pagination } from '../../../domain/shared/pagination';
+} from '@catalog/domain/menu-item/menu-item.repository';
+import type { PaginatedResult, Pagination } from '@catalog/domain/shared/pagination';
 import {
   TENANT_CONTEXT_PORT,
   type TenantContextPort,
-} from '../../../domain/shared/tenant-context.port';
-import { GetRestaurantHandler } from '../../restaurant/queries/get-restaurant.handler';
+} from '@catalog/domain/shared/tenant-context.port';
+import { Inject, Injectable } from '@nestjs/common';
 
 @Injectable()
 export class ListMenuItemsHandler {

@@ -1,12 +1,12 @@
-import { Inject, Injectable } from '@nestjs/common';
-import type { Restaurant, UpdateRestaurantProps } from '../../../domain/restaurant/restaurant';
+import { GetRestaurantHandler } from '@catalog/application/restaurant/queries/get-restaurant.handler';
+import type { Restaurant, UpdateRestaurantProps } from '@catalog/domain/restaurant/restaurant';
 import {
   RESTAURANT_REPOSITORY,
   type RestaurantRepository,
-} from '../../../domain/restaurant/restaurant.repository';
-import { AUDIT_PORT, type AuditPort } from '../../../domain/shared/audit.port';
-import { AuditAction } from '../../../domain/shared/audit-action';
-import { GetRestaurantHandler } from '../queries/get-restaurant.handler';
+} from '@catalog/domain/restaurant/restaurant.repository';
+import { AUDIT_PORT, type AuditPort } from '@catalog/domain/shared/audit.port';
+import { AuditAction } from '@catalog/domain/shared/audit-action';
+import { Inject, Injectable } from '@nestjs/common';
 
 export type UpdateRestaurantCommand = UpdateRestaurantProps;
 

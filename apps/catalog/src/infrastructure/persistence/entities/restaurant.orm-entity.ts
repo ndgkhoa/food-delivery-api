@@ -1,3 +1,4 @@
+import type { MenuItemOrmEntity } from '@catalog/infrastructure/persistence/entities/menu-item.orm-entity';
 import {
   Column,
   CreateDateColumn,
@@ -8,7 +9,6 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import type { MenuItemOrmEntity } from './menu-item.orm-entity';
 
 @Entity('restaurants')
 @Index(['tenantId'])

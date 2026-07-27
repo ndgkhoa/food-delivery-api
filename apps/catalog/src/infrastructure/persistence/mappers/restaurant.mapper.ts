@@ -1,5 +1,5 @@
-import { Restaurant } from '../../../domain/restaurant/restaurant';
-import { RestaurantOrmEntity } from '../entities/restaurant.orm-entity';
+import { Restaurant } from '@catalog/domain/restaurant/restaurant';
+import { RestaurantOrmEntity } from '@catalog/infrastructure/persistence/entities/restaurant.orm-entity';
 
 export class RestaurantMapper {
   static toDomain(orm: RestaurantOrmEntity): Restaurant {

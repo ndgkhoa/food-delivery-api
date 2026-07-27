@@ -1,3 +1,14 @@
+import { CreateMenuItemHandler } from '@catalog/application/menu-item/commands/create-menu-item.handler';
+import { DeleteMenuItemHandler } from '@catalog/application/menu-item/commands/delete-menu-item.handler';
+import { UpdateMenuItemHandler } from '@catalog/application/menu-item/commands/update-menu-item.handler';
+import { GetMenuItemHandler } from '@catalog/application/menu-item/queries/get-menu-item.handler';
+import { ListMenuItemsHandler } from '@catalog/application/menu-item/queries/list-menu-items.handler';
+import { CreateMenuItemRequest } from '@catalog/interface/http/dto/create-menu-item.request';
+import type { MenuItemResponse } from '@catalog/interface/http/dto/menu-item.response';
+import type { PaginatedResponse } from '@catalog/interface/http/dto/paginated.response';
+import { PaginationRequest } from '@catalog/interface/http/dto/pagination.request';
+import { UpdateMenuItemRequest } from '@catalog/interface/http/dto/update-menu-item.request';
+import { MenuItemResponseMapper } from '@catalog/interface/http/mappers/menu-item-response.mapper';
 import {
   Body,
   Controller,
@@ -11,17 +22,6 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { CreateMenuItemHandler } from '../../application/menu-item/commands/create-menu-item.handler';
-import { DeleteMenuItemHandler } from '../../application/menu-item/commands/delete-menu-item.handler';
-import { UpdateMenuItemHandler } from '../../application/menu-item/commands/update-menu-item.handler';
-import { GetMenuItemHandler } from '../../application/menu-item/queries/get-menu-item.handler';
-import { ListMenuItemsHandler } from '../../application/menu-item/queries/list-menu-items.handler';
-import { CreateMenuItemRequest } from './dto/create-menu-item.request';
-import type { MenuItemResponse } from './dto/menu-item.response';
-import type { PaginatedResponse } from './dto/paginated.response';
-import { PaginationRequest } from './dto/pagination.request';
-import { UpdateMenuItemRequest } from './dto/update-menu-item.request';
-import { MenuItemResponseMapper } from './mappers/menu-item-response.mapper';
 
 @Controller('restaurants/:restaurantId/menu-items')
 export class MenuItemsController {

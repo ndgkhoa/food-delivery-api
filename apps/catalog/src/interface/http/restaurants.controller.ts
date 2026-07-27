@@ -1,3 +1,14 @@
+import { CreateRestaurantHandler } from '@catalog/application/restaurant/commands/create-restaurant.handler';
+import { DeleteRestaurantHandler } from '@catalog/application/restaurant/commands/delete-restaurant.handler';
+import { UpdateRestaurantHandler } from '@catalog/application/restaurant/commands/update-restaurant.handler';
+import { GetRestaurantHandler } from '@catalog/application/restaurant/queries/get-restaurant.handler';
+import { ListRestaurantsHandler } from '@catalog/application/restaurant/queries/list-restaurants.handler';
+import { CreateRestaurantRequest } from '@catalog/interface/http/dto/create-restaurant.request';
+import type { PaginatedResponse } from '@catalog/interface/http/dto/paginated.response';
+import { PaginationRequest } from '@catalog/interface/http/dto/pagination.request';
+import type { RestaurantResponse } from '@catalog/interface/http/dto/restaurant.response';
+import { UpdateRestaurantRequest } from '@catalog/interface/http/dto/update-restaurant.request';
+import { RestaurantResponseMapper } from '@catalog/interface/http/mappers/restaurant-response.mapper';
 import {
   Body,
   Controller,
@@ -11,17 +22,6 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { CreateRestaurantHandler } from '../../application/restaurant/commands/create-restaurant.handler';
-import { DeleteRestaurantHandler } from '../../application/restaurant/commands/delete-restaurant.handler';
-import { UpdateRestaurantHandler } from '../../application/restaurant/commands/update-restaurant.handler';
-import { GetRestaurantHandler } from '../../application/restaurant/queries/get-restaurant.handler';
-import { ListRestaurantsHandler } from '../../application/restaurant/queries/list-restaurants.handler';
-import { CreateRestaurantRequest } from './dto/create-restaurant.request';
-import type { PaginatedResponse } from './dto/paginated.response';
-import { PaginationRequest } from './dto/pagination.request';
-import type { RestaurantResponse } from './dto/restaurant.response';
-import { UpdateRestaurantRequest } from './dto/update-restaurant.request';
-import { RestaurantResponseMapper } from './mappers/restaurant-response.mapper';
 
 @Controller('restaurants')
 export class RestaurantsController {

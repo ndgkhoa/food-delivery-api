@@ -1,17 +1,17 @@
-import type { Restaurant } from '../../domain/restaurant/restaurant';
-import type { RestaurantRepository } from '../../domain/restaurant/restaurant.repository';
-import type { AuditEntry, AuditPort } from '../../domain/shared/audit.port';
-import { AuditAction } from '../../domain/shared/audit-action';
-import type { PageResult, Pagination } from '../../domain/shared/pagination';
+import { CreateRestaurantHandler } from '@catalog/application/restaurant/commands/create-restaurant.handler';
+import { DeleteRestaurantHandler } from '@catalog/application/restaurant/commands/delete-restaurant.handler';
+import { UpdateRestaurantHandler } from '@catalog/application/restaurant/commands/update-restaurant.handler';
+import { GetRestaurantHandler } from '@catalog/application/restaurant/queries/get-restaurant.handler';
+import { ListRestaurantsHandler } from '@catalog/application/restaurant/queries/list-restaurants.handler';
+import type { Restaurant } from '@catalog/domain/restaurant/restaurant';
+import type { RestaurantRepository } from '@catalog/domain/restaurant/restaurant.repository';
+import type { AuditEntry, AuditPort } from '@catalog/domain/shared/audit.port';
+import { AuditAction } from '@catalog/domain/shared/audit-action';
+import type { PageResult, Pagination } from '@catalog/domain/shared/pagination';
 import type {
   TenantContextPort,
   TenantRequestContext,
-} from '../../domain/shared/tenant-context.port';
-import { CreateRestaurantHandler } from './commands/create-restaurant.handler';
-import { DeleteRestaurantHandler } from './commands/delete-restaurant.handler';
-import { UpdateRestaurantHandler } from './commands/update-restaurant.handler';
-import { GetRestaurantHandler } from './queries/get-restaurant.handler';
-import { ListRestaurantsHandler } from './queries/list-restaurants.handler';
+} from '@catalog/domain/shared/tenant-context.port';
 
 /** In-memory fake — no DB, exercises the same contract as the TypeORM adapter. */
 class FakeRestaurantRepository implements RestaurantRepository {

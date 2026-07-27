@@ -1,13 +1,13 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { MenuItem } from '../../../domain/menu-item/menu-item';
+import type { MenuItem } from '@catalog/domain/menu-item/menu-item';
 import {
   MENU_ITEM_REPOSITORY,
   type MenuItemRepository,
-} from '../../../domain/menu-item/menu-item.repository';
+} from '@catalog/domain/menu-item/menu-item.repository';
 import {
   TENANT_CONTEXT_PORT,
   type TenantContextPort,
-} from '../../../domain/shared/tenant-context.port';
+} from '@catalog/domain/shared/tenant-context.port';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 
 @Injectable()
 export class GetMenuItemHandler {

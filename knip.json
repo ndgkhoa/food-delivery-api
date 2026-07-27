@@ -1,6 +1,9 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignore": ["**/jest.config.{ts,cts}", "**/jest.preset.js", "**/webpack.config.js"],
+  "paths": {
+    "@catalog/*": ["apps/catalog/src/*"]
+  },
   "entry": [
     "apps/*/src/main.ts",
     "apps/catalog/src/infrastructure/persistence/data-source.ts",

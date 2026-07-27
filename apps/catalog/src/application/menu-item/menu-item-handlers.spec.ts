@@ -1,21 +1,21 @@
-import type { MenuItem } from '../../domain/menu-item/menu-item';
-import type { MenuItemRepository } from '../../domain/menu-item/menu-item.repository';
-import type { Restaurant } from '../../domain/restaurant/restaurant';
-import type { RestaurantRepository } from '../../domain/restaurant/restaurant.repository';
-import type { AuditEntry, AuditPort } from '../../domain/shared/audit.port';
-import { AuditAction } from '../../domain/shared/audit-action';
-import type { PageResult, Pagination } from '../../domain/shared/pagination';
+import { CreateMenuItemHandler } from '@catalog/application/menu-item/commands/create-menu-item.handler';
+import { DeleteMenuItemHandler } from '@catalog/application/menu-item/commands/delete-menu-item.handler';
+import { UpdateMenuItemHandler } from '@catalog/application/menu-item/commands/update-menu-item.handler';
+import { GetMenuItemHandler } from '@catalog/application/menu-item/queries/get-menu-item.handler';
+import { ListMenuItemsHandler } from '@catalog/application/menu-item/queries/list-menu-items.handler';
+import { CreateRestaurantHandler } from '@catalog/application/restaurant/commands/create-restaurant.handler';
+import { GetRestaurantHandler } from '@catalog/application/restaurant/queries/get-restaurant.handler';
+import type { MenuItem } from '@catalog/domain/menu-item/menu-item';
+import type { MenuItemRepository } from '@catalog/domain/menu-item/menu-item.repository';
+import type { Restaurant } from '@catalog/domain/restaurant/restaurant';
+import type { RestaurantRepository } from '@catalog/domain/restaurant/restaurant.repository';
+import type { AuditEntry, AuditPort } from '@catalog/domain/shared/audit.port';
+import { AuditAction } from '@catalog/domain/shared/audit-action';
+import type { PageResult, Pagination } from '@catalog/domain/shared/pagination';
 import type {
   TenantContextPort,
   TenantRequestContext,
-} from '../../domain/shared/tenant-context.port';
-import { CreateRestaurantHandler } from '../restaurant/commands/create-restaurant.handler';
-import { GetRestaurantHandler } from '../restaurant/queries/get-restaurant.handler';
-import { CreateMenuItemHandler } from './commands/create-menu-item.handler';
-import { DeleteMenuItemHandler } from './commands/delete-menu-item.handler';
-import { UpdateMenuItemHandler } from './commands/update-menu-item.handler';
-import { GetMenuItemHandler } from './queries/get-menu-item.handler';
-import { ListMenuItemsHandler } from './queries/list-menu-items.handler';
+} from '@catalog/domain/shared/tenant-context.port';
 
 class FakeRestaurantRepository implements RestaurantRepository {
   private readonly rows = new Map<string, Restaurant>();

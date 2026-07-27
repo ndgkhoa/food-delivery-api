@@ -19,7 +19,8 @@
     "esModuleInterop": true,
     "paths": {
       "@food-delivery-api/shared-config": ["libs/shared/config/src/index.ts"],
-      "@food-delivery-api/shared-logging": ["libs/shared/logging/src/index.ts"]
+      "@food-delivery-api/shared-logging": ["libs/shared/logging/src/index.ts"],
+      "@catalog/*": ["apps/catalog/src/*"]
     }
   },
   "exclude": ["node_modules", "tmp"]

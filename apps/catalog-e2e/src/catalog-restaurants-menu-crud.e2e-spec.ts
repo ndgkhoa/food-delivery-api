@@ -1,13 +1,13 @@
 import 'reflect-metadata';
-import { type INestApplication, ValidationPipe } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
-import request from 'supertest';
 import {
   type CatalogTestDatabase,
   startCatalogTestDatabase,
   stopCatalogTestDatabase,
   truncateCatalogTables,
-} from '../../catalog/src/testing/catalog-test-database';
+} from '@catalog/testing/catalog-test-database';
+import { type INestApplication, ValidationPipe } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import request from 'supertest';
 
 /**
  * Real end-to-end coverage of the catalog REST surface: a live Nest app
@@ -35,7 +35,7 @@ describe('Catalog REST API (e2e)', () => {
     // Import AppModule AFTER env is set: @nestjs/config validates and bakes config when
     // ConfigModule.forRoot() runs, which happens at module-import time. A static top-of-file
     // import would run it before these testcontainers credentials exist in process.env.
-    const { AppModule } = await import('../../catalog/src/app.module');
+    const { AppModule } = await import('@catalog/app.module');
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api/v1');

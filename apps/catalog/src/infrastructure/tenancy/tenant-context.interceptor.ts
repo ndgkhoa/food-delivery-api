@@ -1,4 +1,8 @@
 import {
+  TENANT_CONTEXT_PORT,
+  type TenantContextPort,
+} from '@catalog/domain/shared/tenant-context.port';
+import {
   BadRequestException,
   type CallHandler,
   type ExecutionContext,
@@ -8,10 +12,6 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { Observable } from 'rxjs';
-import {
-  TENANT_CONTEXT_PORT,
-  type TenantContextPort,
-} from '../../domain/shared/tenant-context.port';
 
 const TENANT_HEADER = 'x-tenant-id';
 const ACTOR_HEADER = 'x-actor-id';

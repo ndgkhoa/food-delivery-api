@@ -1,4 +1,4 @@
-import { MenuItem } from './menu-item';
+import { MenuItem } from '@catalog/domain/menu-item/menu-item';
 
 describe('MenuItem', () => {
   const tenantId = '11111111-1111-4111-8111-111111111111';

@@ -1,13 +1,13 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { Restaurant } from '../../../domain/restaurant/restaurant';
+import type { Restaurant } from '@catalog/domain/restaurant/restaurant';
 import {
   RESTAURANT_REPOSITORY,
   type RestaurantRepository,
-} from '../../../domain/restaurant/restaurant.repository';
+} from '@catalog/domain/restaurant/restaurant.repository';
 import {
   TENANT_CONTEXT_PORT,
   type TenantContextPort,
-} from '../../../domain/shared/tenant-context.port';
+} from '@catalog/domain/shared/tenant-context.port';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 
 /** Also depended on by menu-item command/query handlers to 404 + tenant-scope-check the parent restaurant. */
 @Injectable()

@@ -1,5 +1,5 @@
-import type { Restaurant } from '../../../domain/restaurant/restaurant';
-import type { RestaurantResponse } from '../dto/restaurant.response';
+import type { Restaurant } from '@catalog/domain/restaurant/restaurant';
+import type { RestaurantResponse } from '@catalog/interface/http/dto/restaurant.response';
 
 export class RestaurantResponseMapper {
   static toResponse(restaurant: Restaurant): RestaurantResponse {

@@ -1,17 +1,17 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
-import { MenuItem } from '../../../domain/menu-item/menu-item';
+import { GetRestaurantHandler } from '@catalog/application/restaurant/queries/get-restaurant.handler';
+import { MenuItem } from '@catalog/domain/menu-item/menu-item';
 import {
   MENU_ITEM_REPOSITORY,
   type MenuItemRepository,
-} from '../../../domain/menu-item/menu-item.repository';
-import { AUDIT_PORT, type AuditPort } from '../../../domain/shared/audit.port';
-import { AuditAction } from '../../../domain/shared/audit-action';
+} from '@catalog/domain/menu-item/menu-item.repository';
+import { AUDIT_PORT, type AuditPort } from '@catalog/domain/shared/audit.port';
+import { AuditAction } from '@catalog/domain/shared/audit-action';
 import {
   TENANT_CONTEXT_PORT,
   type TenantContextPort,
-} from '../../../domain/shared/tenant-context.port';
-import { GetRestaurantHandler } from '../../restaurant/queries/get-restaurant.handler';
+} from '@catalog/domain/shared/tenant-context.port';
+import { Inject, Injectable } from '@nestjs/common';
 
 export interface CreateMenuItemCommand {
   name: string;

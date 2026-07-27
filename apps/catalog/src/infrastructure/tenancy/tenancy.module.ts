@@ -1,7 +1,7 @@
+import { TENANT_CONTEXT_PORT } from '@catalog/domain/shared/tenant-context.port';
+import { AlsTenantContextAdapter } from '@catalog/infrastructure/tenancy/als-tenant-context.adapter';
+import { TenantContextInterceptor } from '@catalog/infrastructure/tenancy/tenant-context.interceptor';
 import { Global, Module } from '@nestjs/common';
-import { TENANT_CONTEXT_PORT } from '../../domain/shared/tenant-context.port';
-import { AlsTenantContextAdapter } from './als-tenant-context.adapter';
-import { TenantContextInterceptor } from './tenant-context.interceptor';
 
 /**
  * Global so every module (audit, application handlers) can inject
