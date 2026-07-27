@@ -4,7 +4,8 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 
 ## Overview
 - **Priority**: P0
-- **Status**: Not started
+- **Status**: 🔨 In progress
+- **Slicing**: **2a** — gRPC contracts (`.proto` in `shared/contracts`) + `inventory` service (stock/reservations, reserve/release with Redis lock + tx, gRPC server) + catalog gRPC server (GetMenuItems) + `shared/locking`. **2b** — `order` service (state machine, create-order flow over gRPC, idempotency, optimistic lock) + gRPC identity/tenant/correlation metadata propagation + place/cancel/concurrency/idempotency e2e.
 - **Brief**: Build the order lifecycle as an explicit state machine with idempotency, optimistic + distributed locking. Split stock into `inventory` service. Introduce gRPC for east-west calls (order↔catalog↔inventory). Still synchronous — no Kafka. This exposes WHY events are needed (P3).
 
 ## Key insights
@@ -39,13 +40,18 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 7. E2E: place order → stock decremented + order RESERVED; concurrent orders don't oversell; duplicate idempotency key returns same order; cancel releases stock.
 
 ## Todo
-- [ ] catalog + inventory `.proto` + gRPC servers
-- [ ] inventory reserve/release + Redis lock + tx
-- [ ] order state machine + optimistic lock
+**Slice 2a — contracts + inventory + catalog gRPC (🔨 in progress):**
+- [ ] catalog + inventory `.proto` in `shared/contracts` + generated stubs
+- [ ] catalog gRPC server (`GetMenuItems`) — extends P0 catalog
+- [ ] inventory service (hexagonal): stock/reservations + reserve/release + Redis distributed lock + DB tx + gRPC server
+- [ ] `libs/shared/locking` (Redis lock helper, TTL + fencing)
+
+**Slice 2b — order + flow:**
+- [ ] order state machine (PENDING→RESERVED→CONFIRMED/CANCELLED) + optimistic lock
 - [ ] create-order flow calls catalog + inventory over gRPC
-- [ ] idempotency key store
+- [ ] idempotency key store (per user+tenant)
 - [ ] gRPC metadata propagation (identity/tenant/correlation)
-- [ ] E2E: place/cancel/concurrency/idempotency pass
+- [ ] E2E: place/cancel/concurrency (no oversell)/idempotency pass
 
 ## Success criteria
 - Placing an order reserves exactly the ordered qty; 100 concurrent orders on 10 stock → 10 succeed, 90 rejected, zero oversell.

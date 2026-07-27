@@ -4,7 +4,7 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 
 ## Overview
 - **Priority**: P0 (security foundation for all writes)
-- **Status**: 🔨 In progress (started after PR #1 merged catalog). Also absorbs the gateway/Nginx/OpenAPI-Scalar items deferred from P0.
+- **Status**: ✅ Done — delivered across PR #2 (identity edge), #3 (Keycloak + RBAC), #4 (auth service), #5 (rate-limit + sessions). All merged to develop.
 - **Brief**: Introduce Keycloak as IdP. Gateway verifies JWT, enforces RBAC, versioning, rate limiting, validation. Refresh tokens + sessions. Multi-tenant now sourced from token claims. Catalog writes become auth-guarded.
 - **Slicing** (too big for one PR):
   - **Slice A — identity edge** ✅ (PR #2, open): gateway app + Nginx L7 (from P0), `shared/auth` (JWKS + JWT verify + claim extractor), `JwtAuthGuard` + URI versioning + ValidationPipe + reverse-proxy, `shared/tenancy` reads `tenant_id` from verified token (drop P0 header-trust), OpenAPI + Scalar (from P0). Verify tested with signed test JWTs — **no Keycloak yet**. → verified-identity requests reach catalog.
