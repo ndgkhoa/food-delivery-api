@@ -77,3 +77,40 @@ File: `place-order.handler.ts:112` (`save(pendingOrder.cancel())` not in a try/c
 ## Unresolved questions
 1. Is there any out-of-band reaper/reconciler (outside this diff) that would sweep claimed-but-unpersisted idempotency keys or orphaned inventory holds? If not, C1 is fully unrecovered until P3.
 2. Confirm `TrustedIdentityInterceptor` (shared-tenancy, already merged) rejects requests lacking verified identity headers — the order service's entire authz model trusts it. Out of this diff's scope but load-bearing.
+
+---
+
+# Re-review — fix commit 673529c (diff 664bd74..673529c)
+
+Verified each finding against the delta. All three CLOSED. No regression. Two narrow NEW residual edges (both Low, both strictly better than the Critical they replace).
+
+## C1 — CLOSED (verified)
+`place-order.handler.ts` restructured to durable-intent-before-external-effect:
+- Claim + PENDING order `insert` now in ONE `runInTransaction` (`:110-118`); on `23505` → `resolveConcurrentClaim` → resumes the winner's committed order.
+- `driveReservation` (`:196-207`) runs AFTER the commit; `resumeExisting` (`:136-150`) RE-DRIVES a still-PENDING order (reserve idempotent by orderId), returns terminal/RESERVED orders as-is.
+- Handler transitions off the **persisted** order (`insert` returns the row carrying the DB `@VersionColumn` default 1) — fixes the first-transition-409 the e2e caught. `updateStatus` WHERE version stays atomic; `claim-idempotency-key.ts` deleted.
+
+Wedge gone at every post-claim failure point — each leaves a durable PENDING row that a retry re-drives to a terminal state:
+- reserve throws (timeout / UNAVAILABLE / ABORTED-exhausted) → PENDING persists → retry re-drives → RESERVED. (New unit test proves exactly this: "does not wedge the key when reserve throws".)
+- reserve ok, `updateStatus`→RESERVED throws (DB blip) → PENDING → retry re-drives (reserve idempotent, no double-decrement) → RESERVED.
+- reserve ok=false, `updateStatus`→CANCELLED throws → PENDING (no hold) → retry re-drives → definitive terminal.
+- crash mid-transaction → atomic rollback, nothing durable → fresh retry, no held stock.
+
+Insert/version integrity: no double-insert (claim is first statement in the tx; a concurrent loser's `23505` rolls back its would-be order insert); no lost update (`updateStatus` conditional on version; concurrent drivers → one wins, other 409s → resumes). Confirmed sound.
+
+## H1 — CLOSED (verified)
+Defense in depth, all BEFORE any DB write (clean 4xx, never a 500/wedge): `OrderItem.create` rejects `lineTotalCents > MAX_MONEY_CENTS` (int4 max), `Order.create` rejects the summed `totalCents > MAX_MONEY_CENTS` (guards the 100-line aggregate overflow, not just per-line). DTO adds `@Max(10000)` qty + `@ArrayMaxSize(100)`.
+
+## M1 — CLOSED
+`@ArrayMaxSize(100)` on items.
+
+## NEW residual edges (Low — do not block; note for P3)
+
+- **N1 (Low) — orphan hold on an abandoned PENDING order.** The compensating release was removed (re-drive supersedes it). If reserve succeeds but `updateStatus`→RESERVED fails AND the client never retries, the order stays PENDING with stock held. Bounded and **discoverable** (status=PENDING is exactly the reconciliation worklist) — strictly better than the old wedge (orderless claimed key + leaked hold). Acceptable for this slice given the documented synchronous-saga trade-off, PROVIDED P3 (or a PENDING-order sweeper) reconciles it. Recommend an explicit note that abandoned-PENDING is the reconciliation surface.
+- **N2 (Low) — orphan hold under concurrent same-key drivers + a stock replenishment mid-flight.** Two concurrent same-key requests can both drive the same PENDING order (winner via step 4, loser via `resolveConcurrentClaim`→`resumeExisting`). If driver A reserves→ok=false and cancels while stock replenishes and driver B's reserve→ok=true, B holds stock on an order A already CANCELLED. Very narrow interleaving; produces a single-unit hold (no double-charge, no oversell) on a CANCELLED order — note this one is NOT caught by a PENDING sweep. Within documented concurrent-same-key territory; superseded by P3's event saga.
+
+## Semantic note (accept)
+- InsufficientStock: first call → 409 (`InsufficientStockError`); same-key replay → 200 with the stored CANCELLED order. Minor status inconsistency but correct idempotent-replay semantics (replay returns the stored resource). Acceptable.
+
+## Verdict
+C1 (Critical) and H1/M1 genuinely closed; the restructure is correct and better-factored (repo `insert`/`updateStatus` split, version handling right). Residuals N1/N2 are Low and inherent to the deliberately-synchronous slice — no blocker. Recommend: (a) one line in the phase doc naming abandoned-PENDING orders as the reconciliation surface, and (b) ensure P3 reconciles both N1 and N2.

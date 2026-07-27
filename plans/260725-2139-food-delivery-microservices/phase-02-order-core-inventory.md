@@ -64,6 +64,7 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 **Review hardening (code-reviewer round 1 — C1/H1/M1 addressed):**
 - [x] C1 (Critical): durable saga — claim idempotency key + insert PENDING order in ONE transaction before reserve; replay RE-DRIVES a PENDING order (reserve idempotent by orderId) instead of wedging on a claimed-but-orderless key. Removes the permanent-409 wedge + orphan-hold on a transient reserve failure; also makes concurrent same-key claims resolve to the winner's order. Repo split into `insert` + version-guarded `updateStatus`. Unit proves a reserve blip then retry recovers to RESERVED.
 - [x] H1: domain overflow guard — `OrderItem`/`Order` reject line/total above the int4 money bound (clean 4xx, never a DB 500); DTO `@Max` qty + `@ArrayMaxSize` items.
+- Residual (Low, by design — synchronous slice): an order left `PENDING` (client stopped retrying after a mid-saga failure, or a narrow concurrent-same-key/stock-replenishment interleave) can hold stock with no active order. These are **discoverable as `status = PENDING`** — that set is the reconciliation worklist. P3's Kafka Saga + Outbox reconciles/sweeps them; no oversell or double-charge in the meantime.
 
 ## Success criteria
 - Placing an order reserves exactly the ordered qty; 100 concurrent orders on 10 stock → 10 succeed, 90 rejected, zero oversell.
