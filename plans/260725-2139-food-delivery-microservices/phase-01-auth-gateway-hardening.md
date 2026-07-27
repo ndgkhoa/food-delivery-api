@@ -51,11 +51,11 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 - [x] `shared/tenancy` sources `tenant_id` from verified token (P0 header-trust removed; spoofed header ignored — tested)
 - [x] OpenAPI spec + Scalar UI served (catalog `/api/v1/reference`)  *(moved from P0)*
 
-**Slice B1 — Keycloak + RBAC (🔨 in progress):**
-- [ ] Keycloak realm + clients (public SPA + confidential gateway) + roles (admin/restaurant-owner/customer/driver) imported; `auth` compose profile
-- [ ] Gateway verifies REAL Keycloak tokens (JWKS from Keycloak, issuer/audience) — swap the injected test JWKS for the live resolver
-- [ ] Gateway `RolesGuard` (RBAC) on catalog writes (restaurant-owner/admin); reads public/customer-scoped
-- [ ] E2E: authz matrix (401 unauth / 403 wrong-role / 200 owner) with REAL Keycloak-issued tokens (direct-grant to mint in tests)
+**Slice B1 — Keycloak + RBAC (PR #3, open):**
+- [x] Keycloak realm + clients (public SPA, PKCE + direct-grant) + roles (admin/restaurant-owner/customer/driver) + audience & `tenant_id` mappers + 2 test users; `auth` compose profile (keycloak:26.7 — note: 27.0.0 tag doesn't exist)
+- [x] Gateway verifies REAL Keycloak tokens (live JWKS, issuer/audience) — injectable resolver defaults to remote
+- [x] `RolesGuard` (RBAC) enforced at the SERVICE on catalog writes (restaurant-owner/admin, reads trusted `x-roles`); reads open to any authenticated tenant
+- [x] E2E: authz matrix (401 no-token / 403 customer-write / 201 owner-write / 200 customer-read) with REAL Keycloak-issued tokens (testcontainer + direct-grant)
 
 **Slice B2 — auth service + sessions + rate limit:**
 - [ ] `auth` service: tenant registry (Postgres) + user↔tenant map + provisioning admin API
