@@ -1,9 +1,14 @@
 # Bring up only what a slice needs (see architecture.md §6). This slice only
 # needs the `core` profile: Postgres for catalog + Redis reserved for later
 # caching work. Run with: docker compose -f infra/docker-compose.yml --profile core up -d
+# Explicit project name so this stack never collides with other local compose
+# projects (e.g. a shared `infra` stack) that default to their folder name.
+name: food-delivery
+
 services:
   postgres:
     image: postgres:18.4
+    container_name: food-delivery-postgres
     profiles: [core]
     restart: unless-stopped
     environment:
@@ -22,6 +27,7 @@ services:
 
   redis:
     image: redis:8.8.0-alpine
+    container_name: food-delivery-redis
     profiles: [core]
     restart: unless-stopped
     ports:
