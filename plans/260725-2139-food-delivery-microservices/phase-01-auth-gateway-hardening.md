@@ -58,9 +58,9 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 - [x] `RolesGuard` (RBAC) enforced at the SERVICE on catalog writes (restaurant-owner/admin, reads trusted `x-roles`); reads open to any authenticated tenant
 - [x] E2E: authz matrix (401 no-token / 403 customer-write / 201 owner-write / 200 customer-read) with REAL Keycloak-issued tokens (testcontainer + direct-grant)
 
-**Slice B2a — auth service (🔨 in progress):**
-- [ ] `auth` service (hexagonal): tenant registry (Postgres) + user↔tenant map + provisioning admin API
-- [ ] Keycloak admin-client wrapper: create user + assign role + set validated `tenant_id` UUID attribute (enforces review finding M-2 at provisioning)
+**Slice B2a — auth service (PR #4, open):**
+- [x] `auth` service (hexagonal): tenant registry (Postgres db `auth`) + user↔tenant map + provisioning admin API (`@Roles('admin')`); gateway proxy `/api/v1/auth/*`
+- [x] Keycloak admin adapter (hand-rolled REST/fetch): create user + assign role + set validated `tenant_id` UUID attribute (enforces review M-2). Keycloak 24+ gotchas fixed: set firstName/lastName (User Profile requires them → else "account not fully set up") + realm `unmanagedAttributePolicy=ENABLED` (else admin-set `tenant_id` is dropped)
 
 **Slice B2b — gateway sessions + rate limit:**
 - [ ] Redis-backed per-identity rate limiter (429 on trip)
