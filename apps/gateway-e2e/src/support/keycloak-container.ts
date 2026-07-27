@@ -44,15 +44,20 @@ export async function stopKeycloak(handle: KeycloakHandle): Promise<void> {
   await handle.container.stop();
 }
 
-/** Mints a real access token via the direct-access (password) grant on the public SPA client. */
+/**
+ * Mints a real access token via the direct-access (password) grant. Defaults to
+ * the public SPA client; pass `clientId` to mint from another client (e.g. the
+ * short-lived client whose 2s token lifespan drives the expiry test).
+ */
 export async function mintPasswordToken(config: {
   baseUrl: string;
   username: string;
   password: string;
+  clientId?: string;
 }): Promise<string> {
   const body = new URLSearchParams({
     grant_type: 'password',
-    client_id: SPA_CLIENT_ID,
+    client_id: config.clientId ?? SPA_CLIENT_ID,
     username: config.username,
     password: config.password,
     scope: 'openid',
