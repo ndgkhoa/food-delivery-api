@@ -21,6 +21,9 @@ services:
       # Postgres 18+ Docker images store data in a major-version subdirectory and
       # expect the mount at /var/lib/postgresql (NOT /var/lib/postgresql/data).
       - postgres-data:/var/lib/postgresql
+      # Creates one database per service on first init (catalog/auth/inventory/order),
+      # so no manual `createdb` is needed before running migrations.
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_NAME:-catalog}']
       interval: 5s

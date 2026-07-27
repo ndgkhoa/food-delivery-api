@@ -9,6 +9,7 @@
   },
   "scripts": {
     "prepare": "lefthook install",
+    "dev": "nx run-many -t serve -p gateway catalog auth inventory order",
     "build": "nx build catalog",
     "test": "nx run-many -t test",
     "test:e2e": "nx run-many -t e2e",
@@ -29,6 +30,7 @@
     "migration:order:generate": "pnpm run typeorm migration:generate -d apps/order/src/infrastructure/persistence/data-source.ts",
     "migration:order:run": "pnpm run typeorm migration:run -d apps/order/src/infrastructure/persistence/data-source.ts",
     "migration:order:revert": "pnpm run typeorm migration:revert -d apps/order/src/infrastructure/persistence/data-source.ts",
+    "db:migrate": "DB_NAME=catalog pnpm migration:run && DB_NAME=auth pnpm migration:auth:run && DB_NAME=inventory pnpm migration:inventory:run && DB_NAME=order pnpm migration:order:run",
     "docker:core:up": "docker compose -f infra/docker-compose.yml --profile core up -d",
     "docker:core:down": "docker compose -f infra/docker-compose.yml --profile core down"
   },

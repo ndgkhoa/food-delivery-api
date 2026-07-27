@@ -30,6 +30,52 @@ Distributed **food delivery backend** in NestJS — event-driven microservices w
 - 🗺️ **Roadmap:** [`plan.md`](./plans/260725-2139-food-delivery-microservices/plan.md) — phased delivery plan.
 - 🔧 **Workflow:** [`development-workflow.md`](./plans/260725-2139-food-delivery-microservices/development-workflow.md) — Git Flow, Definition of Done, CI gates, commit/PR conventions.
 
+## Getting started
+
+**Prerequisites:** Node.js 24, pnpm, Docker. Currently running services (P0–P2): `gateway` (:3000), `catalog` (:3001 + gRPC :50051), `auth` (:3002), `inventory` (gRPC-only :50052), `order` (:3003). The rest of the 13 services are on the roadmap.
+
+```bash
+pnpm install
+cp .env.example .env
+
+# 1. Infra (Postgres + Redis + Nginx = core; Keycloak = auth). First Keycloak boot ~30-60s.
+#    Postgres auto-creates the catalog/auth/inventory/order databases on first run.
+docker compose -f infra/docker-compose.yml --profile core --profile auth up -d
+
+# 2. Migrate every service database
+pnpm db:migrate
+
+# 3. Run all services (each on its own port)
+pnpm dev
+```
+
+**Call the API** (through the gateway on `:3000`, versioned under `/api/v1`). Get a token from Keycloak (realm `food-delivery`, direct grant):
+
+| user | password | role |
+|------|----------|------|
+| `customer-user` | `customer-pass` | customer |
+| `owner-user` | `owner-pass` | restaurant-owner |
+| `admin-user` | `admin-pass` | admin |
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8080/realms/food-delivery/protocol/openid-connect/token \
+  -d grant_type=password -d client_id=food-delivery-spa \
+  -d username=owner-user -d password=owner-pass | jq -r .access_token)
+
+curl -X POST http://localhost:3000/api/v1/catalog/restaurants \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"name":"Pho 24","description":"..."}'
+```
+
+Interactive API reference (Scalar): `http://localhost:3001/api/v1/reference`.
+
+**Tests** (e2e use testcontainers — real Postgres/Redis/Keycloak/gRPC, no manual infra):
+
+```bash
+pnpm test                 # all unit tests
+pnpm nx e2e order-e2e     # place/cancel/idempotency/100-concurrent no-oversell, end-to-end
+```
+
 ## Contributing
 
 Git Flow: branch off `develop` → PR into `develop` → squash-merge → delete branch. Conventional Commits with a mandatory scope (`type(scope): subject`). See the workflow doc above.
