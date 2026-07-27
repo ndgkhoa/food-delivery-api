@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { ConflictError } from '@auth/domain/shared/errors';
 import { Tenant } from '@auth/domain/tenant/tenant';
 import { UserTenantLink } from '@auth/domain/tenant/user-tenant-link';
 import { TenantOrmEntity } from '@auth/infrastructure/persistence/entities/tenant.orm-entity';
@@ -65,11 +66,14 @@ describe('auth TypeORM repositories (integration)', () => {
     expect(bySlug?.id).toBe(tenant.id);
   });
 
-  it('enforces the unique slug constraint from the migration', async () => {
+  it('maps the unique-slug violation to a domain ConflictError (→ HTTP 409, not 500)', async () => {
     await tenantRepository.save(Tenant.create({ id: randomUUID(), name: 'A', slug: 'dup' }));
+    // A concurrent duplicate that races past the handler pre-check hits the unique
+    // index; the repository must translate SQLSTATE 23505 into ConflictError so the
+    // edge maps it to 409 rather than leaking a raw QueryFailedError as 500.
     await expect(
       tenantRepository.save(Tenant.create({ id: randomUUID(), name: 'B', slug: 'dup' })),
-    ).rejects.toThrow();
+    ).rejects.toThrow(ConflictError);
   });
 
   it('paginates findAndCount ordered by createdAt desc', async () => {

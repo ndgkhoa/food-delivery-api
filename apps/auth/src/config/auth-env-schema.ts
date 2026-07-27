@@ -14,7 +14,12 @@ export const authEnvSchema = baseEnvSchema.extend({
   KEYCLOAK_URL: z.string().url().default('http://localhost:8080'),
   /** Target realm users are provisioned into. */
   KEYCLOAK_REALM: z.string().min(1).default('food-delivery'),
-  /** Bootstrap admin creds for the master-realm admin-cli direct grant. */
-  KEYCLOAK_ADMIN: z.string().min(1).default('admin'),
-  KEYCLOAK_ADMIN_PASSWORD: z.string().min(1).default('admin'),
+  /**
+   * Bootstrap admin creds for the master-realm admin-cli direct grant. NO schema
+   * default on purpose: this adapter wields master-realm admin power, so a missing
+   * value must fail loud at boot rather than silently authenticating as admin/admin.
+   * Dev convenience lives in `.env` / `.env.example`, never a schema default.
+   */
+  KEYCLOAK_ADMIN: z.string().min(1),
+  KEYCLOAK_ADMIN_PASSWORD: z.string().min(1),
 });

@@ -39,8 +39,13 @@ class FakeTenantRepository implements TenantRepository {
 
 class FakeUserTenantLinkRepository implements UserTenantLinkRepository {
   readonly saved: UserTenantLink[] = [];
+  /** When true, `save` throws to simulate a registry write failing after Keycloak create. */
+  failOnSave = false;
 
   async save(link: UserTenantLink): Promise<UserTenantLink> {
+    if (this.failOnSave) {
+      throw new Error('simulated registry write failure');
+    }
     this.saved.push(link);
     return link;
   }
@@ -53,11 +58,16 @@ class FakeUserTenantLinkRepository implements UserTenantLinkRepository {
 /** Records the exact input the adapter would receive so tests can assert on the tenant_id + role. */
 class FakeKeycloakAdmin implements KeycloakAdminPort {
   readonly calls: CreateKeycloakUserInput[] = [];
+  readonly deleted: string[] = [];
   nextUserId = 'kc-user-1';
 
   async createUser(input: CreateKeycloakUserInput): Promise<string> {
     this.calls.push(input);
     return this.nextUserId;
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    this.deleted.push(userId);
   }
 }
 
@@ -123,6 +133,45 @@ describe('auth application handlers', () => {
       expect(link.tenantId).toBe(tenant.id);
       expect(link.role).toBe('restaurant-owner');
       expect(linkRepository.saved).toHaveLength(1);
+    });
+
+    it('compensates by deleting the Keycloak user when the registry write fails', async () => {
+      const tenant = await createTenant.execute({ name: 'Acme', slug: 'acme' });
+      linkRepository.failOnSave = true;
+
+      await expect(
+        provisionUser.execute({
+          tenantId: tenant.id,
+          username: 'olivia',
+          email: 'olivia@acme.test',
+          role: 'customer',
+          password: 'sup3r-secret',
+        }),
+      ).rejects.toThrow();
+
+      // The just-created (now orphaned) Keycloak user was deleted...
+      expect(keycloakAdmin.deleted).toEqual(['kc-user-1']);
+      // ...and no user_tenant_map row lingers.
+      expect(linkRepository.saved).toHaveLength(0);
+    });
+
+    it('never persists the provisioning password on the registry link', async () => {
+      const tenant = await createTenant.execute({ name: 'Acme', slug: 'acme' });
+      const password = 'sup3r-secret';
+
+      await provisionUser.execute({
+        tenantId: tenant.id,
+        username: 'olivia',
+        email: 'olivia@acme.test',
+        role: 'customer',
+        password,
+      });
+
+      // Grep-proof: the persisted registry row carries neither the password value
+      // nor any password-shaped field (Keycloak owns the credential, not the registry).
+      const serialized = JSON.stringify(linkRepository.saved[0]);
+      expect(serialized).not.toContain(password);
+      expect(serialized.toLowerCase()).not.toContain('password');
     });
 
     it('rejects a non-UUID tenantId before calling Keycloak (M-2 guard)', async () => {

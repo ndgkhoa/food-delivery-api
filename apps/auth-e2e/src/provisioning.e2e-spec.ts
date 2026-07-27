@@ -117,6 +117,27 @@ describe('Auth provisioning via gateway with real Keycloak (e2e)', () => {
     expect(realmAccess?.roles ?? []).toContain('restaurant-owner');
   });
 
+  it('rejects provisioning with an unknown role (400) before touching Keycloak', async () => {
+    const slug = `roles-${Date.now()}`;
+    const createRes = await request(gateway.url)
+      .post('/api/v1/auth/tenants')
+      .set('authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Roles Co', slug })
+      .expect(201);
+    const tenantId: string = createRes.body.id;
+
+    await request(gateway.url)
+      .post(`/api/v1/auth/tenants/${tenantId}/users`)
+      .set('authorization', `Bearer ${adminToken}`)
+      .send({
+        username: `bad-${Date.now()}`,
+        email: 'bad@acme.test',
+        role: 'superadmin',
+        password: 'sup3r-secret',
+      })
+      .expect(400);
+  });
+
   it('lists tenants for an admin (200)', async () => {
     await request(gateway.url)
       .get('/api/v1/auth/tenants')
