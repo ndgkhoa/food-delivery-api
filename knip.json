@@ -1,0 +1,32 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignore": ["**/jest.config.{ts,cts}", "**/jest.preset.js", "**/webpack.config.js"],
+  "entry": [
+    "apps/*/src/main.ts",
+    "apps/catalog/src/database/data-source.ts",
+    "apps/**/*.spec.ts",
+    "apps/**/*.e2e-spec.ts",
+    "apps/*/src/testing/**/*.ts",
+    "libs/**/src/index.ts",
+    "nx.json"
+  ],
+  "project": ["apps/**/*.ts", "libs/**/*.ts"],
+  "ignoreDependencies": [
+    "@nestjs/schematics",
+    "@nx/jest",
+    "@nx/js",
+    "@nx/nest",
+    "@nx/node",
+    "@nx/web",
+    "@nx/webpack",
+    "@nx/workspace",
+    "@swc/helpers",
+    "dotenv",
+    "jest-environment-node",
+    "jest-util",
+    "testcontainers",
+    "ts-node",
+    "tslib",
+    "pino-pretty"
+  ]
+}
