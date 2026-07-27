@@ -23,6 +23,6 @@ export class ConfirmOrderHandler {
     }
     assertOrderOwnership(order, command.userId, command.roles);
 
-    return this.orderRepository.save(order.confirm());
+    return this.orderRepository.updateStatus(order.confirm());
   }
 }

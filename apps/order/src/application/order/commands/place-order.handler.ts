@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable, Logger } from '@nestjs/common';
-import { claimIdempotencyKey } from '@order/application/order/commands/claim-idempotency-key';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   IDEMPOTENCY_REPOSITORY,
   type IdempotencyRepository,
@@ -36,6 +35,15 @@ export interface PlaceOrderCommand {
   items: PlaceOrderItemInput[];
 }
 
+/** Postgres SQLSTATE for unique_violation — a concurrent duplicate idempotency key. */
+const PG_UNIQUE_VIOLATION = '23505';
+
+/** True for a Postgres unique_violation, however TypeORM wraps the driver error. */
+function isUniqueViolation(error: unknown): boolean {
+  const wrapped = error as { code?: string; driverError?: { code?: string } };
+  return (wrapped?.driverError?.code ?? wrapped?.code) === PG_UNIQUE_VIOLATION;
+}
+
 function assertValidCommand(command: PlaceOrderCommand): void {
   if (command.items.length === 0) {
     throw new InvalidOrderRequestError('order must contain at least one item');
@@ -50,15 +58,17 @@ function assertValidCommand(command: PlaceOrderCommand): void {
 }
 
 /**
- * Places an order as a synchronous saga over gRPC: validate menu (catalog) →
- * claim the idempotency key → reserve stock (inventory) → persist. This
- * inline coupling is deliberate for this slice — P3 replaces it with a Kafka
- * saga + outbox so a downstream failure no longer blocks the caller.
+ * Places an order as a synchronous saga over gRPC. Correctness hinges on making
+ * the order durable BEFORE any external effect: the idempotency-key claim and a
+ * PENDING order row are written in ONE transaction, then stock is reserved and
+ * the order transitioned to RESERVED (or CANCELLED). Because the order row
+ * always exists once the key is claimed, a retry after any failure re-drives the
+ * saga — inventory.reserve is idempotent by orderId — instead of wedging on a
+ * claimed-but-orderless key or stranding a reserved hold. This inline coupling
+ * is deliberate for this slice; P3 replaces it with a Kafka saga + outbox.
  */
 @Injectable()
 export class PlaceOrderHandler {
-  private readonly logger = new Logger(PlaceOrderHandler.name);
-
   constructor(
     @Inject(ORDER_REPOSITORY) private readonly orderRepository: OrderRepository,
     @Inject(IDEMPOTENCY_REPOSITORY) private readonly idempotencyRepository: IdempotencyRepository,
@@ -70,19 +80,19 @@ export class PlaceOrderHandler {
   async execute(command: PlaceOrderCommand): Promise<Order> {
     assertValidCommand(command);
 
-    // 1. Idempotency replay: an identical retry returns the original order.
+    // 1. Replay: an existing key maps to a durable order — resume it (re-driving
+    //    a still-PENDING one) rather than starting over.
     const existingOrderId = await this.idempotencyRepository.findOrderId(
       command.tenantId,
       command.userId,
       command.idempotencyKey,
     );
     if (existingOrderId) {
-      return this.loadReplayedOrder(command.tenantId, existingOrderId, command.idempotencyKey);
+      return this.resumeExisting(command.tenantId, existingOrderId, command.idempotencyKey);
     }
 
     // 2. Validate menu against the catalog — price/availability are never trusted from the client.
     const orderItems = await this.buildOrderItems(command);
-
     const orderId = randomUUID();
     const pendingOrder = Order.create({
       id: orderId,
@@ -91,44 +101,69 @@ export class PlaceOrderHandler {
       items: orderItems,
     });
 
-    // 3. Claim the idempotency key FIRST so a client retry (before reserve/persist finish)
-    // reuses this same orderId — inventory.reserve is idempotent by orderId.
-    await claimIdempotencyKey(
-      this.idempotencyRepository,
-      this.orderRepository,
-      command.tenantId,
-      command.userId,
-      command.idempotencyKey,
-      orderId,
-    );
-
-    // 4. Reserve stock. ok=false → persist a CANCELLED order (audit trail) and reject.
-    const reserveResult = await this.inventoryGateway.reserve(
-      command.tenantId,
-      orderId,
-      orderItems.map((item) => ({ itemId: item.itemId, qty: item.qty })),
-    );
-    if (!reserveResult.ok) {
-      await this.orderRepository.save(pendingOrder.cancel());
-      throw new InsufficientStockError(orderId);
+    // 3. Durably record intent: claim the key AND insert the PENDING order in ONE
+    //    transaction, so a later failure can never leave a claimed key without a
+    //    recoverable order row. Keep the persisted order — it carries the DB's
+    //    authoritative version the optimistic-lock transition needs.
+    let persistedOrder: Order;
+    try {
+      persistedOrder = await this.transaction.runInTransaction(async () => {
+        await this.idempotencyRepository.save(
+          command.tenantId,
+          command.userId,
+          command.idempotencyKey,
+          orderId,
+        );
+        return this.orderRepository.insert(pendingOrder);
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        // A concurrent request won the key; its order committed atomically with
+        // the claim, so resume that one.
+        return this.resolveConcurrentClaim(
+          command.tenantId,
+          command.userId,
+          command.idempotencyKey,
+        );
+      }
+      throw error;
     }
 
-    return this.persistReserved(pendingOrder, command.tenantId, orderId);
+    // 4. Drive the reservation. Idempotent by orderId, so a retry re-drives safely.
+    return this.driveReservation(persistedOrder);
   }
 
-  private async loadReplayedOrder(
+  private async resumeExisting(
     tenantId: string,
     orderId: string,
     idempotencyKey: string,
   ): Promise<Order> {
-    const existing = await this.orderRepository.findById(tenantId, orderId);
-    if (existing) {
-      return existing;
+    const order = await this.orderRepository.findById(tenantId, orderId);
+    if (!order) {
+      // The claim + order insert are atomic, so a visible mapping should imply a
+      // visible order. Treat the vanishing-small window as transiently retryable.
+      throw new IdempotencyConflictError(
+        `order for key "${idempotencyKey}" is being created — retry shortly`,
+      );
     }
-    // The mapping was claimed but the owning request hasn't persisted the order row
-    // yet (a race with a concurrent in-flight place-order). Retryable — 409.
+    return order.status === 'PENDING' ? this.driveReservation(order) : order;
+  }
+
+  private async resolveConcurrentClaim(
+    tenantId: string,
+    userId: string,
+    idempotencyKey: string,
+  ): Promise<Order> {
+    const winningOrderId = await this.idempotencyRepository.findOrderId(
+      tenantId,
+      userId,
+      idempotencyKey,
+    );
+    if (winningOrderId) {
+      return this.resumeExisting(tenantId, winningOrderId, idempotencyKey);
+    }
     throw new IdempotencyConflictError(
-      `order for key "${idempotencyKey}" is still being created — retry shortly`,
+      `order for key "${idempotencyKey}" is being created — retry shortly`,
     );
   }
 
@@ -137,45 +172,37 @@ export class PlaceOrderHandler {
     const menuItems = await this.catalogGateway.validateItems(command.tenantId, distinctItemIds);
     const menuByItemId = new Map(menuItems.map((item) => [item.itemId, item]));
 
-    for (const itemId of distinctItemIds) {
-      const menuItem = menuByItemId.get(itemId);
+    return command.items.map((item) => {
+      const menuItem = menuByItemId.get(item.itemId);
       if (!menuItem) {
-        throw new MenuValidationError(`menu item "${itemId}" not found for this tenant`);
+        throw new MenuValidationError(`menu item "${item.itemId}" not found for this tenant`);
       }
       if (!menuItem.isAvailable) {
-        throw new MenuValidationError(`menu item "${itemId}" is not available`);
+        throw new MenuValidationError(`menu item "${item.itemId}" is not available`);
       }
-    }
-
-    return command.items.map((item) => {
-      // Presence already verified in the loop above — `.priceCents` defaults to 0
-      // only if that invariant is ever violated, which `OrderItem.create` still
-      // guards (non-negative integer check).
-      const priceCents = menuByItemId.get(item.itemId)?.priceCents ?? 0;
-      return OrderItem.create({ itemId: item.itemId, qty: item.qty, unitPriceCents: priceCents });
+      return OrderItem.create({
+        itemId: item.itemId,
+        qty: item.qty,
+        unitPriceCents: menuItem.priceCents,
+      });
     });
   }
 
-  private async persistReserved(
-    pendingOrder: Order,
-    tenantId: string,
-    orderId: string,
-  ): Promise<Order> {
-    const reserved = pendingOrder.reserve();
-    try {
-      return await this.transaction.runInTransaction(() => this.orderRepository.save(reserved));
-    } catch (error) {
-      // Reserve succeeded but the local persist failed — compensate by releasing the
-      // hold we just took, best-effort, then rethrow the original failure.
-      try {
-        await this.inventoryGateway.release(tenantId, orderId);
-      } catch (releaseError) {
-        this.logger.error(
-          `compensating release failed for order "${orderId}" after a failed persist — stock may remain held until manually reconciled`,
-          releaseError instanceof Error ? releaseError.stack : String(releaseError),
-        );
-      }
-      throw error;
+  /**
+   * Reserve stock for a PENDING order, then transition it. Safe to call again on
+   * a retry: inventory.reserve is idempotent by orderId, and the optimistic-lock
+   * transition either wins or 409s a concurrent driver (which then resumes).
+   */
+  private async driveReservation(order: Order): Promise<Order> {
+    const reserveResult = await this.inventoryGateway.reserve(
+      order.tenantId,
+      order.id,
+      order.items.map((item) => ({ itemId: item.itemId, qty: item.qty })),
+    );
+    if (!reserveResult.ok) {
+      await this.orderRepository.updateStatus(order.cancel());
+      throw new InsufficientStockError(order.id);
     }
+    return this.orderRepository.updateStatus(order.reserve());
   }
 }

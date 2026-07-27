@@ -41,11 +41,7 @@ export class TypeOrmOrderRepository implements OrderRepository {
     return OrderMapper.toDomain(row, items);
   }
 
-  async save(order: Order): Promise<Order> {
-    return order.version === 0 ? this.insertNew(order) : this.updateStatus(order);
-  }
-
-  private async insertNew(order: Order): Promise<Order> {
+  async insert(order: Order): Promise<Order> {
     const savedOrder = await this.orderRepository.save(OrderMapper.toNewOrderOrm(order));
     const itemRows = OrderMapper.toNewOrderItemOrms(order);
     const savedItems = itemRows.length > 0 ? await this.orderItemRepository.save(itemRows) : [];
@@ -53,13 +49,13 @@ export class TypeOrmOrderRepository implements OrderRepository {
   }
 
   /**
-   * Optimistic-lock update: an atomic conditional `UPDATE ... WHERE id = :id
+   * Optimistic-lock transition: an atomic conditional `UPDATE ... WHERE id = :id
    * AND tenant_id = :tenantId AND version = :version` that also bumps the
    * version. Zero affected rows means a concurrent writer already moved the
    * version on since this aggregate was loaded — a real conflict, not a
    * missing row (the row was loaded moments earlier in the same use case).
    */
-  private async updateStatus(order: Order): Promise<Order> {
+  async updateStatus(order: Order): Promise<Order> {
     const result = await this.orderRepository
       .createQueryBuilder()
       .update(OrderOrmEntity)

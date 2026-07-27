@@ -40,7 +40,7 @@ export class CancelOrderHandler {
     }
     assertOrderOwnership(order, command.userId, command.roles);
 
-    const saved = await this.orderRepository.save(order.cancel());
+    const saved = await this.orderRepository.updateStatus(order.cancel());
 
     try {
       await this.inventoryGateway.release(command.tenantId, command.orderId);

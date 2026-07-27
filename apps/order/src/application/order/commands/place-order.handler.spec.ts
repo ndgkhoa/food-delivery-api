@@ -1,12 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import type { IdempotencyRepository } from '@order/domain/idempotency/idempotency.repository';
-import type { Order } from '@order/domain/order/order';
+import { Order } from '@order/domain/order/order';
 import type { OrderRepository } from '@order/domain/order/order.repository';
 import type {
   CatalogGatewayPort,
   MenuItemSnapshot,
 } from '@order/domain/shared/catalog-gateway.port';
-import { InsufficientStockError, MenuValidationError } from '@order/domain/shared/errors';
+import {
+  InsufficientStockError,
+  MenuValidationError,
+  OrderConcurrencyConflictError,
+} from '@order/domain/shared/errors';
 import type {
   InventoryGatewayPort,
   ReleaseOutcome,
@@ -22,15 +26,31 @@ const itemId = '33333333-3333-4333-8333-333333333333';
 
 class FakeOrderRepository implements OrderRepository {
   readonly rows = new Map<string, Order>();
-  failNextInsert = false;
 
-  async save(order: Order): Promise<Order> {
-    if (order.version === 0 && this.failNextInsert) {
-      this.failNextInsert = false;
-      throw new Error('simulated persist failure');
-    }
+  async insert(order: Order): Promise<Order> {
     this.rows.set(order.id, order);
     return order;
+  }
+
+  async updateStatus(order: Order): Promise<Order> {
+    const stored = this.rows.get(order.id);
+    // Optimistic-lock check: the loaded version must still be current.
+    if (!stored || stored.version !== order.version) {
+      throw new OrderConcurrencyConflictError(order.id);
+    }
+    const bumped = Order.reconstitute({
+      id: order.id,
+      tenantId: order.tenantId,
+      userId: order.userId,
+      status: order.status,
+      items: order.items,
+      totalCents: order.totalCents,
+      version: order.version + 1,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+    });
+    this.rows.set(order.id, bumped);
+    return bumped;
   }
 
   async findById(t: string, id: string): Promise<Order | undefined> {
@@ -77,6 +97,8 @@ class FakeCatalogGateway implements CatalogGatewayPort {
 
 class FakeInventoryGateway implements InventoryGatewayPort {
   reserveOutcome: ReserveOutcome = { ok: true, reservationIds: ['reservation-1'] };
+  /** When set, the next reserve throws (a transient gRPC failure) then clears. */
+  failNextReserve = false;
   reserveCalls: { orderId: string; items: ReserveItemCommand[] }[] = [];
   releaseCalls: string[] = [];
 
@@ -85,6 +107,10 @@ class FakeInventoryGateway implements InventoryGatewayPort {
     orderId: string,
     items: ReserveItemCommand[],
   ): Promise<ReserveOutcome> {
+    if (this.failNextReserve) {
+      this.failNextReserve = false;
+      throw new Error('simulated inventory gRPC failure');
+    }
     this.reserveCalls.push({ orderId, items });
     return this.reserveOutcome;
   }
@@ -168,18 +194,27 @@ describe('PlaceOrderHandler', () => {
     const second = await handler.execute(command);
 
     expect(second.id).toBe(first.id);
+    expect(second.status).toBe('RESERVED');
     expect(catalogGateway.calls).toBe(1);
     expect(inventoryGateway.reserveCalls).toHaveLength(1);
   });
 
-  it('compensates with a release when the post-reserve persist fails', async () => {
+  it('does not wedge the key when reserve throws — a retry re-drives the same order to RESERVED', async () => {
     const { catalogGateway, inventoryGateway, orderRepo, handler } = buildHandler();
     catalogGateway.seed({ itemId, restaurantId: 'r-1', priceCents: 500, isAvailable: true });
-    orderRepo.failNextInsert = true;
+    const command = baseCommand();
 
-    await expect(handler.execute(baseCommand())).rejects.toThrow('simulated persist failure');
+    // First attempt: the PENDING order + key are persisted, then reserve blips.
+    inventoryGateway.failNextReserve = true;
+    await expect(handler.execute(command)).rejects.toThrow('simulated inventory gRPC failure');
+    const pending = [...orderRepo.rows.values()][0];
+    expect(pending.status).toBe('PENDING');
 
-    expect(inventoryGateway.releaseCalls).toHaveLength(1);
-    expect(inventoryGateway.releaseCalls[0]).toBe(inventoryGateway.reserveCalls[0].orderId);
+    // Retry with the same key re-drives the existing order (reserve idempotent by orderId).
+    const recovered = await handler.execute(command);
+    expect(recovered.id).toBe(pending.id);
+    expect(recovered.status).toBe('RESERVED');
+    expect(catalogGateway.calls).toBe(1);
+    expect(inventoryGateway.reserveCalls[0].orderId).toBe(pending.id);
   });
 });

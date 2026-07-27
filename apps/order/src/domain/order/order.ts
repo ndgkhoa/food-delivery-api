@@ -1,4 +1,4 @@
-import type { OrderItem } from '@order/domain/order/order-item';
+import { MAX_MONEY_CENTS, type OrderItem } from '@order/domain/order/order-item';
 import { IllegalOrderTransitionError, InvalidOrderRequestError } from '@order/domain/shared/errors';
 
 export type OrderStatus = 'PENDING' | 'RESERVED' | 'CONFIRMED' | 'CANCELLED';
@@ -53,6 +53,9 @@ export class Order {
       throw new InvalidOrderRequestError('order must contain at least one item');
     }
     const totalCents = props.items.reduce((sum, item) => sum + item.lineTotalCents, 0);
+    if (totalCents > MAX_MONEY_CENTS) {
+      throw new InvalidOrderRequestError('order total exceeds the maximum allowed amount');
+    }
     const now = new Date();
     return new Order({
       id: props.id,

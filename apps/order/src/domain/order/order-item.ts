@@ -27,6 +27,9 @@ function assertNonNegativeInteger(value: number, label: string): void {
   }
 }
 
+/** Money is stored in `integer` (int4) cents columns; keep every amount within range. */
+export const MAX_MONEY_CENTS = 2_147_483_647;
+
 /**
  * A single line item on an order. `unitPriceCents` is always the catalog's
  * price at placement time (computed server-side, in `PlaceOrderHandler`) —
@@ -39,7 +42,13 @@ export class OrderItem {
   static create(props: CreateOrderItemProps): OrderItem {
     assertPositiveInteger(props.qty, 'quantity');
     assertNonNegativeInteger(props.unitPriceCents, 'unit price');
-    return new OrderItem({ ...props, lineTotalCents: props.qty * props.unitPriceCents });
+    const lineTotalCents = props.qty * props.unitPriceCents;
+    if (lineTotalCents > MAX_MONEY_CENTS) {
+      throw new InvalidOrderRequestError(
+        `line total for item "${props.itemId}" exceeds the maximum allowed amount`,
+      );
+    }
+    return new OrderItem({ ...props, lineTotalCents });
   }
 
   /** Rehydrate from persistence — data is already validated. */

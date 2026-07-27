@@ -61,6 +61,10 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 - [x] E2E green (real Postgres×2 + Redis + real inventory gRPC + order over genuine gRPC): place→RESERVED + stock decremented, cancel→CANCELLED + stock released, idempotency (duplicate key → one order), **100-concurrent single-item on stock=10 → exactly 10 RESERVED, rest InsufficientStock, available=0, zero oversell** end-to-end. Suites run serially (each boots its own stack on a fixed inventory port). cancel/confirm return 200.
 - [x] gateway `OrderProxyController` + `ORDER_SERVICE_URL` wiring
 
+**Review hardening (code-reviewer round 1 — C1/H1/M1 addressed):**
+- [x] C1 (Critical): durable saga — claim idempotency key + insert PENDING order in ONE transaction before reserve; replay RE-DRIVES a PENDING order (reserve idempotent by orderId) instead of wedging on a claimed-but-orderless key. Removes the permanent-409 wedge + orphan-hold on a transient reserve failure; also makes concurrent same-key claims resolve to the winner's order. Repo split into `insert` + version-guarded `updateStatus`. Unit proves a reserve blip then retry recovers to RESERVED.
+- [x] H1: domain overflow guard — `OrderItem`/`Order` reject line/total above the int4 money bound (clean 4xx, never a DB 500); DTO `@Max` qty + `@ArrayMaxSize` items.
+
 ## Success criteria
 - Placing an order reserves exactly the ordered qty; 100 concurrent orders on 10 stock → 10 succeed, 90 rejected, zero oversell.
 - Duplicate create with same idempotency key → identical response, one order.

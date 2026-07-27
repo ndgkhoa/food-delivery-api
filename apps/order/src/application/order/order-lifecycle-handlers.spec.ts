@@ -38,7 +38,12 @@ class FakeOrderRepository implements OrderRepository {
     return row && row.tenantId === t ? row : undefined;
   }
 
-  async save(order: Order): Promise<Order> {
+  async insert(order: Order): Promise<Order> {
+    this.rows.set(order.id, order);
+    return order;
+  }
+
+  async updateStatus(order: Order): Promise<Order> {
     if (this.failNextUpdate) {
       this.failNextUpdate = false;
       throw new OrderConcurrencyConflictError(order.id);
