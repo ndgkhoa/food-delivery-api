@@ -1,7 +1,7 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
-import { CreateCatalogTables1753574400000 } from '../database/migrations/1753574400000-create-catalog-tables';
-import { catalogEntities } from '../database/typeorm-options';
+import { CreateCatalogTables1753574400000 } from '../infrastructure/persistence/migrations/1753574400000-create-catalog-tables';
+import { catalogOrmEntities } from '../infrastructure/persistence/typeorm-options';
 
 export interface CatalogTestDatabase {
   container: StartedPostgreSqlContainer;
@@ -24,7 +24,7 @@ export async function startCatalogTestDatabase(): Promise<CatalogTestDatabase> {
     username: container.getUsername(),
     password: container.getPassword(),
     database: container.getDatabase(),
-    entities: catalogEntities,
+    entities: catalogOrmEntities,
     migrations: [CreateCatalogTables1753574400000],
     synchronize: false,
     logging: false,

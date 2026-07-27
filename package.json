@@ -16,9 +16,9 @@
     "lint:fix": "biome check --write .",
     "cruiser": "depcruise apps libs --config .dependency-cruiser.js",
     "knip": "knip --no-config-hints",
-    "migration:generate": "typeorm-ts-node-commonjs migration:generate -d apps/catalog/src/database/data-source.ts",
-    "migration:run": "typeorm-ts-node-commonjs migration:run -d apps/catalog/src/database/data-source.ts",
-    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d apps/catalog/src/database/data-source.ts",
+    "migration:generate": "typeorm-ts-node-commonjs migration:generate -d apps/catalog/src/infrastructure/persistence/data-source.ts",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -d apps/catalog/src/infrastructure/persistence/data-source.ts",
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d apps/catalog/src/infrastructure/persistence/data-source.ts",
     "docker:core:up": "docker compose -f infra/docker-compose.yml --profile core up -d",
     "docker:core:down": "docker compose -f infra/docker-compose.yml --profile core down"
   },

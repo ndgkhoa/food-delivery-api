@@ -3,7 +3,7 @@
   "ignore": ["**/jest.config.{ts,cts}", "**/jest.preset.js", "**/webpack.config.js"],
   "entry": [
     "apps/*/src/main.ts",
-    "apps/catalog/src/database/data-source.ts",
+    "apps/catalog/src/infrastructure/persistence/data-source.ts",
     "apps/**/*.spec.ts",
     "apps/**/*.e2e-spec.ts",
     "apps/*/src/testing/**/*.ts",

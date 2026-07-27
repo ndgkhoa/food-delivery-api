@@ -34,6 +34,30 @@ module.exports = {
       from: { path: '^libs' },
       to: { path: '^apps' },
     },
+    {
+      name: 'domain-stays-pure',
+      severity: 'error',
+      comment:
+        'Hexagonal: domain is the innermost layer — it must not depend on application, infrastructure, or interface (nor any framework). Keeps business rules testable in isolation.',
+      from: { path: '^apps/[^/]+/src/domain/' },
+      to: { path: '^apps/[^/]+/src/(application|infrastructure|interface)/' },
+    },
+    {
+      name: 'application-no-outward-deps',
+      severity: 'error',
+      comment:
+        'Hexagonal: application (use cases) may depend on domain only — never on infrastructure adapters or the interface/delivery layer.',
+      from: { path: '^apps/[^/]+/src/application/' },
+      to: { path: '^apps/[^/]+/src/(infrastructure|interface)/' },
+    },
+    {
+      name: 'interface-not-infrastructure',
+      severity: 'error',
+      comment:
+        'Hexagonal: the interface/delivery layer talks to application (and domain types), never directly to infrastructure adapters. Wiring happens at the composition root.',
+      from: { path: '^apps/[^/]+/src/interface/' },
+      to: { path: '^apps/[^/]+/src/infrastructure/' },
+    },
   ],
   options: {
     doNotFollow: {
