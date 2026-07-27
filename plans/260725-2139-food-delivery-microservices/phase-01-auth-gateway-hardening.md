@@ -9,7 +9,8 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 - **Slicing** (too big for one PR):
   - **Slice A — identity edge** ✅ (PR #2, open): gateway app + Nginx L7 (from P0), `shared/auth` (JWKS + JWT verify + claim extractor), `JwtAuthGuard` + URI versioning + ValidationPipe + reverse-proxy, `shared/tenancy` reads `tenant_id` from verified token (drop P0 header-trust), OpenAPI + Scalar (from P0). Verify tested with signed test JWTs — **no Keycloak yet**. → verified-identity requests reach catalog.
   - **Slice B1 — Keycloak + RBAC** (in progress): Keycloak realm/clients/roles + `auth` compose profile; gateway verifies REAL Keycloak tokens; RBAC (`RolesGuard` + `@Roles`) enforced at the service on catalog writes (reads trusted roles header); authz-matrix e2e with real Keycloak tokens.
-  - **Slice B2 — auth service + sessions**: `auth` service (tenant registry + provisioning), Redis rate limiting, refresh-token rotation + logout/session revoke, full Authorization Code + PKCE login.
+  - **Slice B2a — auth service** (in progress): `auth` service (tenant registry + user↔tenant map + provisioning admin API) + Keycloak admin-client wrapper (create user + set validated `tenant_id` UUID — addresses review M-2).
+  - **Slice B2b — gateway sessions + rate limit**: Redis rate limiting, refresh-token rotation + logout/session revoke, full Authorization Code + PKCE login.
   - Decision (locked): single Keycloak realm + `tenant_id` claim (NOT realm-per-tenant).
 
 ## Key insights
@@ -51,14 +52,17 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 - [x] `shared/tenancy` sources `tenant_id` from verified token (P0 header-trust removed; spoofed header ignored — tested)
 - [x] OpenAPI spec + Scalar UI served (catalog `/api/v1/reference`)  *(moved from P0)*
 
-**Slice B1 — Keycloak + RBAC (PR #3, open):**
+**Slice B1 — Keycloak + RBAC (PR #3 ✅ MERGED):**
 - [x] Keycloak realm + clients (public SPA, PKCE + direct-grant) + roles (admin/restaurant-owner/customer/driver) + audience & `tenant_id` mappers + 2 test users; `auth` compose profile (keycloak:26.7 — note: 27.0.0 tag doesn't exist)
 - [x] Gateway verifies REAL Keycloak tokens (live JWKS, issuer/audience) — injectable resolver defaults to remote
 - [x] `RolesGuard` (RBAC) enforced at the SERVICE on catalog writes (restaurant-owner/admin, reads trusted `x-roles`); reads open to any authenticated tenant
 - [x] E2E: authz matrix (401 no-token / 403 customer-write / 201 owner-write / 200 customer-read) with REAL Keycloak-issued tokens (testcontainer + direct-grant)
 
-**Slice B2 — auth service + sessions + rate limit:**
-- [ ] `auth` service: tenant registry (Postgres) + user↔tenant map + provisioning admin API
+**Slice B2a — auth service (PR #4, open):**
+- [x] `auth` service (hexagonal): tenant registry (Postgres db `auth`) + user↔tenant map + provisioning admin API (`@Roles('admin')`); gateway proxy `/api/v1/auth/*`
+- [x] Keycloak admin adapter (hand-rolled REST/fetch): create user + assign role + set validated `tenant_id` UUID attribute (enforces review M-2). Keycloak 24+ gotchas fixed: set firstName/lastName (User Profile requires them → else "account not fully set up") + realm `unmanagedAttributePolicy=ENABLED` (else admin-set `tenant_id` is dropped)
+
+**Slice B2b — gateway sessions + rate limit:**
 - [ ] Redis-backed per-identity rate limiter (429 on trip)
 - [ ] Refresh-token rotation + logout/session revoke; Authorization Code + PKCE login wired end-to-end
 

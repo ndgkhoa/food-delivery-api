@@ -5,10 +5,22 @@
   "accessTokenLifespan": 300,
   "roles": {
     "realm": [
-      { "name": "admin", "description": "Platform administrator — full write access" },
-      { "name": "restaurant-owner", "description": "Owns restaurants; may write catalog entries" },
-      { "name": "customer", "description": "Places orders; read-only on the catalog" },
-      { "name": "driver", "description": "Fulfils deliveries" }
+      {
+        "name": "admin",
+        "description": "Platform administrator — full write access"
+      },
+      {
+        "name": "restaurant-owner",
+        "description": "Owns restaurants; may write catalog entries"
+      },
+      {
+        "name": "customer",
+        "description": "Places orders; read-only on the catalog"
+      },
+      {
+        "name": "driver",
+        "description": "Fulfils deliveries"
+      }
     ]
   },
   "clients": [
@@ -116,7 +128,13 @@
       "attributes": {
         "tenant_id": ["11111111-1111-4111-8111-111111111111"]
       },
-      "credentials": [{ "type": "password", "value": "admin-pass", "temporary": false }],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin-pass",
+          "temporary": false
+        }
+      ],
       "realmRoles": ["admin"]
     },
     {
@@ -129,7 +147,13 @@
       "attributes": {
         "tenant_id": ["33333333-3333-4333-8333-333333333333"]
       },
-      "credentials": [{ "type": "password", "value": "owner-pass", "temporary": false }],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "owner-pass",
+          "temporary": false
+        }
+      ],
       "realmRoles": ["restaurant-owner"]
     },
     {
@@ -142,8 +166,26 @@
       "attributes": {
         "tenant_id": ["33333333-3333-4333-8333-333333333333"]
       },
-      "credentials": [{ "type": "password", "value": "customer-pass", "temporary": false }],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "customer-pass",
+          "temporary": false
+        }
+      ],
       "realmRoles": ["customer"]
     }
-  ]
+  ],
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "config": {
+          "kc.user.profile.config": [
+            "{\"unmanagedAttributePolicy\":\"ENABLED\",\"attributes\":[{\"name\":\"username\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]}},{\"name\":\"email\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]}}]}"
+          ]
+        }
+      }
+    ]
+  }
 }

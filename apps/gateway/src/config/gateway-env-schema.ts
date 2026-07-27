@@ -12,6 +12,8 @@ export const gatewayEnvSchema = baseEnvSchema
     PORT: z.coerce.number().int().positive().default(3000),
     /** Base URL of the catalog service the gateway forwards `/api/v1/catalog/*` to. */
     CATALOG_SERVICE_URL: z.string().url().default('http://localhost:3001'),
+    /** Base URL of the auth service the gateway forwards `/api/v1/auth/*` to. */
+    AUTH_SERVICE_URL: z.string().url().default('http://localhost:3002'),
     /**
      * Keycloak base URL + realm. The issuer (`<url>/realms/<realm>`) and JWKS
      * endpoint are derived from these, so both stay in lockstep and only the

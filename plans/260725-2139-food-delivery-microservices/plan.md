@@ -56,3 +56,4 @@ YAGNI / KISS / DRY. Simplest tech that teaches each concept. Latest stable libra
 - Audit on cascade: a restaurant DELETE keeps a single audit entry covering its menu-item cascade (decided — not per-item).
 - **Internal identity trust hardening**: services trust gateway-stamped identity headers on network isolation alone; add signed internal headers (HMAC/JWT) or mTLS so a directly-reachable service can't be spoofed. Enforce network isolation (K8s NetworkPolicy) in the ops phase. (Invariant documented in architecture.md §1.)
 - **Production Keycloak realm** (tighten redirectUris/webOrigins, sslRequired=external, disable direct-grant, real client secrets) — dev realm-export is not prod-safe.
+- Fully transactional user provisioning (Keycloak + registry) via Saga/Outbox — current impl is create-then-compensate best-effort.
