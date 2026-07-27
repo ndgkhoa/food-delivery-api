@@ -25,7 +25,7 @@ describe('write + audit atomicity (integration)', () => {
 
   const tenantContext: TenantContextPort = {
     run: <T>(_ctx: TenantRequestContext, work: () => T) => work(),
-    getContext: () => ({ tenantId: tenantA, actor: 'test-suite' }),
+    getContext: () => ({ tenantId: tenantA, actor: 'test-suite', roles: [] }),
     getTenantIdOrThrow: () => tenantA,
     getActor: () => 'test-suite',
   };

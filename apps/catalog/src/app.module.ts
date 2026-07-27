@@ -15,9 +15,13 @@ import { MenuItemsController } from '@catalog/interface/http/menu-items.controll
 import { RestaurantsController } from '@catalog/interface/http/restaurants.controller';
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
-import { TenancyModule, TrustedIdentityInterceptor } from '@food-delivery-api/shared-tenancy';
+import {
+  RolesGuard,
+  TenancyModule,
+  TrustedIdentityInterceptor,
+} from '@food-delivery-api/shared-tenancy';
 import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 /**
  * Composition root: wires ports (domain) to adapters (infrastructure),
@@ -47,6 +51,10 @@ import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
     DeleteMenuItemHandler,
     ListMenuItemsHandler,
     GetMenuItemHandler,
+    // RBAC on write routes: the guard reads the roles the gateway verified and
+    // stamped, denying writes without `restaurant-owner`/`admin`. Runs before the
+    // interceptor, so reads stay open to any authenticated tenant.
+    { provide: APP_GUARD, useClass: RolesGuard },
     // Every route is tenant-scoped by default — the tenant comes from the verified identity
     // the gateway propagates (shared-tenancy), never from a raw client header.
     { provide: APP_INTERCEPTOR, useClass: TrustedIdentityInterceptor },

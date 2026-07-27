@@ -127,7 +127,7 @@ Bring up only what a phase needs. Never run everything at once on 16GB.
 | Profile | Contains | Phases | Approx RAM |
 |---------|----------|--------|-----------|
 | `core` (default) | Postgres 18, Redis 8, the app services, Nginx | all | ~1.5-2 GB |
-| `auth` | Keycloak 27 + its Postgres | P1+ | ~0.7 GB |
+| `auth` | Keycloak 26.7 + its Postgres | P1+ | ~0.7 GB |
 | `messaging` | Kafka 4.x (KRaft, no ZooKeeper), Kafka Connect + Debezium 3.5 (quay.io) | P3+ | ~1.5-2 GB |
 | `search` | Elasticsearch 9.4 (single node) | P4+ | ~1.5 GB |
 | `workflow` | Temporal server + its Postgres, Temporal UI | P5+ | ~1 GB |
@@ -152,7 +152,7 @@ Package manager: **pnpm**. Full audit + sources: `plans/reports/researcher-26072
 | Broker | Apache Kafka | 4.x (KRaft) | `apache/kafka:4.0.0` | Use OFFICIAL `apache/kafka` (avoid bitnami — catalog changed). 4.1 available. No ZooKeeper |
 | CDC | Debezium (Kafka Connect) | 3.5.x Final | `quay.io/debezium/connect:3.5` | 🔴 MOVED to quay.io — Docker Hub image is stale |
 | Search | Elasticsearch | 9.4.4 | `docker.elastic.co/elasticsearch/elasticsearch:9.4.4` | Heap cap: `ES_JAVA_OPTS=-Xms256m -Xmx512m` |
-| IdP | Keycloak | 27.0.0 (greenfield → latest) | `quay.io/keycloak/keycloak:27.0.0` | 26.7 LTS = conservative fallback if 27 friction |
+| IdP | Keycloak | 26.7 | `quay.io/keycloak/keycloak:26.7` | ⚠️ `27.0.0` tag does NOT exist on quay.io (earlier research wrong) — 26.7 verified. Client `defaultClientScopes` MUST include `basic` (Keycloak 24+ moved the `sub` claim there) |
 | Workflow | Temporal server + `@temporalio/*` SDK | SDK 1.21.x | `temporalio/auto-setup:<verify>` | 🔴 SDK jumped 1.11→1.21 — read changelog for breaking changes; verify server tag at install |
 | Analytics DB | ClickHouse | 26.4.x | `clickhouse/clickhouse-server:26.4` | Behind `analytics` profile, off by default |
 | Object store | MinIO | ⚠️ upstream ARCHIVED 2026-04-25 | `cgr.dev/chainguard/minio:latest` (or `ghcr.io/minio/minio`) | 🔴 `minio/minio` Docker Hub no longer gets builds — use community image; verify licensing |

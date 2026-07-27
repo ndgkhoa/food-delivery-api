@@ -1,7 +1,7 @@
 import { type CallHandler, type ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { firstValueFrom, of } from 'rxjs';
 import { AlsTenantContextAdapter } from './als-tenant-context.adapter';
-import { TENANT_ID_HEADER, USER_ID_HEADER } from './identity-headers';
+import { ROLES_HEADER, TENANT_ID_HEADER, USER_ID_HEADER } from './identity-headers';
 import { TrustedIdentityInterceptor } from './trusted-identity.interceptor';
 
 function executionContextWith(headers: Record<string, string>): ExecutionContext {
@@ -32,6 +32,19 @@ describe('TrustedIdentityInterceptor', () => {
     const result = await firstValueFrom(interceptor.intercept(context, next));
 
     expect(result).toEqual({ tenantId, actor: 'user-9' });
+  });
+
+  it('propagates the trusted roles header into the tenant context', async () => {
+    const context = executionContextWith({
+      [TENANT_ID_HEADER]: tenantId,
+      [USER_ID_HEADER]: 'user-9',
+      [ROLES_HEADER]: 'restaurant-owner,admin',
+    });
+    const next: CallHandler = { handle: () => of(adapter.getContext()?.roles) };
+
+    const result = await firstValueFrom(interceptor.intercept(context, next));
+
+    expect(result).toEqual(['restaurant-owner', 'admin']);
   });
 
   it('rejects a request with no verified tenant header (fails closed)', () => {

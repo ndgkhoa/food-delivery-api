@@ -55,3 +55,4 @@ YAGNI / KISS / DRY. Simplest tech that teaches each concept. Latest stable libra
 - **Optimistic locking** on updates (version column) to prevent lost updates + misleading audit on concurrent PATCH. Introduce in the `order` service work (where concurrency matters); apply back to catalog then.
 - Audit on cascade: a restaurant DELETE keeps a single audit entry covering its menu-item cascade (decided — not per-item).
 - **Internal identity trust hardening**: services trust gateway-stamped identity headers on network isolation alone; add signed internal headers (HMAC/JWT) or mTLS so a directly-reachable service can't be spoofed. Enforce network isolation (K8s NetworkPolicy) in the ops phase. (Invariant documented in architecture.md §1.)
+- **Production Keycloak realm** (tighten redirectUris/webOrigins, sslRequired=external, disable direct-grant, real client secrets) — dev realm-export is not prod-safe.

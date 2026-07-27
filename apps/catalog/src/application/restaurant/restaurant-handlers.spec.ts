@@ -105,7 +105,7 @@ describe('restaurant application handlers', () => {
   beforeEach(() => {
     repository = new FakeRestaurantRepository();
     menuItemRepository = new FakeMenuItemRepository();
-    tenantContext = new FakeTenantContext({ tenantId: tenantA, actor: 'test-suite' });
+    tenantContext = new FakeTenantContext({ tenantId: tenantA, actor: 'test-suite', roles: [] });
     auditPort = new FakeAuditPort();
     transaction = new FakeTransactionPort();
     getRestaurant = new GetRestaurantHandler(repository, tenantContext);
@@ -163,7 +163,7 @@ describe('restaurant application handlers', () => {
   it("does not allow one tenant to read another tenant's restaurant", async () => {
     const restaurant = await createRestaurant.execute({ name: 'Tenant A Only' });
 
-    tenantContext.run({ tenantId: tenantB, actor: 'test-suite' }, () => {});
+    tenantContext.run({ tenantId: tenantB, actor: 'test-suite', roles: [] }, () => {});
     await expect(getRestaurant.execute(restaurant.id)).rejects.toThrow(/not found/i);
 
     const listForB = await listRestaurants.execute({ page: 1, limit: 20 });

@@ -14,7 +14,9 @@ describe('AlsTenantContextAdapter', () => {
   it('exposes the tenant id set by run() within the callback', () => {
     const tenantId = '11111111-1111-4111-8111-111111111111';
 
-    const result = adapter.run({ tenantId, actor: 'tester' }, () => adapter.getTenantIdOrThrow());
+    const result = adapter.run({ tenantId, actor: 'tester', roles: [] }, () =>
+      adapter.getTenantIdOrThrow(),
+    );
 
     expect(result).toBe(tenantId);
   });
@@ -27,11 +29,11 @@ describe('AlsTenantContextAdapter', () => {
     const results: string[] = [];
 
     await Promise.all([
-      adapter.run({ tenantId: 'tenant-a', actor: 'a' }, async () => {
+      adapter.run({ tenantId: 'tenant-a', actor: 'a', roles: [] }, async () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
         results.push(adapter.getTenantIdOrThrow());
       }),
-      adapter.run({ tenantId: 'tenant-b', actor: 'b' }, async () => {
+      adapter.run({ tenantId: 'tenant-b', actor: 'b', roles: [] }, async () => {
         results.push(adapter.getTenantIdOrThrow());
       }),
     ]);

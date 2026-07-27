@@ -8,7 +8,8 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 - **Brief**: Introduce Keycloak as IdP. Gateway verifies JWT, enforces RBAC, versioning, rate limiting, validation. Refresh tokens + sessions. Multi-tenant now sourced from token claims. Catalog writes become auth-guarded.
 - **Slicing** (too big for one PR):
   - **Slice A — identity edge** ✅ (PR #2, open): gateway app + Nginx L7 (from P0), `shared/auth` (JWKS + JWT verify + claim extractor), `JwtAuthGuard` + URI versioning + ValidationPipe + reverse-proxy, `shared/tenancy` reads `tenant_id` from verified token (drop P0 header-trust), OpenAPI + Scalar (from P0). Verify tested with signed test JWTs — **no Keycloak yet**. → verified-identity requests reach catalog.
-  - **Slice B — Keycloak + authz & sessions**: Keycloak realm/clients/roles + real login (Authorization Code + PKCE) + `auth` compose profile, `auth` service (tenant registry + provisioning), `RolesGuard` RBAC on catalog writes, Redis rate limiting, refresh-token rotation + logout/session revoke, authz-matrix e2e.
+  - **Slice B1 — Keycloak + RBAC** (in progress): Keycloak realm/clients/roles + `auth` compose profile; gateway verifies REAL Keycloak tokens; RBAC (`RolesGuard` + `@Roles`) enforced at the service on catalog writes (reads trusted roles header); authz-matrix e2e with real Keycloak tokens.
+  - **Slice B2 — auth service + sessions**: `auth` service (tenant registry + provisioning), Redis rate limiting, refresh-token rotation + logout/session revoke, full Authorization Code + PKCE login.
   - Decision (locked): single Keycloak realm + `tenant_id` claim (NOT realm-per-tenant).
 
 ## Key insights
@@ -43,20 +44,23 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 7. E2E: login → get token → create restaurant (allowed) vs customer token (403); refresh rotation; rate-limit trips.
 
 ## Todo
-**Slice A — identity edge (PR #2, open):**  *(Keycloak split out to Slice B — verify tested with signed test JWTs)*
+**Slice A — identity edge (PR #2 ✅ MERGED):**  *(Keycloak split out to Slice B — verify tested with signed test JWTs)*
 - [x] Gateway app scaffolded (edge app) + Nginx L7 in `core` compose  *(moved from P0)*
 - [x] `shared/auth`: JWKS fetch/cache + JWT verify (issuer/audience/exp) + claim extractor (jose)
 - [x] Gateway `JwtAuthGuard` + URI versioning + global ValidationPipe + reverse-proxy → catalog
 - [x] `shared/tenancy` sources `tenant_id` from verified token (P0 header-trust removed; spoofed header ignored — tested)
 - [x] OpenAPI spec + Scalar UI served (catalog `/api/v1/reference`)  *(moved from P0)*
 
-**Slice B — authz & sessions:**
-- [ ] Keycloak realm + clients (public SPA + confidential gateway) + roles imported; `auth` compose profile + real login (PKCE)
+**Slice B1 — Keycloak + RBAC (PR #3, open):**
+- [x] Keycloak realm + clients (public SPA, PKCE + direct-grant) + roles (admin/restaurant-owner/customer/driver) + audience & `tenant_id` mappers + 2 test users; `auth` compose profile (keycloak:26.7 — note: 27.0.0 tag doesn't exist)
+- [x] Gateway verifies REAL Keycloak tokens (live JWKS, issuer/audience) — injectable resolver defaults to remote
+- [x] `RolesGuard` (RBAC) enforced at the SERVICE on catalog writes (restaurant-owner/admin, reads trusted `x-roles`); reads open to any authenticated tenant
+- [x] E2E: authz matrix (401 no-token / 403 customer-write / 201 owner-write / 200 customer-read) with REAL Keycloak-issued tokens (testcontainer + direct-grant)
+
+**Slice B2 — auth service + sessions + rate limit:**
 - [ ] `auth` service: tenant registry (Postgres) + user↔tenant map + provisioning admin API
-- [ ] Gateway `RolesGuard` (RBAC) on catalog writes; reads public/customer-scoped
 - [ ] Redis-backed per-identity rate limiter (429 on trip)
-- [ ] Refresh-token rotation + logout/session revoke
-- [ ] E2E: authz matrix (401/403/200) + refresh rotation + rate limit
+- [ ] Refresh-token rotation + logout/session revoke; Authorization Code + PKCE login wired end-to-end
 
 ## Success criteria
 - Unauthed write → 401; wrong role → 403; valid owner → 200, all audit-logged with `sub`+`tenant_id`.
@@ -75,6 +79,15 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 - Verify issuer + audience + signature offline; never trust unverified claims.
 - Store no passwords in app DB (Keycloak owns credentials). Secrets via env/compose secrets.
 - Row-level tenant isolation enforced centrally; add negative tests for cross-tenant access.
+
+## Security note — realm export is DEV-ONLY
+`infra/keycloak/realm-export.json` is a development/test artifact and is **not** safe to promote to any non-dev environment as-is. It intentionally ships:
+- `directAccessGrantsEnabled: true` (password grant, so integration/e2e can mint tokens);
+- `redirectUris: ["*"]` and `webOrigins: ["*"]` (wildcards);
+- `sslRequired: "none"` (allows token transit in clear);
+- a `food-delivery-shortlived` public client with a 2s access-token lifespan (used only by the e2e expired-token case).
+
+These are acceptable for the dev realm this phase adds, but wildcard redirects on a public PKCE client plus the password grant broaden the token-exfiltration / credential-stuffing surface. Any non-dev environment requires a **separate hardened realm** with explicit `redirectUris`/`webOrigins`, `directAccessGrantsEnabled: false`, `sslRequired: "external"`, and real confidential client secrets. Do not copy-promote the dev export.
 
 ## Next steps
 Unblocks P2 (order needs authenticated user + tenant for ownership). gRPC calls will propagate identity via metadata.

@@ -20,6 +20,13 @@ describe('Catalog REST API (e2e)', () => {
 
   const tenantId = '33333333-3333-4333-8333-333333333333';
   const otherTenantId = '44444444-4444-4444-8444-444444444444';
+  // Mimics what the gateway stamps after verifying an owner's token: tenant +
+  // subject + roles. Writes require a catalog-write role (RolesGuard).
+  const ownerHeaders = {
+    'x-tenant-id': tenantId,
+    'x-user-id': 'owner-1',
+    'x-roles': 'restaurant-owner',
+  };
 
   beforeAll(async () => {
     db = await startCatalogTestDatabase();
@@ -57,7 +64,7 @@ describe('Catalog REST API (e2e)', () => {
   it('creates a restaurant, nests a menu item under it, and lists both', async () => {
     const createRestaurantRes = await request(app.getHttpServer())
       .post('/api/v1/restaurants')
-      .set('x-tenant-id', tenantId)
+      .set(ownerHeaders)
       .send({ name: 'Pho 24' })
       .expect(201);
 
@@ -66,19 +73,19 @@ describe('Catalog REST API (e2e)', () => {
 
     await request(app.getHttpServer())
       .post(`/api/v1/restaurants/${restaurantId}/menu-items`)
-      .set('x-tenant-id', tenantId)
+      .set(ownerHeaders)
       .send({ name: 'Pho Bo', priceCents: 8500 })
       .expect(201);
 
     const listRes = await request(app.getHttpServer())
       .get('/api/v1/restaurants')
-      .set('x-tenant-id', tenantId)
+      .set(ownerHeaders)
       .expect(200);
     expect(listRes.body.data).toHaveLength(1);
 
     const menuListRes = await request(app.getHttpServer())
       .get(`/api/v1/restaurants/${restaurantId}/menu-items`)
-      .set('x-tenant-id', tenantId)
+      .set(ownerHeaders)
       .expect(200);
     expect(menuListRes.body.data).toHaveLength(1);
     expect(menuListRes.body.data[0].priceCents).toBe(8500);
@@ -93,7 +100,7 @@ describe('Catalog REST API (e2e)', () => {
   it('rejects an invalid create payload', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/restaurants')
-      .set('x-tenant-id', tenantId)
+      .set(ownerHeaders)
       .send({ notAField: true })
       .expect(400);
   });
@@ -101,25 +108,25 @@ describe('Catalog REST API (e2e)', () => {
   it('soft-deletes a restaurant so it disappears from subsequent reads', async () => {
     const createRes = await request(app.getHttpServer())
       .post('/api/v1/restaurants')
-      .set('x-tenant-id', tenantId)
+      .set(ownerHeaders)
       .send({ name: 'To Be Deleted' })
       .expect(201);
 
     await request(app.getHttpServer())
       .delete(`/api/v1/restaurants/${createRes.body.id}`)
-      .set('x-tenant-id', tenantId)
+      .set(ownerHeaders)
       .expect(204);
 
     await request(app.getHttpServer())
       .get(`/api/v1/restaurants/${createRes.body.id}`)
-      .set('x-tenant-id', tenantId)
+      .set(ownerHeaders)
       .expect(404);
   });
 
   it('rejects a whitespace-only restaurant name with 400', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/restaurants')
-      .set('x-tenant-id', tenantId)
+      .set(ownerHeaders)
       .send({ name: '   ' })
       .expect(400);
   });
@@ -127,14 +134,14 @@ describe('Catalog REST API (e2e)', () => {
   it('does not leak menu items across tenants', async () => {
     const createRestaurantRes = await request(app.getHttpServer())
       .post('/api/v1/restaurants')
-      .set('x-tenant-id', tenantId)
+      .set(ownerHeaders)
       .send({ name: 'Tenant A Kitchen' })
       .expect(201);
     const restaurantId = createRestaurantRes.body.id;
 
     const createMenuItemRes = await request(app.getHttpServer())
       .post(`/api/v1/restaurants/${restaurantId}/menu-items`)
-      .set('x-tenant-id', tenantId)
+      .set(ownerHeaders)
       .send({ name: 'Secret Pho', priceCents: 8500 })
       .expect(201);
     const menuItemId = createMenuItemRes.body.id;
@@ -154,33 +161,33 @@ describe('Catalog REST API (e2e)', () => {
   it('cascades a soft-delete to menu items when a restaurant is deleted', async () => {
     const createRestaurantRes = await request(app.getHttpServer())
       .post('/api/v1/restaurants')
-      .set('x-tenant-id', tenantId)
+      .set(ownerHeaders)
       .send({ name: 'To Be Deleted With Items' })
       .expect(201);
     const restaurantId = createRestaurantRes.body.id;
 
     await request(app.getHttpServer())
       .post(`/api/v1/restaurants/${restaurantId}/menu-items`)
-      .set('x-tenant-id', tenantId)
+      .set(ownerHeaders)
       .send({ name: 'Doomed Dish', priceCents: 5000 })
       .expect(201);
 
     await request(app.getHttpServer())
       .delete(`/api/v1/restaurants/${restaurantId}`)
-      .set('x-tenant-id', tenantId)
+      .set(ownerHeaders)
       .expect(204);
 
     // Parent 404s and its menu items no longer live as reachable rows.
     await request(app.getHttpServer())
       .get(`/api/v1/restaurants/${restaurantId}/menu-items`)
-      .set('x-tenant-id', tenantId)
+      .set(ownerHeaders)
       .expect(404);
   });
 
   it('does not leak restaurants across tenants', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/restaurants')
-      .set('x-tenant-id', tenantId)
+      .set(ownerHeaders)
       .send({ name: 'Tenant Scoped Spot' })
       .expect(201);
 
@@ -190,5 +197,25 @@ describe('Catalog REST API (e2e)', () => {
       .expect(200);
 
     expect(listRes.body.data).toHaveLength(0);
+  });
+
+  it('forbids a write from a verified identity without a catalog-write role (403)', async () => {
+    // A customer's stamped identity reaches the service, but RolesGuard rejects
+    // the write because `customer` is not in the required role set.
+    await request(app.getHttpServer())
+      .post('/api/v1/restaurants')
+      .set({ 'x-tenant-id': tenantId, 'x-user-id': 'cust-1', 'x-roles': 'customer' })
+      .send({ name: 'Should Not Exist' })
+      .expect(403);
+  });
+
+  it('rejects a write with a tenant header but no verified subject (401)', async () => {
+    // Tenant header alone would satisfy the interceptor, but a write with no
+    // stamped subject means no verified identity → RolesGuard fails closed with 401.
+    await request(app.getHttpServer())
+      .post('/api/v1/restaurants')
+      .set('x-tenant-id', tenantId)
+      .send({ name: 'Should Not Exist' })
+      .expect(401);
   });
 });

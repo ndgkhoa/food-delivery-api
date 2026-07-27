@@ -9,6 +9,7 @@ import { PaginationRequest } from '@catalog/interface/http/dto/pagination.reques
 import type { RestaurantResponse } from '@catalog/interface/http/dto/restaurant.response';
 import { UpdateRestaurantRequest } from '@catalog/interface/http/dto/update-restaurant.request';
 import { RestaurantResponseMapper } from '@catalog/interface/http/mappers/restaurant-response.mapper';
+import { Roles } from '@food-delivery-api/shared-tenancy';
 import {
   Body,
   Controller,
@@ -23,6 +24,9 @@ import {
   Query,
 } from '@nestjs/common';
 
+/** Only owners/admins may mutate the catalog; reads stay open to any authenticated tenant. */
+const CATALOG_WRITE_ROLES = ['restaurant-owner', 'admin'] as const;
+
 @Controller('restaurants')
 export class RestaurantsController {
   constructor(
@@ -34,6 +38,7 @@ export class RestaurantsController {
   ) {}
 
   @Post()
+  @Roles(...CATALOG_WRITE_ROLES)
   async create(@Body() dto: CreateRestaurantRequest): Promise<RestaurantResponse> {
     const restaurant = await this.createRestaurant.execute(dto);
     return RestaurantResponseMapper.toResponse(restaurant);
@@ -54,6 +59,7 @@ export class RestaurantsController {
   }
 
   @Patch(':id')
+  @Roles(...CATALOG_WRITE_ROLES)
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateRestaurantRequest,
@@ -63,6 +69,7 @@ export class RestaurantsController {
   }
 
   @Delete(':id')
+  @Roles(...CATALOG_WRITE_ROLES)
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.deleteRestaurant.execute(id);

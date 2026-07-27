@@ -31,3 +31,19 @@ export function applyTrustedIdentityHeaders(
   headers[USER_ID_HEADER] = identity.sub;
   headers[ROLES_HEADER] = identity.roles.join(',');
 }
+
+/** Node collapses a repeated header into an array; take the first value only. */
+export function firstHeaderValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+/** Splits the comma-joined `x-roles` header back into a role list (empty when absent). */
+export function parseRolesHeader(value: string | undefined): string[] {
+  if (!value) {
+    return [];
+  }
+  return value
+    .split(',')
+    .map((role) => role.trim())
+    .filter((role) => role.length > 0);
+}
