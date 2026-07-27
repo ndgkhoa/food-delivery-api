@@ -41,6 +41,21 @@ describe('access token verification', () => {
     await expect(verify(token)).rejects.toThrow();
   });
 
+  it('rejects a forged alg:none token (algorithm pinned to RS256)', async () => {
+    const enc = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const now = Math.floor(Date.now() / 1000);
+    const header = enc({ alg: 'none', typ: 'JWT', kid: keys.kid });
+    const body = enc({
+      sub: 'attacker',
+      tenant_id: TEST_TENANT_ID,
+      iss: ISSUER,
+      aud: AUDIENCE,
+      exp: now + 3600,
+    });
+    const forged = `${header}.${body}.`; // unsigned "none" token
+    await expect(verify(forged)).rejects.toThrow();
+  });
+
   describe('AccessTokenVerifier (DI wrapper)', () => {
     it('returns the extracted identity for a valid token', async () => {
       const verifier = new AccessTokenVerifier(keys.keyResolver, {

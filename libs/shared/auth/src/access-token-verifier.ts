@@ -22,6 +22,9 @@ export async function verifyAccessToken(
   deps: VerifyAccessTokenDeps,
 ): Promise<JWTPayload> {
   const { payload } = await jwtVerify(token, deps.keyResolver, {
+    // Pin to RS256 (Keycloak's signing algorithm) so a forged `alg: none` or an
+    // HS/RS confusion token is rejected outright, before the key is ever used.
+    algorithms: ['RS256'],
     issuer: deps.issuer,
     audience: deps.audience,
     clockTolerance: deps.clockToleranceSec ?? 5,

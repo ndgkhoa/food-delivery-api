@@ -10,6 +10,8 @@ const GATEWAY_CATALOG_PREFIX = '/api/v1/catalog';
 const BODYLESS_METHODS = new Set(['GET', 'HEAD']);
 /** Hop-by-hop / content-negotiation headers that must not be copied verbatim onto the client response. */
 const SKIP_RESPONSE_HEADERS = new Set(['content-encoding', 'content-length', 'transfer-encoding']);
+/** Bound the upstream call so a slow/hung catalog can never hang the gateway (fail closed with 504). */
+const FORWARD_TIMEOUT_MS = 10_000;
 
 /**
  * Thin HTTP forwarder (native fetch) that relays a verified request to the
@@ -50,7 +52,23 @@ export class HttpForwarder {
       init.body = JSON.stringify(req.body ?? {});
     }
 
-    const upstream = await fetch(targetUrl, init);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FORWARD_TIMEOUT_MS);
+    let upstream: globalThis.Response;
+    try {
+      upstream = await fetch(targetUrl, { ...init, signal: controller.signal });
+    } catch (err) {
+      // Upstream unreachable or too slow → fail closed with a gateway error,
+      // never a silent hang or a misleading 500 from the gateway itself.
+      const timedOut = err instanceof Error && err.name === 'AbortError';
+      const status = timedOut ? 504 : 502;
+      res
+        .status(status)
+        .json({ statusCode: status, message: timedOut ? 'Upstream timed out' : 'Bad gateway' });
+      return;
+    } finally {
+      clearTimeout(timer);
+    }
 
     res.status(upstream.status);
     upstream.headers.forEach((value, key) => {

@@ -3,7 +3,6 @@ export {
   applyTrustedIdentityHeaders,
   type PropagatedIdentity,
   ROLES_HEADER,
-  stripClientIdentityHeaders,
   TENANT_ID_HEADER,
   USER_ID_HEADER,
 } from './identity-headers';

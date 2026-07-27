@@ -4,9 +4,9 @@
  * the JWT, then stamps these headers from the token claims. Downstream
  * services read them via the trusted-identity interceptor.
  *
- * Clients can never set these directly — the gateway strips any inbound copy
- * before stamping the verified values (see `stripClientIdentityHeaders` +
- * `applyTrustedIdentityHeaders`), so a spoofed `x-tenant-id` is always ignored.
+ * Clients can never set these directly — the gateway builds the outbound header
+ * set from scratch and stamps only the verified values (`applyTrustedIdentityHeaders`),
+ * so a client-supplied `x-tenant-id` is never propagated downstream.
  */
 export const TENANT_ID_HEADER = 'x-tenant-id';
 export const USER_ID_HEADER = 'x-user-id';
@@ -16,16 +16,6 @@ export interface PropagatedIdentity {
   sub: string;
   tenantId: string;
   roles: string[];
-}
-
-/**
- * Removes any client-supplied identity headers from an outbound header set so
- * a caller can never smuggle a tenant/user/role claim past the gateway.
- */
-export function stripClientIdentityHeaders(headers: Record<string, unknown>): void {
-  delete headers[TENANT_ID_HEADER];
-  delete headers[USER_ID_HEADER];
-  delete headers[ROLES_HEADER];
 }
 
 /**
