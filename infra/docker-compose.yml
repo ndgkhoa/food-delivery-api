@@ -42,6 +42,53 @@ services:
       timeout: 5s
       retries: 10
 
+  # Identity provider. Enable with the `auth` profile alongside `core`:
+  #   docker compose -f infra/docker-compose.yml --profile core --profile auth up -d
+  # Boots with `--import-realm`, importing infra/keycloak/realm-export.json (realm
+  # `food-delivery`: roles, the public SPA client with PKCE + direct grants, the
+  # audience + tenant_id mappers, and two seeded test users). Admin console at
+  # http://localhost:8080 (admin/admin — dev only). First boot takes ~30-60s.
+  keycloak-postgres:
+    image: postgres:18.4
+    container_name: food-delivery-keycloak-postgres
+    profiles: [auth]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${KEYCLOAK_DB_USERNAME:-keycloak}
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
+      POSTGRES_DB: ${KEYCLOAK_DB_NAME:-keycloak}
+    volumes:
+      - keycloak-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${KEYCLOAK_DB_USERNAME:-keycloak} -d ${KEYCLOAK_DB_NAME:-keycloak}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7
+    container_name: food-delivery-keycloak
+    profiles: [auth]
+    restart: unless-stopped
+    command: ['start-dev', '--import-realm']
+    environment:
+      # Bootstrap admin (dev only — never use these in a real deployment).
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-postgres:5432/${KEYCLOAK_DB_NAME:-keycloak}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USERNAME:-keycloak}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
+      KC_HEALTH_ENABLED: 'true'
+      KC_HTTP_ENABLED: 'true'
+    ports:
+      - '${KEYCLOAK_PORT:-8080}:8080'
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    depends_on:
+      keycloak-postgres:
+        condition: service_healthy
+
   # L7 edge: TLS termination + reverse proxy to the host-run API gateway (:3000).
   # TLS certs are self-signed local (git-ignored) — see infra/nginx/nginx.conf for
   # mkcert/openssl generation and the HTTP-only fallback. `host.docker.internal`
@@ -65,3 +112,4 @@ services:
 volumes:
   postgres-data:
   redis-data:
+  keycloak-postgres-data:

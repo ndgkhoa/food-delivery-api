@@ -1,0 +1,90 @@
+{
+  "realm": "food-delivery",
+  "enabled": true,
+  "sslRequired": "none",
+  "accessTokenLifespan": 300,
+  "roles": {
+    "realm": [
+      { "name": "admin", "description": "Platform administrator — full write access" },
+      { "name": "restaurant-owner", "description": "Owns restaurants; may write catalog entries" },
+      { "name": "customer", "description": "Places orders; read-only on the catalog" },
+      { "name": "driver", "description": "Fulfils deliveries" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "food-delivery-spa",
+      "name": "Food Delivery SPA",
+      "description": "Public browser client. Standard flow + PKCE for interactive login; direct access grants enabled so integration tests can mint tokens by password.",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": true,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": ["basic", "web-origins", "acr", "profile", "roles", "email"],
+      "optionalClientScopes": ["address", "phone", "offline_access"],
+      "protocolMappers": [
+        {
+          "name": "food-delivery-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "food-delivery-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "tenant_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "tenant_id",
+            "claim.name": "tenant_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "owner-user",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "owner@food-delivery.test",
+      "firstName": "Olivia",
+      "lastName": "Owner",
+      "attributes": {
+        "tenant_id": ["33333333-3333-4333-8333-333333333333"]
+      },
+      "credentials": [{ "type": "password", "value": "owner-pass", "temporary": false }],
+      "realmRoles": ["restaurant-owner"]
+    },
+    {
+      "username": "customer-user",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "customer@food-delivery.test",
+      "firstName": "Cara",
+      "lastName": "Customer",
+      "attributes": {
+        "tenant_id": ["33333333-3333-4333-8333-333333333333"]
+      },
+      "credentials": [{ "type": "password", "value": "customer-pass", "temporary": false }],
+      "realmRoles": ["customer"]
+    }
+  ]
+}

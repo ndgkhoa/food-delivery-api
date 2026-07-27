@@ -3,6 +3,8 @@ export interface TenantRequestContext {
   tenantId: string;
   /** Identity of the caller — the verified token subject (`sub`); `system`/`anonymous` outside a request. */
   actor: string;
+  /** Verified roles for the caller (from the trusted `x-roles` header); empty when the identity carries none. */
+  roles: string[];
 }
 
 /**

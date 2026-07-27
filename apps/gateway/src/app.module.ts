@@ -20,12 +20,17 @@ import { ConfigService } from '@nestjs/config';
     SharedLoggingModule.forRoot(),
     SharedAuthModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        jwksUri: config.getOrThrow<string>('JWKS_URI'),
-        issuer: config.getOrThrow<string>('JWT_ISSUER'),
-        audience: config.getOrThrow<string>('JWT_AUDIENCE'),
-        clockToleranceSec: config.get<number>('JWT_CLOCK_TOLERANCE_SEC'),
-      }),
+      useFactory: (config: ConfigService) => {
+        // Derive issuer + JWKS from the Keycloak base URL + realm so a token's
+        // `iss` and the key set the gateway trusts can never drift apart.
+        const issuer = `${config.getOrThrow<string>('KEYCLOAK_URL').replace(/\/$/, '')}/realms/${config.getOrThrow<string>('KEYCLOAK_REALM')}`;
+        return {
+          jwksUri: `${issuer}/protocol/openid-connect/certs`,
+          issuer,
+          audience: config.getOrThrow<string>('JWT_AUDIENCE'),
+          clockToleranceSec: config.get<number>('JWT_CLOCK_TOLERANCE_SEC'),
+        };
+      },
     }),
   ],
   controllers: [CatalogProxyController],

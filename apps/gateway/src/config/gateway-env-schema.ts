@@ -12,12 +12,14 @@ export const gatewayEnvSchema = baseEnvSchema
     PORT: z.coerce.number().int().positive().default(3000),
     /** Base URL of the catalog service the gateway forwards `/api/v1/catalog/*` to. */
     CATALOG_SERVICE_URL: z.string().url().default('http://localhost:3001'),
-    /** Keycloak JWKS endpoint used for offline signature verification. */
-    JWKS_URI: z
-      .string()
-      .url()
-      .default('http://localhost:8080/realms/food-delivery/protocol/openid-connect/certs'),
-    JWT_ISSUER: z.string().url().default('http://localhost:8080/realms/food-delivery'),
+    /**
+     * Keycloak base URL + realm. The issuer (`<url>/realms/<realm>`) and JWKS
+     * endpoint are derived from these, so both stay in lockstep and only the
+     * host has to change between environments.
+     */
+    KEYCLOAK_URL: z.string().url().default('http://localhost:8080'),
+    KEYCLOAK_REALM: z.string().min(1).default('food-delivery'),
+    /** Expected `aud` claim — Keycloak stamps this via the realm's audience mapper. */
     JWT_AUDIENCE: z.string().min(1).default('food-delivery-api'),
     JWT_CLOCK_TOLERANCE_SEC: z.coerce.number().int().nonnegative().default(5),
   });

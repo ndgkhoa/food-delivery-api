@@ -14,7 +14,9 @@ import {
   stopCatalog,
 } from './support/service-harness';
 
-const ISSUER = 'https://idp.test/realms/food-delivery';
+const KEYCLOAK_BASE_URL = 'https://idp.test';
+const REALM = 'food-delivery';
+const ISSUER = `${KEYCLOAK_BASE_URL}/realms/${REALM}`;
 const AUDIENCE = 'food-delivery-api';
 const TENANT_A = TEST_TENANT_ID;
 const TENANT_B = '44444444-4444-4444-8444-444444444444';
@@ -35,7 +37,8 @@ describe('Gateway identity edge (e2e)', () => {
     gateway = await startGateway({
       catalogUrl: catalog.url,
       keyResolver: keys.keyResolver,
-      issuer: ISSUER,
+      keycloakBaseUrl: KEYCLOAK_BASE_URL,
+      realm: REALM,
       audience: AUDIENCE,
     });
   }, 120000);
@@ -58,7 +61,11 @@ describe('Gateway identity edge (e2e)', () => {
   });
 
   it('proxies an authenticated request to catalog and returns 200', async () => {
-    const token = await keys.sign({ sub: 'owner-1', tenantId: TENANT_A });
+    const token = await keys.sign({
+      sub: 'owner-1',
+      tenantId: TENANT_A,
+      roles: ['restaurant-owner'],
+    });
 
     await request(gateway.url)
       .post('/api/v1/catalog/restaurants')
@@ -74,7 +81,11 @@ describe('Gateway identity edge (e2e)', () => {
   });
 
   it('scopes tenancy to the token claim and ignores a spoofed x-tenant-id header', async () => {
-    const tokenA = await keys.sign({ sub: 'owner-a', tenantId: TENANT_A });
+    const tokenA = await keys.sign({
+      sub: 'owner-a',
+      tenantId: TENANT_A,
+      roles: ['restaurant-owner'],
+    });
     const tokenB = await keys.sign({ sub: 'owner-b', tenantId: TENANT_B });
 
     // Client tries to smuggle tenant B via a raw header while authenticating as tenant A.

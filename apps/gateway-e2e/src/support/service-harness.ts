@@ -43,26 +43,32 @@ export async function startCatalog(): Promise<CatalogHandle> {
   return { app, url: await app.getUrl(), db };
 }
 
-/** Boots the gateway pointed at `catalogUrl`, with the remote JWKS resolver swapped for the test key set. */
+/**
+ * Boots the gateway pointed at `catalogUrl` and a Keycloak base URL + realm
+ * (issuer/JWKS are derived from these, matching the app's config). Pass
+ * `keyResolver` to swap the remote JWKS for a local test key set (no live IdP);
+ * omit it to verify against a real Keycloak reachable at `keycloakBaseUrl`.
+ */
 export async function startGateway(config: {
   catalogUrl: string;
-  keyResolver: JwksKeyResolver;
-  issuer: string;
+  keycloakBaseUrl: string;
+  realm: string;
   audience: string;
+  keyResolver?: JwksKeyResolver;
 }): Promise<GatewayHandle> {
   process.env.NODE_ENV = 'test';
   process.env.LOG_LEVEL = 'fatal';
   process.env.CATALOG_SERVICE_URL = config.catalogUrl;
-  process.env.JWT_ISSUER = config.issuer;
+  process.env.KEYCLOAK_URL = config.keycloakBaseUrl;
+  process.env.KEYCLOAK_REALM = config.realm;
   process.env.JWT_AUDIENCE = config.audience;
-  // Required by the schema but unused — the resolver below is injected in its place.
-  process.env.JWKS_URI = 'http://localhost:9/certs';
 
   const { AppModule } = await import('@gateway/app.module');
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-    .overrideProvider(JWKS_KEY_RESOLVER)
-    .useValue(config.keyResolver)
-    .compile();
+  const builder = Test.createTestingModule({ imports: [AppModule] });
+  if (config.keyResolver) {
+    builder.overrideProvider(JWKS_KEY_RESOLVER).useValue(config.keyResolver);
+  }
+  const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication();
   app.setGlobalPrefix('api');
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });

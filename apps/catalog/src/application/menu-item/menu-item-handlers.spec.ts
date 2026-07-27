@@ -142,7 +142,7 @@ describe('menu-item application handlers', () => {
   beforeEach(() => {
     restaurantRepository = new FakeRestaurantRepository();
     menuItemRepository = new FakeMenuItemRepository();
-    tenantContext = new FakeTenantContext({ tenantId: tenantA, actor: 'test-suite' });
+    tenantContext = new FakeTenantContext({ tenantId: tenantA, actor: 'test-suite', roles: [] });
     auditPort = new FakeAuditPort();
     transaction = new FakeTransactionPort();
     getRestaurant = new GetRestaurantHandler(restaurantRepository, tenantContext);
@@ -200,7 +200,7 @@ describe('menu-item application handlers', () => {
   it('rejects nesting a menu item under a restaurant owned by another tenant', async () => {
     const restaurant = await createRestaurantHandler.execute({ name: 'Tenant A Restaurant' });
 
-    tenantContext.run({ tenantId: tenantB, actor: 'test-suite' }, () => {});
+    tenantContext.run({ tenantId: tenantB, actor: 'test-suite', roles: [] }, () => {});
     await expect(
       createMenuItem.execute(restaurant.id, { name: 'Should Fail', priceCents: 100 }),
     ).rejects.toThrow(/not found/i);
