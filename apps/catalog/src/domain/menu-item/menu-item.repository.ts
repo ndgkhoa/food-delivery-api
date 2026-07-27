@@ -10,6 +10,8 @@ export interface MenuItemRepository {
     pagination: Pagination,
   ): Promise<PageResult<MenuItem>>;
   softDelete(id: string, tenantId: string): Promise<void>;
+  /** Cascades a soft-delete to every menu item of a restaurant when its parent is soft-deleted. */
+  softDeleteByRestaurant(restaurantId: string, tenantId: string): Promise<void>;
 }
 
 export const MENU_ITEM_REPOSITORY = Symbol('MenuItemRepository');

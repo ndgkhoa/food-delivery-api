@@ -3,11 +3,12 @@ import {
   RESTAURANT_REPOSITORY,
   type RestaurantRepository,
 } from '@catalog/domain/restaurant/restaurant.repository';
+import { EntityNotFoundError } from '@catalog/domain/shared/errors';
 import {
   TENANT_CONTEXT_PORT,
   type TenantContextPort,
 } from '@catalog/domain/shared/tenant-context.port';
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 /** Also depended on by menu-item command/query handlers to 404 + tenant-scope-check the parent restaurant. */
 @Injectable()
@@ -22,7 +23,7 @@ export class GetRestaurantHandler {
     const restaurant = await this.restaurantRepository.findById(id, tenantId);
 
     if (!restaurant) {
-      throw new NotFoundException(`Restaurant "${id}" not found`);
+      throw new EntityNotFoundError('Restaurant', id);
     }
 
     return restaurant;

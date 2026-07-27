@@ -12,12 +12,13 @@ import { AuditModule } from '@catalog/infrastructure/audit/audit.module';
 import { PersistenceModule } from '@catalog/infrastructure/persistence/persistence.module';
 import { TenancyModule } from '@catalog/infrastructure/tenancy/tenancy.module';
 import { TenantContextInterceptor } from '@catalog/infrastructure/tenancy/tenant-context.interceptor';
+import { EntityNotFoundFilter } from '@catalog/interface/http/filters/entity-not-found.filter';
 import { MenuItemsController } from '@catalog/interface/http/menu-items.controller';
 import { RestaurantsController } from '@catalog/interface/http/restaurants.controller';
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import { Module } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 
 /**
  * Composition root: wires ports (domain) to adapters (infrastructure),
@@ -49,6 +50,8 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
     GetMenuItemHandler,
     // Every route is tenant-scoped by default — see infrastructure/tenancy/tenant-context.interceptor.ts.
     { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
+    // Maps domain not-found errors to HTTP 404 so use cases stay transport-agnostic.
+    { provide: APP_FILTER, useClass: EntityNotFoundFilter },
   ],
 })
 export class AppModule {}

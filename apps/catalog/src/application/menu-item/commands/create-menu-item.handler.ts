@@ -11,6 +11,7 @@ import {
   TENANT_CONTEXT_PORT,
   type TenantContextPort,
 } from '@catalog/domain/shared/tenant-context.port';
+import { TRANSACTION_PORT, type TransactionPort } from '@catalog/domain/shared/transaction.port';
 import { Inject, Injectable } from '@nestjs/common';
 
 export interface CreateMenuItemCommand {
@@ -26,6 +27,7 @@ export class CreateMenuItemHandler {
     @Inject(MENU_ITEM_REPOSITORY) private readonly menuItemRepository: MenuItemRepository,
     @Inject(TENANT_CONTEXT_PORT) private readonly tenantContext: TenantContextPort,
     @Inject(AUDIT_PORT) private readonly auditPort: AuditPort,
+    @Inject(TRANSACTION_PORT) private readonly transaction: TransactionPort,
     private readonly getRestaurant: GetRestaurantHandler,
   ) {}
 
@@ -35,15 +37,19 @@ export class CreateMenuItemHandler {
     const tenantId = this.tenantContext.getTenantIdOrThrow();
 
     const menuItem = MenuItem.create({ id: randomUUID(), tenantId, restaurantId, ...command });
-    const saved = await this.menuItemRepository.save(menuItem);
 
-    await this.auditPort.record({
-      action: AuditAction.CREATE,
-      entity: 'menu_item',
-      entityId: saved.id,
-      after: saved.toSnapshot(),
+    // Write + audit share one commit boundary: if the audit insert fails, the menu item is not persisted.
+    return this.transaction.runInTransaction(async () => {
+      const saved = await this.menuItemRepository.save(menuItem);
+
+      await this.auditPort.record({
+        action: AuditAction.CREATE,
+        entity: 'menu_item',
+        entityId: saved.id,
+        after: saved.toSnapshot(),
+      });
+
+      return saved;
     });
-
-    return saved;
   }
 }

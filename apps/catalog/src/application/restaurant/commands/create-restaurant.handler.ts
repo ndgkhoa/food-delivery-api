@@ -10,6 +10,7 @@ import {
   TENANT_CONTEXT_PORT,
   type TenantContextPort,
 } from '@catalog/domain/shared/tenant-context.port';
+import { TRANSACTION_PORT, type TransactionPort } from '@catalog/domain/shared/transaction.port';
 import { Inject, Injectable } from '@nestjs/common';
 
 export interface CreateRestaurantCommand {
@@ -24,20 +25,25 @@ export class CreateRestaurantHandler {
     @Inject(RESTAURANT_REPOSITORY) private readonly restaurantRepository: RestaurantRepository,
     @Inject(TENANT_CONTEXT_PORT) private readonly tenantContext: TenantContextPort,
     @Inject(AUDIT_PORT) private readonly auditPort: AuditPort,
+    @Inject(TRANSACTION_PORT) private readonly transaction: TransactionPort,
   ) {}
 
   async execute(command: CreateRestaurantCommand): Promise<Restaurant> {
     const tenantId = this.tenantContext.getTenantIdOrThrow();
     const restaurant = Restaurant.create({ id: randomUUID(), tenantId, ...command });
-    const saved = await this.restaurantRepository.save(restaurant);
 
-    await this.auditPort.record({
-      action: AuditAction.CREATE,
-      entity: 'restaurant',
-      entityId: saved.id,
-      after: saved.toSnapshot(),
+    // Write + audit share one commit boundary: if the audit insert fails, the restaurant is not persisted.
+    return this.transaction.runInTransaction(async () => {
+      const saved = await this.restaurantRepository.save(restaurant);
+
+      await this.auditPort.record({
+        action: AuditAction.CREATE,
+        entity: 'restaurant',
+        entityId: saved.id,
+        after: saved.toSnapshot(),
+      });
+
+      return saved;
     });
-
-    return saved;
   }
 }

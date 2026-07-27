@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsInt,
@@ -8,13 +9,19 @@ import {
   Min,
 } from 'class-validator';
 
+/** Trims incoming strings so a whitespace-only value is rejected by validation (400) rather than reaching the domain (500). */
+const trim = ({ value }: { value: unknown }): unknown =>
+  typeof value === 'string' ? value.trim() : value;
+
 export class CreateMenuItemRequest {
+  @Transform(trim)
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
   name!: string;
 
   @IsOptional()
+  @Transform(trim)
   @IsString()
   description?: string;
 

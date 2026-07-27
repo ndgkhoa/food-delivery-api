@@ -4,6 +4,7 @@ import {
   type TenantContextPort,
 } from '@catalog/domain/shared/tenant-context.port';
 import { AuditLogOrmEntity } from '@catalog/infrastructure/persistence/entities/audit-log.orm-entity';
+import { getTransactionalEntityManager } from '@catalog/infrastructure/persistence/transaction/transactional-entity-manager';
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
@@ -21,11 +22,18 @@ export class TypeOrmAuditAdapter implements AuditPort {
     @Inject(TENANT_CONTEXT_PORT) private readonly tenantContext: TenantContextPort,
   ) {}
 
+  /** Enlists in the active transaction so the audit row commits atomically with its write. */
+  private get repository(): Repository<AuditLogOrmEntity> {
+    return (
+      getTransactionalEntityManager()?.getRepository(AuditLogOrmEntity) ?? this.auditLogRepository
+    );
+  }
+
   async record(entry: AuditEntry): Promise<void> {
     const tenantId = this.tenantContext.getTenantIdOrThrow();
     const actor = this.tenantContext.getActor();
 
-    const record = this.auditLogRepository.create({
+    const record = this.repository.create({
       tenantId,
       actor,
       action: entry.action,
@@ -34,6 +42,6 @@ export class TypeOrmAuditAdapter implements AuditPort {
       before: entry.before ?? null,
       after: entry.after ?? null,
     });
-    await this.auditLogRepository.save(record);
+    await this.repository.save(record);
   }
 }

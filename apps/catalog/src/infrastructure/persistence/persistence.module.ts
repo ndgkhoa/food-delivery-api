@@ -1,10 +1,12 @@
 import { MENU_ITEM_REPOSITORY } from '@catalog/domain/menu-item/menu-item.repository';
 import { RESTAURANT_REPOSITORY } from '@catalog/domain/restaurant/restaurant.repository';
+import { TRANSACTION_PORT } from '@catalog/domain/shared/transaction.port';
 import { AuditLogOrmEntity } from '@catalog/infrastructure/persistence/entities/audit-log.orm-entity';
 import { MenuItemOrmEntity } from '@catalog/infrastructure/persistence/entities/menu-item.orm-entity';
 import { RestaurantOrmEntity } from '@catalog/infrastructure/persistence/entities/restaurant.orm-entity';
 import { TypeOrmMenuItemRepository } from '@catalog/infrastructure/persistence/repositories/typeorm-menu-item.repository';
 import { TypeOrmRestaurantRepository } from '@catalog/infrastructure/persistence/repositories/typeorm-restaurant.repository';
+import { TypeOrmTransactionAdapter } from '@catalog/infrastructure/persistence/transaction/typeorm-transaction.adapter';
 import { buildDataSourceOptions } from '@catalog/infrastructure/persistence/typeorm-options';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -33,7 +35,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
   providers: [
     { provide: RESTAURANT_REPOSITORY, useClass: TypeOrmRestaurantRepository },
     { provide: MENU_ITEM_REPOSITORY, useClass: TypeOrmMenuItemRepository },
+    { provide: TRANSACTION_PORT, useClass: TypeOrmTransactionAdapter },
   ],
-  exports: [RESTAURANT_REPOSITORY, MENU_ITEM_REPOSITORY],
+  exports: [RESTAURANT_REPOSITORY, MENU_ITEM_REPOSITORY, TRANSACTION_PORT],
 })
 export class PersistenceModule {}

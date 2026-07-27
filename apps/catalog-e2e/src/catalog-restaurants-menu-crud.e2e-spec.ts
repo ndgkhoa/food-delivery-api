@@ -114,6 +114,67 @@ describe('Catalog REST API (e2e)', () => {
       .expect(404);
   });
 
+  it('rejects a whitespace-only restaurant name with 400', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/restaurants')
+      .set('x-tenant-id', tenantId)
+      .send({ name: '   ' })
+      .expect(400);
+  });
+
+  it('does not leak menu items across tenants', async () => {
+    const createRestaurantRes = await request(app.getHttpServer())
+      .post('/api/v1/restaurants')
+      .set('x-tenant-id', tenantId)
+      .send({ name: 'Tenant A Kitchen' })
+      .expect(201);
+    const restaurantId = createRestaurantRes.body.id;
+
+    const createMenuItemRes = await request(app.getHttpServer())
+      .post(`/api/v1/restaurants/${restaurantId}/menu-items`)
+      .set('x-tenant-id', tenantId)
+      .send({ name: 'Secret Pho', priceCents: 8500 })
+      .expect(201);
+    const menuItemId = createMenuItemRes.body.id;
+
+    // Tenant B cannot resolve the parent restaurant, so it can neither list nor read the menu item.
+    await request(app.getHttpServer())
+      .get(`/api/v1/restaurants/${restaurantId}/menu-items`)
+      .set('x-tenant-id', otherTenantId)
+      .expect(404);
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/restaurants/${restaurantId}/menu-items/${menuItemId}`)
+      .set('x-tenant-id', otherTenantId)
+      .expect(404);
+  });
+
+  it('cascades a soft-delete to menu items when a restaurant is deleted', async () => {
+    const createRestaurantRes = await request(app.getHttpServer())
+      .post('/api/v1/restaurants')
+      .set('x-tenant-id', tenantId)
+      .send({ name: 'To Be Deleted With Items' })
+      .expect(201);
+    const restaurantId = createRestaurantRes.body.id;
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/restaurants/${restaurantId}/menu-items`)
+      .set('x-tenant-id', tenantId)
+      .send({ name: 'Doomed Dish', priceCents: 5000 })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .delete(`/api/v1/restaurants/${restaurantId}`)
+      .set('x-tenant-id', tenantId)
+      .expect(204);
+
+    // Parent 404s and its menu items no longer live as reachable rows.
+    await request(app.getHttpServer())
+      .get(`/api/v1/restaurants/${restaurantId}/menu-items`)
+      .set('x-tenant-id', tenantId)
+      .expect(404);
+  });
+
   it('does not leak restaurants across tenants', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/restaurants')

@@ -3,6 +3,7 @@ import { DeleteRestaurantHandler } from '@catalog/application/restaurant/command
 import { UpdateRestaurantHandler } from '@catalog/application/restaurant/commands/update-restaurant.handler';
 import { GetRestaurantHandler } from '@catalog/application/restaurant/queries/get-restaurant.handler';
 import { ListRestaurantsHandler } from '@catalog/application/restaurant/queries/list-restaurants.handler';
+import type { MenuItemRepository } from '@catalog/domain/menu-item/menu-item.repository';
 import type { Restaurant } from '@catalog/domain/restaurant/restaurant';
 import type { RestaurantRepository } from '@catalog/domain/restaurant/restaurant.repository';
 import type { AuditEntry, AuditPort } from '@catalog/domain/shared/audit.port';
@@ -12,6 +13,7 @@ import type {
   TenantContextPort,
   TenantRequestContext,
 } from '@catalog/domain/shared/tenant-context.port';
+import type { TransactionPort } from '@catalog/domain/shared/transaction.port';
 
 /** In-memory fake — no DB, exercises the same contract as the TypeORM adapter. */
 class FakeRestaurantRepository implements RestaurantRepository {
@@ -72,13 +74,31 @@ class FakeAuditPort implements AuditPort {
   }
 }
 
+/** Runs the work directly — the in-memory fakes need no real commit/rollback boundary. */
+class FakeTransactionPort implements TransactionPort {
+  runInTransaction<T>(work: () => Promise<T>): Promise<T> {
+    return work();
+  }
+}
+
+/** Minimal stub so `DeleteRestaurantHandler` can cascade; records the cascade target for assertions. */
+class FakeMenuItemRepository implements Partial<MenuItemRepository> {
+  readonly cascadedRestaurantIds: string[] = [];
+
+  async softDeleteByRestaurant(restaurantId: string): Promise<void> {
+    this.cascadedRestaurantIds.push(restaurantId);
+  }
+}
+
 describe('restaurant application handlers', () => {
   const tenantA = '11111111-1111-4111-8111-111111111111';
   const tenantB = '22222222-2222-4222-8222-222222222222';
 
   let repository: FakeRestaurantRepository;
+  let menuItemRepository: FakeMenuItemRepository;
   let tenantContext: FakeTenantContext;
   let auditPort: FakeAuditPort;
+  let transaction: FakeTransactionPort;
   let getRestaurant: GetRestaurantHandler;
   let createRestaurant: CreateRestaurantHandler;
   let updateRestaurant: UpdateRestaurantHandler;
@@ -87,12 +107,30 @@ describe('restaurant application handlers', () => {
 
   beforeEach(() => {
     repository = new FakeRestaurantRepository();
+    menuItemRepository = new FakeMenuItemRepository();
     tenantContext = new FakeTenantContext({ tenantId: tenantA, actor: 'test-suite' });
     auditPort = new FakeAuditPort();
+    transaction = new FakeTransactionPort();
     getRestaurant = new GetRestaurantHandler(repository, tenantContext);
-    createRestaurant = new CreateRestaurantHandler(repository, tenantContext, auditPort);
-    updateRestaurant = new UpdateRestaurantHandler(repository, auditPort, getRestaurant);
-    deleteRestaurant = new DeleteRestaurantHandler(repository, auditPort, getRestaurant);
+    createRestaurant = new CreateRestaurantHandler(
+      repository,
+      tenantContext,
+      auditPort,
+      transaction,
+    );
+    updateRestaurant = new UpdateRestaurantHandler(
+      repository,
+      auditPort,
+      transaction,
+      getRestaurant,
+    );
+    deleteRestaurant = new DeleteRestaurantHandler(
+      repository,
+      menuItemRepository as unknown as MenuItemRepository,
+      auditPort,
+      transaction,
+      getRestaurant,
+    );
     listRestaurants = new ListRestaurantsHandler(repository, tenantContext);
   });
 
@@ -120,6 +158,9 @@ describe('restaurant application handlers', () => {
 
     const deleteEntry = auditPort.entries.find((e) => e.action === AuditAction.DELETE);
     expect(deleteEntry).toBeDefined();
+
+    // Deleting a restaurant cascades a soft-delete to its menu items.
+    expect(menuItemRepository.cascadedRestaurantIds).toContain(restaurant.id);
   });
 
   it("does not allow one tenant to read another tenant's restaurant", async () => {

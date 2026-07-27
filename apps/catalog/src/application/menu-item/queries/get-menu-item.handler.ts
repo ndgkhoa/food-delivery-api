@@ -3,11 +3,12 @@ import {
   MENU_ITEM_REPOSITORY,
   type MenuItemRepository,
 } from '@catalog/domain/menu-item/menu-item.repository';
+import { EntityNotFoundError } from '@catalog/domain/shared/errors';
 import {
   TENANT_CONTEXT_PORT,
   type TenantContextPort,
 } from '@catalog/domain/shared/tenant-context.port';
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 @Injectable()
 export class GetMenuItemHandler {
@@ -21,7 +22,11 @@ export class GetMenuItemHandler {
     const menuItem = await this.menuItemRepository.findById(id, restaurantId, tenantId);
 
     if (!menuItem) {
-      throw new NotFoundException(`Menu item "${id}" not found on restaurant "${restaurantId}"`);
+      throw new EntityNotFoundError(
+        'MenuItem',
+        id,
+        `Menu item "${id}" not found on restaurant "${restaurantId}"`,
+      );
     }
 
     return menuItem;
