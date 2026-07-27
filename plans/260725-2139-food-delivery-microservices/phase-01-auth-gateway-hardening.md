@@ -62,10 +62,10 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 - [x] `auth` service (hexagonal): tenant registry (Postgres db `auth`) + user↔tenant map + provisioning admin API (`@Roles('admin')`); gateway proxy `/api/v1/auth/*`
 - [x] Keycloak admin adapter (hand-rolled REST/fetch): create user + assign role + set validated `tenant_id` UUID attribute (enforces review M-2). Keycloak 24+ gotchas fixed: set firstName/lastName (User Profile requires them → else "account not fully set up") + realm `unmanagedAttributePolicy=ENABLED` (else admin-set `tenant_id` is dropped)
 
-**Slice B2b — gateway sessions + rate limit (🔨 in progress):**
-- [ ] Redis-backed per-identity rate limiter at the gateway (429 on trip)
-- [ ] Gateway auth proxies to Keycloak OIDC: token (code+PKCE exchange), refresh (rotation), logout/session revoke; realm refresh-token rotation enabled
-- [ ] E2E (real Keycloak + Redis): rate-limit trips 429; refresh rotates + old refresh invalidated; logout revokes session
+**Slice B2b — gateway sessions + rate limit (PR #5, open):**
+- [x] Redis-backed per-identity rate limiter at the gateway (ioredis fixed-window, keyed by `sub`→IP; 429 + Retry-After; `RATE_LIMIT_*` config, opt-out in tests)
+- [x] Gateway auth proxies to Keycloak OIDC (`@Public`, stateless): token (code+PKCE), refresh (rotation), logout/session revoke; realm `revokeRefreshToken` + `refreshTokenMaxReuse:0`
+- [x] E2E (real Keycloak + Redis): rate-limit trips 429; refresh rotates + old-reuse rejected; logout revokes session
 
 ## Success criteria
 - Unauthed write → 401; wrong role → 403; valid owner → 200, all audit-logged with `sub`+`tenant_id`.
