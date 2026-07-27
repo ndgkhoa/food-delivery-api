@@ -61,17 +61,10 @@ export class ReleaseStockHandler {
       return;
     }
 
-    const stocks = await this.stockRepository.findByItemIds(
-      tenantId,
-      current.map((reservation) => reservation.itemId),
-    );
-    const stockByItem = new Map(stocks.map((stock) => [stock.itemId, stock]));
-
+    // One atomic increment per hold — no read-modify-write, so concurrent
+    // reserve/release on the same item can't lose an update.
     for (const reservation of current) {
-      const stock = stockByItem.get(reservation.itemId);
-      if (stock) {
-        await this.stockRepository.save(stock.release(reservation.qty));
-      }
+      await this.stockRepository.increaseAvailable(tenantId, reservation.itemId, reservation.qty);
       await this.reservationRepository.save(reservation.release());
     }
   }

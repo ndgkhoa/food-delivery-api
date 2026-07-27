@@ -1,5 +1,3 @@
-import { InsufficientStockError } from '@inventory/domain/shared/errors';
-
 export interface StockProps {
   tenantId: string;
   itemId: string;
@@ -14,9 +12,16 @@ function assertNonNegativeInteger(available: number): void {
 }
 
 /**
- * Stock aggregate — the guardian of the no-oversell invariant. Keyed naturally
- * by (tenantId, itemId). Plain class, no ORM/framework deps. Immutable updates:
- * `reserve`/`release` return a new instance so callers persist the result.
+ * Stock read model — keyed naturally by (tenantId, itemId). A plain value object
+ * with no ORM/framework deps, used to read current availability and surface a
+ * friendly error before a reserve.
+ *
+ * Note: reserve/release do NOT mutate this object. A counter's no-oversell
+ * invariant cannot be upheld by an in-memory read-modify-write (two callers read
+ * the same value and both write it back → lost update / oversell). It is instead
+ * enforced atomically in the DB: a single conditional `UPDATE ... WHERE available
+ * >= qty` (see StockRepository.decrementIfAvailable) plus a CHECK (available >=
+ * 0). The Redis lock only reduces contention; the DB is the real backstop.
  */
 export class Stock {
   private constructor(private readonly props: StockProps) {}
@@ -41,30 +46,5 @@ export class Stock {
 
   get available(): number {
     return this.props.available;
-  }
-
-  /**
-   * Decrements available by `qty`. Throws `InsufficientStockError` rather than
-   * ever letting available fall below zero — the invariant enforced in code
-   * (with a DB CHECK constraint as a second line of defense).
-   */
-  reserve(qty: number): Stock {
-    assertPositiveQty(qty);
-    if (qty > this.props.available) {
-      throw new InsufficientStockError(this.props.itemId, qty, this.props.available);
-    }
-    return new Stock({ ...this.props, available: this.props.available - qty });
-  }
-
-  /** Returns `qty` units to available (on order cancel / reservation release). */
-  release(qty: number): Stock {
-    assertPositiveQty(qty);
-    return new Stock({ ...this.props, available: this.props.available + qty });
-  }
-}
-
-function assertPositiveQty(qty: number): void {
-  if (!Number.isInteger(qty) || qty <= 0) {
-    throw new Error('Quantity must be a positive integer');
   }
 }

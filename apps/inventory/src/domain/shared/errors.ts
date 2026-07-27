@@ -23,3 +23,25 @@ export class StockNotFoundError extends Error {
     this.name = 'StockNotFoundError';
   }
 }
+
+/** Raised when a reserve request is malformed (empty items, non-positive qty). */
+export class InvalidReserveRequestError extends Error {
+  constructor(reason: string) {
+    super(`Invalid reserve request: ${reason}`);
+    this.name = 'InvalidReserveRequestError';
+  }
+}
+
+/**
+ * Raised when a reserve replays an orderId that already holds active
+ * reservations for a DIFFERENT set of items/quantities — the caller reused an
+ * order identity for new contents, which idempotency must reject rather than
+ * silently return the old hold. Also covers a concurrent duplicate reserve that
+ * the unique index rejects at insert time.
+ */
+export class IdempotencyConflictError extends Error {
+  constructor(readonly orderId: string) {
+    super(`Order "${orderId}" already has active reservations for different items`);
+    this.name = 'IdempotencyConflictError';
+  }
+}

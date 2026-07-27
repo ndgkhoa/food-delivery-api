@@ -17,25 +17,44 @@ function stockKey(t: string, i: string): string {
 }
 
 class FakeStockRepository implements StockRepository {
-  private readonly rows = new Map<string, Stock>();
+  /** Models the DB's atomic counter: key → available units. */
+  private readonly available = new Map<string, number>();
 
   seed(stock: Stock): void {
-    this.rows.set(stockKey(stock.tenantId, stock.itemId), stock);
+    this.available.set(stockKey(stock.tenantId, stock.itemId), stock.available);
   }
 
   availableOf(t: string, i: string): number | undefined {
-    return this.rows.get(stockKey(t, i))?.available;
+    return this.available.get(stockKey(t, i));
   }
 
   async findByItemIds(t: string, itemIds: string[]): Promise<Stock[]> {
     return itemIds
-      .map((itemId) => this.rows.get(stockKey(t, itemId)))
+      .map((itemId) => {
+        const units = this.available.get(stockKey(t, itemId));
+        return units === undefined
+          ? undefined
+          : Stock.reconstitute({ tenantId: t, itemId, available: units });
+      })
       .filter((stock): stock is Stock => stock !== undefined);
   }
 
-  async save(stock: Stock): Promise<Stock> {
-    this.rows.set(stockKey(stock.tenantId, stock.itemId), stock);
-    return stock;
+  async decrementIfAvailable(t: string, itemId: string, qty: number): Promise<boolean> {
+    const key = stockKey(t, itemId);
+    const units = this.available.get(key);
+    if (units === undefined || units < qty) {
+      return false;
+    }
+    this.available.set(key, units - qty);
+    return true;
+  }
+
+  async increaseAvailable(t: string, itemId: string, qty: number): Promise<void> {
+    const key = stockKey(t, itemId);
+    const units = this.available.get(key);
+    if (units !== undefined) {
+      this.available.set(key, units + qty);
+    }
   }
 }
 

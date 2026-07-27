@@ -22,6 +22,11 @@ class FakeRedis {
     return next;
   }
 
+  /** TTL bookkeeping isn't modelled here (belongs to integration); accept + no-op. */
+  async pexpire(_key: string, _ttlMs: number): Promise<number> {
+    return 1;
+  }
+
   async set(
     key: string,
     value: string,

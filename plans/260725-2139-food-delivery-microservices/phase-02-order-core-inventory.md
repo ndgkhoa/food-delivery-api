@@ -44,8 +44,13 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 - [x] catalog + inventory `.proto` in `shared/contracts` + hand-written contract types; shared `PROTO_LOADER_OPTIONS` (camelCase + empty repeated → `[]`, not `undefined`) used by every server + client
 - [x] catalog gRPC server (`GetMenuItems`) — hybrid HTTP+gRPC extending P0 catalog; tenant-scoped; e2e proves cross-tenant returns `[]`
 - [x] inventory service (hexagonal): stock/reservations + reserve/release + Redis distributed lock + DB tx + gRPC server
-- [x] `libs/shared/locking` (Redis lock helper: fencing token + sorted multi-key + Lua compare-and-del + **blocking acquire** so a contended reserve serialises rather than failing fast)
-- [x] E2E proof (real Postgres + Redis): 50 concurrent reserves on stock=10 → exactly 10 succeed, 40 out-of-stock, available=0, zero oversell
+- [x] `libs/shared/locking` (Redis lock helper: fencing token + sorted multi-key + Lua compare-and-del + **all-or-nothing acquire** with jittered backoff so a contended reserve serialises without hold-and-wait; fence-key TTL; release-failure logging)
+- [x] E2E proof (real Postgres + Redis): 50 concurrent reserves on stock=10 → exactly 10 succeed, 40 out-of-stock, available=0, zero oversell; duplicate-item-in-one-request also cannot oversell (qty summed)
+
+**Review hardening (code-reviewer round 1 — all C/H/M/L addressed):**
+- [x] No-oversell backstop moved to the DB: atomic conditional `UPDATE ... WHERE available >= qty` (not read-modify-write) — correctness holds even if the Redis lock is lost. Duplicate line items summed per item; items sorted for deadlock-free row-lock order.
+- [x] DB-enforced idempotency: partial unique index `reservations(tenant_id, order_id, item_id) WHERE status='ACTIVE'`; replay must carry identical items/qty.
+- [x] gRPC status mapping: contention→ABORTED (retryable), invalid request→INVALID_ARGUMENT, idempotency conflict→ALREADY_EXISTS, faults→INTERNAL (logged, no leak).
 
 **Slice 2b — order + flow:**
 - [ ] order state machine (PENDING→RESERVED→CONFIRMED/CANCELLED) + optimistic lock

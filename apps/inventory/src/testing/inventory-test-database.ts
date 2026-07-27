@@ -1,4 +1,5 @@
 import { CreateInventoryTables1753747200000 } from '@inventory/infrastructure/persistence/migrations/1753747200000-create-inventory-tables';
+import { AddActiveReservationUniqueIndex1753747300000 } from '@inventory/infrastructure/persistence/migrations/1753747300000-add-active-reservation-unique-index';
 import { inventoryOrmEntities } from '@inventory/infrastructure/persistence/typeorm-options';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
@@ -26,7 +27,7 @@ export async function startInventoryTestDatabase(): Promise<InventoryTestDatabas
     password: container.getPassword(),
     database: container.getDatabase(),
     entities: inventoryOrmEntities,
-    migrations: [CreateInventoryTables1753747200000],
+    migrations: [CreateInventoryTables1753747200000, AddActiveReservationUniqueIndex1753747300000],
     synchronize: false,
     logging: false,
   });

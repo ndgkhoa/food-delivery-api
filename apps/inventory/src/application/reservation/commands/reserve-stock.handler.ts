@@ -5,7 +5,12 @@ import {
   RESERVATION_REPOSITORY,
   type ReservationRepository,
 } from '@inventory/domain/reservation/reservation.repository';
-import { InsufficientStockError, StockNotFoundError } from '@inventory/domain/shared/errors';
+import {
+  IdempotencyConflictError,
+  InsufficientStockError,
+  InvalidReserveRequestError,
+  StockNotFoundError,
+} from '@inventory/domain/shared/errors';
 import { TRANSACTION_PORT, type TransactionPort } from '@inventory/domain/shared/transaction.port';
 import { STOCK_REPOSITORY, type StockRepository } from '@inventory/domain/stock/stock.repository';
 import { Inject, Injectable } from '@nestjs/common';
@@ -27,25 +32,78 @@ export interface ReserveStockResult {
 }
 
 /**
- * Lock TTL bounding the reserve critical section. Long enough for the DB tx,
- * short enough that a crashed holder self-heals quickly (the fencing token +
- * DB re-check keep correctness even if the lock expires early).
+ * Lock TTL bounding the reserve critical section. The DB's atomic conditional
+ * decrement is what guarantees no oversell, so even if this TTL expires mid-tx
+ * the invariant still holds; the lock only reduces contention/retries.
  */
 const RESERVE_LOCK_TTL_MS = 5000;
+
+/** Postgres SQLSTATE for unique_violation — a concurrent duplicate reserve. */
+const PG_UNIQUE_VIOLATION = '23505';
 
 function lockKey(tenantId: string, itemId: string): string {
   return `inventory:lock:${tenantId}:${itemId}`;
 }
 
 /**
+ * Validate + collapse a request to one entry per item (summing duplicate line
+ * items) sorted by itemId. Summing closes an oversell hole where two line items
+ * of the same itemId would otherwise each reserve against the same read; sorting
+ * gives a deterministic lock + row-lock order so multi-item reserves can't
+ * deadlock.
+ */
+function normalizeItems(items: ReserveItem[]): ReserveItem[] {
+  if (items.length === 0) {
+    throw new InvalidReserveRequestError('no items to reserve');
+  }
+  const byItem = new Map<string, number>();
+  for (const item of items) {
+    if (!Number.isInteger(item.qty) || item.qty <= 0) {
+      throw new InvalidReserveRequestError(
+        `quantity for item "${item.itemId}" must be a positive integer`,
+      );
+    }
+    byItem.set(item.itemId, (byItem.get(item.itemId) ?? 0) + item.qty);
+  }
+  return [...byItem.entries()]
+    .map(([itemId, qty]) => ({ itemId, qty }))
+    .sort((a, b) => a.itemId.localeCompare(b.itemId));
+}
+
+/** True for a Postgres unique_violation, however TypeORM wraps the driver error. */
+function isUniqueViolation(error: unknown): boolean {
+  const wrapped = error as { code?: string; driverError?: { code?: string } };
+  return (wrapped?.driverError?.code ?? wrapped?.code) === PG_UNIQUE_VIOLATION;
+}
+
+/**
+ * An idempotent replay must carry the exact same items/quantities as the stored
+ * hold. A reused orderId with different contents is a client bug, not a replay —
+ * reject it rather than silently returning the old reservation.
+ */
+function assertReplayMatches(
+  existing: Reservation[],
+  requested: ReserveItem[],
+  orderId: string,
+): void {
+  const existingByItem = new Map(existing.map((r) => [r.itemId, r.qty]));
+  const same =
+    existing.length === requested.length &&
+    requested.every((item) => existingByItem.get(item.itemId) === item.qty);
+  if (!same) {
+    throw new IdempotencyConflictError(orderId);
+  }
+}
+
+/**
  * Reserve stock atomically with no oversell. Critical section:
- *   1. Acquire a per-item distributed lock for every ordered item, in sorted
- *      order (deadlock-free for multi-item carts).
- *   2. Inside a DB transaction: re-read stock, decrement (domain re-checks
- *      available ≥ qty), insert a reservation per item — all or nothing.
- *   3. Commit, then the lock is released.
- * Idempotent: a re-reserve of an order that already holds active reservations
- * returns the existing ids instead of double-decrementing.
+ *   1. Acquire a per-item distributed lock for every ordered item, sorted
+ *      (deadlock-free) — a contention optimisation, not the correctness guard.
+ *   2. In a DB transaction: idempotency re-check, then per item an atomic
+ *      conditional decrement (`UPDATE ... WHERE available >= qty`) that is the
+ *      real no-oversell guarantee, plus one reservation row.
+ * Idempotent: re-reserving an order that already holds active reservations
+ * returns the existing ids instead of decrementing again.
  */
 @Injectable()
 export class ReserveStockHandler {
@@ -57,7 +115,8 @@ export class ReserveStockHandler {
   ) {}
 
   async execute(command: ReserveStockCommand): Promise<ReserveStockResult> {
-    const { tenantId, orderId, items } = command;
+    const { tenantId, orderId } = command;
+    const items = normalizeItems(command.items);
     const keys = items.map((item) => lockKey(tenantId, item.itemId));
 
     return this.lock.withLocks(keys, RESERVE_LOCK_TTL_MS, async () => {
@@ -67,10 +126,15 @@ export class ReserveStockHandler {
         );
         return { ok: true, reservationIds };
       } catch (error) {
-        // No stock / not enough stock is an expected business outcome, not a
-        // fault: the tx rolled back, so report a clean failed reserve.
+        // No / not enough stock is an expected business outcome, not a fault: the
+        // tx rolled back, so report a clean failed reserve.
         if (error instanceof InsufficientStockError || error instanceof StockNotFoundError) {
           return { ok: false, reservationIds: [] };
+        }
+        // A concurrent duplicate reserve that slipped past the read-check is
+        // rejected by the active-reservation unique index → surface as a conflict.
+        if (isUniqueViolation(error)) {
+          throw new IdempotencyConflictError(orderId);
         }
         throw error;
       }
@@ -84,6 +148,7 @@ export class ReserveStockHandler {
   ): Promise<string[]> {
     const existing = await this.reservationRepository.findActiveByOrder(tenantId, orderId);
     if (existing.length > 0) {
+      assertReplayMatches(existing, items, orderId);
       return existing.map((reservation) => reservation.id);
     }
 
@@ -99,7 +164,14 @@ export class ReserveStockHandler {
       if (!stock) {
         throw new StockNotFoundError(item.itemId);
       }
-      await this.stockRepository.save(stock.reserve(item.qty));
+      const reserved = await this.stockRepository.decrementIfAvailable(
+        tenantId,
+        item.itemId,
+        item.qty,
+      );
+      if (!reserved) {
+        throw new InsufficientStockError(item.itemId, item.qty, stock.available);
+      }
       const reservation = Reservation.create({
         id: randomUUID(),
         tenantId,

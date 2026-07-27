@@ -27,8 +27,30 @@ export class TypeOrmStockRepository implements StockRepository {
     return rows.map(StockMapper.toDomain);
   }
 
-  async save(stock: Stock): Promise<Stock> {
-    const saved = await this.repository.save(StockMapper.toOrm(stock));
-    return StockMapper.toDomain(saved);
+  async decrementIfAvailable(tenantId: string, itemId: string, qty: number): Promise<boolean> {
+    // Single atomic conditional decrement — the no-oversell guard. `affected`
+    // (rowCount) is 1 only when available was >= qty; 0 means not enough stock
+    // (or no row), and the row is never touched, so it cannot go negative.
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(StockOrmEntity)
+      .set({ available: () => 'available - :byQty', updatedAt: () => 'now()' })
+      .where('tenant_id = :tenantId AND item_id = :itemId AND available >= :byQty', {
+        tenantId,
+        itemId,
+        byQty: qty,
+      })
+      .execute();
+    return (result.affected ?? 0) > 0;
+  }
+
+  async increaseAvailable(tenantId: string, itemId: string, qty: number): Promise<void> {
+    await this.repository
+      .createQueryBuilder()
+      .update(StockOrmEntity)
+      .set({ available: () => 'available + :byQty', updatedAt: () => 'now()' })
+      .where('tenant_id = :tenantId AND item_id = :itemId', { tenantId, itemId })
+      .setParameter('byQty', qty)
+      .execute();
   }
 }

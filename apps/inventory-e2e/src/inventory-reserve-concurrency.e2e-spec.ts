@@ -98,6 +98,71 @@ describe('Inventory reserve — no-oversell under concurrency (e2e)', () => {
     expect(reservations[0].count).toBe(10);
   });
 
+  it('does not oversell when one request repeats an item beyond stock (qty summed)', async () => {
+    const tenantId = randomUUID();
+    const itemId = randomUUID();
+    await db.dataSource.query(
+      'INSERT INTO "stock" ("tenant_id", "item_id", "available") VALUES ($1, $2, $3)',
+      [tenantId, itemId, 10],
+    );
+
+    // Two line items of the SAME item, each 6 → 12 requested against 10 in stock.
+    // Summed, this must fail cleanly, never split into two reservations of 6.
+    const result = await reserveStock.execute({
+      tenantId,
+      orderId: randomUUID(),
+      items: [
+        { itemId, qty: 6 },
+        { itemId, qty: 6 },
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    const rows = await db.dataSource.query(
+      'SELECT "available" FROM "stock" WHERE "tenant_id" = $1 AND "item_id" = $2',
+      [tenantId, itemId],
+    );
+    expect(Number(rows[0].available)).toBe(10);
+    const reservations = await db.dataSource.query(
+      'SELECT COUNT(*)::int AS count FROM "reservations" WHERE "tenant_id" = $1',
+      [tenantId],
+    );
+    expect(reservations[0].count).toBe(0);
+  });
+
+  it('sums a repeated item into a single reservation when it fits', async () => {
+    const tenantId = randomUUID();
+    const itemId = randomUUID();
+    const orderId = randomUUID();
+    await db.dataSource.query(
+      'INSERT INTO "stock" ("tenant_id", "item_id", "available") VALUES ($1, $2, $3)',
+      [tenantId, itemId, 10],
+    );
+
+    const result = await reserveStock.execute({
+      tenantId,
+      orderId,
+      items: [
+        { itemId, qty: 3 },
+        { itemId, qty: 4 },
+      ],
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.reservationIds).toHaveLength(1);
+    const rows = await db.dataSource.query(
+      'SELECT "available" FROM "stock" WHERE "tenant_id" = $1 AND "item_id" = $2',
+      [tenantId, itemId],
+    );
+    expect(Number(rows[0].available)).toBe(3);
+    const reservations = await db.dataSource.query(
+      'SELECT "qty" FROM "reservations" WHERE "tenant_id" = $1 AND "order_id" = $2',
+      [tenantId, orderId],
+    );
+    expect(reservations).toHaveLength(1);
+    expect(Number(reservations[0].qty)).toBe(7);
+  });
+
   it('reserve then release returns the stock and lets it be reserved again', async () => {
     const tenantId = randomUUID();
     const itemId = randomUUID();
