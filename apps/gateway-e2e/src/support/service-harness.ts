@@ -3,7 +3,7 @@ import {
   startCatalogTestDatabase,
   stopCatalogTestDatabase,
 } from '@catalog/testing/catalog-test-database';
-import { JWKS_KEY_RESOLVER, type JwksKeyResolver } from '@food-delivery-api/shared-auth';
+import { JWKS_KEY_RESOLVER, type JwksKeyResolver } from '@food-delivery-api/shared-jwt';
 import { type INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 

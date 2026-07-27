@@ -23,7 +23,7 @@ export default {
         'config',
         'shared-config',
         'shared-logging',
-        'shared-auth',
+        'shared-jwt',
         'shared-tenancy',
         'shared-locking',
         'shared-audit',

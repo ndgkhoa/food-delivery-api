@@ -1,5 +1,5 @@
 /** DI token for the verifier options (JWKS URI, issuer, audience). */
-export const AUTH_VERIFICATION_OPTIONS = Symbol('AuthVerificationOptions');
+export const JWT_VERIFICATION_OPTIONS = Symbol('JwtVerificationOptions');
 
 /**
  * DI token for the JWKS key resolver. Bound to a remote (Keycloak) JWKS set in

@@ -4,7 +4,7 @@ import {
   createTestKeySet,
   TEST_TENANT_ID,
   type TestKeySet,
-} from '@food-delivery-api/shared-auth/testing';
+} from '@food-delivery-api/shared-jwt/testing';
 import request from 'supertest';
 import {
   type CatalogHandle,

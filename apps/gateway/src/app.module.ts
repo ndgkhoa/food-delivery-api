@@ -1,5 +1,5 @@
-import { SharedAuthModule } from '@food-delivery-api/shared-auth';
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
+import { JwtVerificationModule } from '@food-delivery-api/shared-jwt';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import { gatewayEnvSchema } from '@gateway/config/gateway-env-schema';
 import { JwtAuthGuard } from '@gateway/guards/jwt-auth.guard';
@@ -27,7 +27,7 @@ import { APP_GUARD } from '@nestjs/core';
     SharedConfigModule.forRoot(gatewayEnvSchema),
     SharedLoggingModule.forRoot(),
     RateLimitModule,
-    SharedAuthModule.forRootAsync({
+    JwtVerificationModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         // Derive issuer + JWKS from the Keycloak base URL + realm so a token's

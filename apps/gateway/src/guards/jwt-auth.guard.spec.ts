@@ -1,9 +1,9 @@
-import { AccessTokenVerifier } from '@food-delivery-api/shared-auth';
+import { AccessTokenVerifier } from '@food-delivery-api/shared-jwt';
 import {
   createTestKeySet,
   TEST_TENANT_ID,
   type TestKeySet,
-} from '@food-delivery-api/shared-auth/testing';
+} from '@food-delivery-api/shared-jwt/testing';
 import type { AuthenticatedRequest } from '@gateway/guards/authenticated-request';
 import { JwtAuthGuard } from '@gateway/guards/jwt-auth.guard';
 import { type ExecutionContext, UnauthorizedException } from '@nestjs/common';
