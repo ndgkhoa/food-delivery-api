@@ -14,6 +14,7 @@ Context: [phase-03.md](./phase-03-event-driven-backbone.md) · [phase-03c.md](./
 - Tests run against real infra (`core`+`messaging`) via testcontainers where feasible; the Debezium path (3b) needs compose (no Node Debezium testcontainer) — reuse the 3b compose harness.
 
 ## Requirements
+**Carry-forward from 3a (review)**: the shared consumer has TWO silent skip paths that only `logger.error` today — an undecodable message (decode guard) and a handler that exhausts its retry budget. Add a **drop counter/metric** (and, if cheap, an `onPoison` hook) so a dropped saga command is observable, and cover BOTH paths in the stale-saga discoverability test. Full dead-letter queue remains P5.
 **Functional**: compensation path; idempotent redelivery; CDC→read-model propagation; stale-saga discoverability.
 **Non-functional**: tests deterministic + repeatable; no oversell/double-charge under duplicate delivery; polls bounded by timeout with clear failure output.
 
