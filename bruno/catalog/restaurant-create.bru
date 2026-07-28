@@ -10,7 +10,9 @@ post {
   auth: bearer
 }
 
-auth:bearer { token: {{token}} }
+auth:bearer {
+  token: {{token}}
+}
 
 body:json {
   {
@@ -19,10 +21,7 @@ body:json {
   }
 }
 
-script:post-response {
-  if (res.body && res.body.id) bru.setEnvVar("restaurantId", res.body.id);
-}
-
 docs {
-  Owner/admin only (customer -> 403). Saves restaurantId for the requests below.
+  Owner/admin only (customer -> 403). Copy the returned `id` into the
+  `restaurantId` path param of the requests below.
 }

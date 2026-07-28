@@ -5,10 +5,16 @@ meta {
 }
 
 post {
-  url: {{gateway}}/orders/{{orderId}}/cancel
+  url: {{gateway}}/orders/:orderId/cancel
   auth: bearer
 }
 
-auth:bearer { token: {{token}} }
+params:path {
+  orderId: 
+}
+
+auth:bearer {
+  token: {{token}}
+}
 
 docs { PENDING/RESERVED -> CANCELLED; releases the inventory hold. Owner (or admin). }

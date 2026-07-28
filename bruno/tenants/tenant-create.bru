@@ -10,7 +10,9 @@ post {
   auth: bearer
 }
 
-auth:bearer { token: {{token}} }
+auth:bearer {
+  token: {{token}}
+}
 
 body:json {
   {
@@ -19,8 +21,4 @@ body:json {
   }
 }
 
-script:post-response {
-  if (res.body && res.body.id) bru.setEnvVar("tenantId", res.body.id);
-}
-
-docs { Admin only (run Auth > Login (admin)). Saves tenantId. }
+docs { Admin only (Login (admin) first). Copy the returned `id` into tenantId below. }

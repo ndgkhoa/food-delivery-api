@@ -5,12 +5,19 @@ meta {
 }
 
 patch {
-  url: {{gateway}}/catalog/restaurants/{{restaurantId}}/menu-items/{{menuItemId}}
+  url: {{gateway}}/catalog/restaurants/:restaurantId/menu-items/:menuItemId
   body: json
   auth: bearer
 }
 
-auth:bearer { token: {{token}} }
+params:path {
+  restaurantId: 
+  menuItemId: 
+}
+
+auth:bearer {
+  token: {{token}}
+}
 
 body:json {
   {
@@ -18,5 +25,3 @@ body:json {
     "isAvailable": false
   }
 }
-
-docs { Owner/admin only. Partial update. }

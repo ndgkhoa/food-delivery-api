@@ -5,10 +5,15 @@ meta {
 }
 
 delete {
-  url: {{gateway}}/catalog/restaurants/{{restaurantId}}/menu-items/{{menuItemId}}
+  url: {{gateway}}/catalog/restaurants/:restaurantId/menu-items/:menuItemId
   auth: bearer
 }
 
-auth:bearer { token: {{token}} }
+params:path {
+  restaurantId: 
+  menuItemId: 
+}
 
-docs { Owner/admin only. }
+auth:bearer {
+  token: {{token}}
+}

@@ -5,10 +5,14 @@ meta {
 }
 
 get {
-  url: {{gateway}}/orders/{{orderId}}
+  url: {{gateway}}/orders/:orderId
   auth: bearer
 }
 
-auth:bearer { token: {{token}} }
+params:path {
+  orderId: 
+}
 
-docs { Owner of the order (or admin). }
+auth:bearer {
+  token: {{token}}
+}

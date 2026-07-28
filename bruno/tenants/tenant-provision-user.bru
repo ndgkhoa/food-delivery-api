@@ -5,12 +5,18 @@ meta {
 }
 
 post {
-  url: {{gateway}}/auth/tenants/{{tenantId}}/users
+  url: {{gateway}}/auth/tenants/:tenantId/users
   body: json
   auth: bearer
 }
 
-auth:bearer { token: {{token}} }
+params:path {
+  tenantId: 
+}
+
+auth:bearer {
+  token: {{token}}
+}
 
 body:json {
   {
@@ -21,7 +27,4 @@ body:json {
   }
 }
 
-docs {
-  Admin only. Creates a Keycloak user + maps them to the tenant. role is one of
-  the provisionable roles (restaurant-owner / customer / driver).
-}
+docs { Admin only. Creates a Keycloak user + maps to the tenant (role: restaurant-owner/customer/driver). }

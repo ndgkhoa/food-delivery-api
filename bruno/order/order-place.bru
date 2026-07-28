@@ -10,7 +10,9 @@ post {
   auth: bearer
 }
 
-auth:bearer { token: {{token}} }
+auth:bearer {
+  token: {{token}}
+}
 
 headers {
   Idempotency-Key: {{$guid}}
@@ -19,18 +21,14 @@ headers {
 body:json {
   {
     "items": [
-      { "itemId": "{{menuItemId}}", "qty": 2 }
+      { "itemId": "PASTE_A_MENU_ITEM_UUID", "qty": 2 }
     ]
   }
 }
 
-script:post-response {
-  if (res.body && res.body.id) bru.setEnvVar("orderId", res.body.id);
-}
-
 docs {
-  Run Auth > Login (customer) first. Uses menuItemId from Menu item - create.
-  The item needs an inventory stock row, else reserve returns 409. Idempotency-Key
-  is required ({{$guid}} = fresh per send; reuse the SAME key to test replay).
-  Saves orderId.
+  Login (customer) first. Put a real menu item UUID (from Menu item - create) in
+  the body; that item also needs an inventory stock row or reserve returns 409.
+  Idempotency-Key is required ({{$guid}} = fresh each send; reuse the SAME value
+  to test idempotent replay). Copy the returned order `id` into the requests below.
 }

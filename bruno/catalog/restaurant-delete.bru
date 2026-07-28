@@ -5,10 +5,14 @@ meta {
 }
 
 delete {
-  url: {{gateway}}/catalog/restaurants/{{restaurantId}}
+  url: {{gateway}}/catalog/restaurants/:restaurantId
   auth: bearer
 }
 
-auth:bearer { token: {{token}} }
+params:path {
+  restaurantId: 
+}
 
-docs { Owner/admin only. Soft-delete; cascades an audit entry for its menu items. }
+auth:bearer {
+  token: {{token}}
+}

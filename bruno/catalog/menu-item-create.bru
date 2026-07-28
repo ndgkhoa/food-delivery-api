@@ -5,12 +5,18 @@ meta {
 }
 
 post {
-  url: {{gateway}}/catalog/restaurants/{{restaurantId}}/menu-items
+  url: {{gateway}}/catalog/restaurants/:restaurantId/menu-items
   body: json
   auth: bearer
 }
 
-auth:bearer { token: {{token}} }
+params:path {
+  restaurantId: 
+}
+
+auth:bearer {
+  token: {{token}}
+}
 
 body:json {
   {
@@ -21,11 +27,7 @@ body:json {
   }
 }
 
-script:post-response {
-  if (res.body && res.body.id) bru.setEnvVar("menuItemId", res.body.id);
-}
-
 docs {
-  Owner/admin only. Saves menuItemId (used by Place order). priceCents is integer
-  cents. Needs a restaurantId (run Restaurant - create first).
+  Owner/admin only. priceCents = integer cents. Copy the returned `id` into
+  Order - place's body itemId (that item also needs an inventory stock row).
 }

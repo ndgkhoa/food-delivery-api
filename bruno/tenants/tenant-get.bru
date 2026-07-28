@@ -5,10 +5,16 @@ meta {
 }
 
 get {
-  url: {{gateway}}/auth/tenants/{{tenantId}}
+  url: {{gateway}}/auth/tenants/:tenantId
   auth: bearer
 }
 
-auth:bearer { token: {{token}} }
+params:path {
+  tenantId: 
+}
+
+auth:bearer {
+  token: {{token}}
+}
 
 docs { Admin only. }

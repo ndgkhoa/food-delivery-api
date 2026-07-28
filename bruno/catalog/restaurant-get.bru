@@ -5,8 +5,14 @@ meta {
 }
 
 get {
-  url: {{gateway}}/catalog/restaurants/{{restaurantId}}
+  url: {{gateway}}/catalog/restaurants/:restaurantId
   auth: bearer
 }
 
-auth:bearer { token: {{token}} }
+params:path {
+  restaurantId: 
+}
+
+auth:bearer {
+  token: {{token}}
+}

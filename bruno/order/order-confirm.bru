@@ -5,10 +5,16 @@ meta {
 }
 
 post {
-  url: {{gateway}}/orders/{{orderId}}/confirm
+  url: {{gateway}}/orders/:orderId/confirm
   auth: bearer
 }
 
-auth:bearer { token: {{token}} }
+params:path {
+  orderId: 
+}
+
+auth:bearer {
+  token: {{token}}
+}
 
 docs { RESERVED -> CONFIRMED. Owner (or admin). Optimistic-lock conflict -> 409. }
