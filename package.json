@@ -31,8 +31,8 @@
     "migration:order:run": "pnpm run typeorm migration:run -d apps/order/src/infrastructure/persistence/data-source.ts",
     "migration:order:revert": "pnpm run typeorm migration:revert -d apps/order/src/infrastructure/persistence/data-source.ts",
     "db:migrate": "DB_NAME=catalog pnpm migration:run && DB_NAME=auth pnpm migration:auth:run && DB_NAME=inventory pnpm migration:inventory:run && DB_NAME=order pnpm migration:order:run",
-    "docker:core:up": "docker compose -f infra/docker-compose.yml --profile core up -d",
-    "docker:core:down": "docker compose -f infra/docker-compose.yml --profile core down"
+    "docker:core:up": "docker compose --env-file .env -f infra/docker-compose.yml --profile core up -d",
+    "docker:core:down": "docker compose --env-file .env -f infra/docker-compose.yml --profile core down"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.4",

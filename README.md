@@ -40,7 +40,9 @@ cp .env.example .env
 
 # 1. Infra (Postgres + Redis + Nginx = core; Keycloak = auth). First Keycloak boot ~30-60s.
 #    Postgres auto-creates the catalog/auth/inventory/order databases on first run.
-docker compose -f infra/docker-compose.yml --profile core --profile auth up -d
+#    --env-file .env is REQUIRED: the compose file lives in infra/, so Compose won't
+#    pick up the repo-root .env for ${VAR} interpolation without it.
+docker compose --env-file .env -f infra/docker-compose.yml --profile core --profile auth up -d
 
 # 2. Migrate every service database
 pnpm db:migrate
