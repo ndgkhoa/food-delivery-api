@@ -4,7 +4,7 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md) · [develo
 
 ## Overview
 - **Priority**: P0 (core distributed-systems learning)
-- **Status**: 🔨 In progress — Slice 3a next
+- **Status**: ✅ Done — all four slices merged (3a #10 messaging substrate · 3b #11 catalog CDC+CQRS · 3c #12 order saga+outbox+payment stub · 3d #13 DLQ+reaper+compensation e2e). Full failure/compensation/idempotency matrix proven live; zero oversell/double-charge under concurrency + duplicate injection. Deferred to P5: Temporal-backed saga timeouts, DLQ replay/pruning, Prometheus metrics, Schema Registry.
 - **Decisions locked** (confirmed): Kafka client = `@confluentinc/kafka-javascript`; order API async (`202 PENDING` + poll `GET /orders/:id`); order's inventory reserve moves from gRPC to Kafka command/reply (inventory becomes an event consumer); Schema Registry + Redis read model deferred (JSON payloads + Postgres read tables for now).
 - **Brief**: Introduce Kafka. Replace P2's inline synchronous order flow with an **orchestrated Saga** (order → inventory → payment-stub) driven by Kafka command/reply events, made reliable by the **Transactional Outbox** pattern implemented TWO ways — Debezium CDC (catalog) and an app polling publisher (order) — so both are learned. Build a **CQRS read model** for catalog fed by its events. This is the phase that turns coupled services into an event-driven system.
 
