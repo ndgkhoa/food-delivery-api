@@ -26,6 +26,7 @@ import { OrdersController } from '@order/interface/http/orders.controller';
 import { InventoryReplyConsumer } from '@order/interface/messaging/inventory-reply.consumer';
 import { OrderOutboxRelayProvider } from '@order/interface/messaging/order-outbox-relay.provider';
 import { PaymentReplyConsumer } from '@order/interface/messaging/payment-reply.consumer';
+import { SagaReaperProvider } from '@order/interface/messaging/saga-reaper.provider';
 
 /**
  * Composition root: wires ports (domain) to adapters (infrastructure),
@@ -64,6 +65,8 @@ import { PaymentReplyConsumer } from '@order/interface/messaging/payment-reply.c
     InventoryReplyConsumer,
     PaymentReplyConsumer,
     OrderOutboxRelayProvider,
+    // Periodic sweep that discovers + reports stranded (stuck non-terminal) sagas.
+    SagaReaperProvider,
     // East-west gateways over gRPC (catalog validate; inventory release on cancel)
     { provide: CATALOG_GATEWAY_PORT, useClass: CatalogGrpcAdapter },
     { provide: INVENTORY_GATEWAY_PORT, useClass: InventoryGrpcAdapter },

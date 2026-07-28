@@ -7,6 +7,7 @@ import {
 } from './handle-payment-reply.handler';
 import {
   buildOrder,
+  DEFAULT_CORRELATION_ID,
   envelope,
   FakeOrderRepository,
   FakeOutboxWriter,
@@ -74,6 +75,8 @@ describe('HandlePaymentReplyHandler', () => {
       eventType: 'ReleaseStock',
       payload: { orderId },
     });
+    // Compensation stays on the same saga trace as the payment reply.
+    expect(outbox.entries[0].correlationId).toBe(DEFAULT_CORRELATION_ID);
   });
 
   it('is a no-op on a re-delivered PaymentSucceeded — no double confirm', async () => {

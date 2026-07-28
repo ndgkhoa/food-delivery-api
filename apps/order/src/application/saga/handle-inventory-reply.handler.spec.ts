@@ -7,6 +7,7 @@ import {
 } from './handle-inventory-reply.handler';
 import {
   buildOrder,
+  DEFAULT_CORRELATION_ID,
   envelope,
   FakeOrderRepository,
   FakeOutboxWriter,
@@ -56,6 +57,18 @@ describe('HandleInventoryReplyHandler', () => {
       eventType: 'ChargePayment',
       payload: { orderId, totalCents: 1000 },
     });
+  });
+
+  it('threads the StockReserved reply correlation id onto the ChargePayment command (one trace per saga)', async () => {
+    const { sagaRepo, orderRepo, outbox, handler } = buildHandler();
+    const orderId = randomUUID();
+    seedStarted(sagaRepo, orderRepo, orderId);
+
+    // The reply carries the saga's root correlation id (minted at place-order and
+    // carried by inventory onto StockReserved); it must ride the next command.
+    await handler.execute(envelope(STOCK_RESERVED, orderId, randomUUID()), { orderId });
+
+    expect(outbox.entries[0].correlationId).toBe(DEFAULT_CORRELATION_ID);
   });
 
   it('on StockReservationFailed: cancels the order and the saga, emits no further command', async () => {

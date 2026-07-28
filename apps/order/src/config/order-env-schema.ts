@@ -19,4 +19,8 @@ export const orderEnvSchema = baseEnvSchema.extend({
   KAFKA_BROKERS: z.string().min(1).default('localhost:9092'),
   /** Kafka client id — shows up in broker logs/metrics. */
   KAFKA_CLIENT_ID: z.string().min(1).default('order'),
+  /** A saga idle longer than this (ms) in a non-terminal state is reported stranded by the reaper. */
+  SAGA_REAPER_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
+  /** How often (ms) the stranded-saga reaper sweep runs. */
+  SAGA_REAPER_INTERVAL_MS: z.coerce.number().int().positive().default(30_000),
 });

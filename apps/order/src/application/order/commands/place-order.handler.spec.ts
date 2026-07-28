@@ -72,6 +72,10 @@ class FakeSagaRepository implements OrderSagaRepository {
     this.rows.set(saga.orderId, saga);
     return saga;
   }
+
+  async findNonTerminal(): Promise<never[]> {
+    return [];
+  }
 }
 
 class FakeCatalogGateway implements CatalogGatewayPort {
@@ -151,6 +155,9 @@ describe('PlaceOrderHandler (async saga)', () => {
       aggregateId: order.id,
       payload: { orderId: order.id, items: [{ itemId, qty: 2 }] },
     });
+    // The saga's ROOT correlation id is minted once and rides the first command.
+    expect(outbox.entries[0].correlationId).toBeDefined();
+    expect(outbox.entries[0].correlationId).toBe(saga?.correlationId);
   });
 
   it('rejects when a requested item is not found in the catalog', async () => {

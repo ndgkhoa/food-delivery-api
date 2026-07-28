@@ -94,7 +94,7 @@ export class InventoryCommandConsumer implements OnApplicationBootstrap, OnModul
     envelope: EventEnvelopeHeaders,
     payload: unknown,
   ): Promise<OutboxCommandEntry> {
-    const { tenantId, eventType } = envelope;
+    const { tenantId, eventType, correlationId } = envelope;
     if (eventType === RESERVE_STOCK) {
       const command = payload as ReserveCommandPayload;
       const result = await this.reserveStock.execute({
@@ -103,13 +103,13 @@ export class InventoryCommandConsumer implements OnApplicationBootstrap, OnModul
         items: command.items,
       });
       return result.ok
-        ? stockReservedReply(command.orderId)
-        : stockReservationFailedReply(command.orderId, 'insufficient stock');
+        ? stockReservedReply(command.orderId, correlationId)
+        : stockReservationFailedReply(command.orderId, 'insufficient stock', correlationId);
     }
     if (eventType === RELEASE_STOCK) {
       const command = payload as ReleaseCommandPayload;
       await this.releaseStock.execute({ tenantId, orderId: command.orderId });
-      return stockReleasedReply(command.orderId);
+      return stockReleasedReply(command.orderId, correlationId);
     }
     throw new Error(`Unknown inventory command type "${eventType}"`);
   }

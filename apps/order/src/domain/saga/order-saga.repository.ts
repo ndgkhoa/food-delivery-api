@@ -1,4 +1,5 @@
 import type { OrderSaga } from '@order/domain/saga/order-saga';
+import type { StrandedSagaCandidate } from '@order/domain/saga/stranded-saga-sweep';
 
 export interface OrderSagaRepository {
   /**
@@ -15,6 +16,12 @@ export interface OrderSagaRepository {
    * update affects zero rows (a concurrent reply already advanced the saga).
    */
   transition(saga: OrderSaga): Promise<OrderSaga>;
+  /**
+   * System-wide (not tenant-scoped) sweep for the stranded-saga reaper: returns
+   * every saga still in a non-terminal state, reduced to the fields the sweep
+   * needs. Backed by the `(state, updated_at)` index. Operational use only.
+   */
+  findNonTerminal(): Promise<StrandedSagaCandidate[]>;
 }
 
 export const ORDER_SAGA_REPOSITORY = Symbol('OrderSagaRepository');

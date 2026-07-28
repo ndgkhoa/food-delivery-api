@@ -6,14 +6,18 @@
  * - `eventType` distinguishes `StockReserved` / `StockReservationFailed` / `StockReleased`
  * - `payload` is the JSON event body
  *
- * Tenant + correlation identity are stamped by the adapter (tenant from the
- * consume-time tenant context, a fresh correlation id) — never from the entry.
+ * Tenant is stamped by the adapter from the consume-time tenant context — never
+ * from the entry. `correlationId` carries the triggering command's saga-wide
+ * trace id onto the reply so the whole saga shares one id; the adapter mints one
+ * only when it is absent (the header must be non-null).
  */
 export interface OutboxCommandEntry {
   aggregateId: string;
   topic: string;
   eventType: string;
   payload: Record<string, unknown>;
+  /** Saga-wide trace id carried from the triggering command; the adapter mints one when absent. */
+  correlationId?: string;
 }
 
 export interface OutboxWriter {

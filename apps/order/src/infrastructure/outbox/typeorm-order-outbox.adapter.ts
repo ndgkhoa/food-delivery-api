@@ -28,8 +28,9 @@ interface UnpublishedRow {
  * - `OutboxWriter.append` — enlists in the caller's transaction so a command
  *   row commits atomically with the order/saga change that emitted it. Tenant is
  *   read from the tenant context (never the entry) so no call site can spoof it;
- *   a fresh `correlation_id` is minted since request correlation isn't threaded
- *   into the service layer yet and the header must be non-null.
+ *   the entry's `correlationId` threads the saga's trace id from the triggering
+ *   event, and only when absent (the saga's first command) is a root id minted —
+ *   the header is always non-null.
  * - `OutboxPort.fetchUnpublished` / `markPublished` — the relay's drain. Claims
  *   a batch with `FOR UPDATE SKIP LOCKED` so overlapping ticks pick DIFFERENT
  *   rows, maps each to a keyed Kafka record (key = order id) with the six
@@ -60,10 +61,18 @@ export class TypeOrmOrderOutboxAdapter implements OutboxWriter, OutboxPort {
       eventType: entry.eventType,
       payload: entry.payload,
       tenantId,
-      correlationId: randomUUID(),
+      correlationId: entry.correlationId ?? randomUUID(),
       publishedAt: null,
     });
     await this.repository.save(row);
+  }
+
+  /** Bumps `attempts` for rows whose relay publish just failed — poison-row visibility. */
+  async incrementAttempts(ids: string[]): Promise<void> {
+    if (ids.length === 0) {
+      return;
+    }
+    await this.outboxRepository.increment({ id: In(ids) }, 'attempts', 1);
   }
 
   async fetchUnpublished(limit: number): Promise<OutboxRecord[]> {

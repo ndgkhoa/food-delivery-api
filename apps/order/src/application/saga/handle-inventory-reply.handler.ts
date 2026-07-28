@@ -72,7 +72,10 @@ export class HandleInventoryReplyHandler {
         const order = await this.loadOrder(tenantId, orderId);
         await this.orderRepository.updateStatus(order.reserve());
         await this.sagaRepository.transition(saga.transition('STOCK_RESERVED', eventId));
-        await this.outbox.append(chargePaymentCommand(orderId, order.totalCents));
+        // Carry the saga's correlation id from this reply onto the next command.
+        await this.outbox.append(
+          chargePaymentCommand(orderId, order.totalCents, envelope.correlationId),
+        );
         return;
       }
       case STOCK_RESERVATION_FAILED: {
