@@ -1,0 +1,28 @@
+meta {
+  name: Restaurant - create
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{gateway}}/catalog/restaurants
+  body: json
+  auth: bearer
+}
+
+auth:bearer { token: {{token}} }
+
+body:json {
+  {
+    "name": "Pho 24",
+    "description": "Vietnamese noodle house"
+  }
+}
+
+script:post-response {
+  if (res.body && res.body.id) bru.setEnvVar("restaurantId", res.body.id);
+}
+
+docs {
+  Owner/admin only (customer -> 403). Saves restaurantId for the requests below.
+}

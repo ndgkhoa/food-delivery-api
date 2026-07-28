@@ -1,0 +1,26 @@
+meta {
+  name: Tenant - create
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{gateway}}/auth/tenants
+  body: json
+  auth: bearer
+}
+
+auth:bearer { token: {{token}} }
+
+body:json {
+  {
+    "name": "Acme Foods",
+    "slug": "acme-foods"
+  }
+}
+
+script:post-response {
+  if (res.body && res.body.id) bru.setEnvVar("tenantId", res.body.id);
+}
+
+docs { Admin only (run Auth > Login (admin)). Saves tenantId. }

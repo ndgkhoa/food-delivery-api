@@ -1,0 +1,14 @@
+meta {
+  name: Tenant - get by id
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{gateway}}/auth/tenants/{{tenantId}}
+  auth: bearer
+}
+
+auth:bearer { token: {{token}} }
+
+docs { Admin only. }

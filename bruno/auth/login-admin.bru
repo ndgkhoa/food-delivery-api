@@ -1,7 +1,7 @@
 meta {
-  name: Login (owner)
+  name: Login (admin)
   type: http
-  seq: 1
+  seq: 3
 }
 
 post {
@@ -13,8 +13,8 @@ post {
 body:form-urlencoded {
   grant_type: password
   client_id: {{client}}
-  username: owner-user
-  password: owner-pass
+  username: admin-user
+  password: admin-pass
 }
 
 script:post-response {
@@ -25,5 +25,5 @@ script:post-response {
 }
 
 docs {
-  Seeded restaurant-owner. Saves access + refresh tokens; run first.
+  Seeded admin — required for the Tenants (provisioning) requests.
 }

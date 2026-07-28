@@ -20,10 +20,10 @@ body:form-urlencoded {
 script:post-response {
   if (res.body && res.body.access_token) {
     bru.setEnvVar("token", res.body.access_token);
+    bru.setEnvVar("refreshToken", res.body.refresh_token);
   }
 }
 
 docs {
-  Direct-grant login for the seeded `customer-user`. Use this to test
-  customer-scoped flows (placing/reading own orders, reading the catalog).
+  Seeded customer. Use for placing/reading own orders + reading the catalog.
 }

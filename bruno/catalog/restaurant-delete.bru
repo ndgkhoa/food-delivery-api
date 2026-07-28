@@ -1,0 +1,14 @@
+meta {
+  name: Restaurant - delete
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{gateway}}/catalog/restaurants/{{restaurantId}}
+  auth: bearer
+}
+
+auth:bearer { token: {{token}} }
+
+docs { Owner/admin only. Soft-delete; cascades an audit entry for its menu items. }

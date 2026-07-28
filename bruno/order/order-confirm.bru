@@ -1,0 +1,14 @@
+meta {
+  name: Order - confirm
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{gateway}}/orders/{{orderId}}/confirm
+  auth: bearer
+}
+
+auth:bearer { token: {{token}} }
+
+docs { RESERVED -> CONFIRMED. Owner (or admin). Optimistic-lock conflict -> 409. }

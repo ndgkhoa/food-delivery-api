@@ -1,0 +1,12 @@
+meta {
+  name: Menu item - get by id
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{gateway}}/catalog/restaurants/{{restaurantId}}/menu-items/{{menuItemId}}
+  auth: bearer
+}
+
+auth:bearer { token: {{token}} }

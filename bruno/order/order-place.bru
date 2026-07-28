@@ -1,0 +1,36 @@
+meta {
+  name: Order - place
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{gateway}}/orders
+  body: json
+  auth: bearer
+}
+
+auth:bearer { token: {{token}} }
+
+headers {
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "items": [
+      { "itemId": "{{menuItemId}}", "qty": 2 }
+    ]
+  }
+}
+
+script:post-response {
+  if (res.body && res.body.id) bru.setEnvVar("orderId", res.body.id);
+}
+
+docs {
+  Run Auth > Login (customer) first. Uses menuItemId from Menu item - create.
+  The item needs an inventory stock row, else reserve returns 409. Idempotency-Key
+  is required ({{$guid}} = fresh per send; reuse the SAME key to test replay).
+  Saves orderId.
+}

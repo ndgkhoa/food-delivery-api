@@ -1,0 +1,14 @@
+meta {
+  name: Menu item - delete
+  type: http
+  seq: 10
+}
+
+delete {
+  url: {{gateway}}/catalog/restaurants/{{restaurantId}}/menu-items/{{menuItemId}}
+  auth: bearer
+}
+
+auth:bearer { token: {{token}} }
+
+docs { Owner/admin only. }

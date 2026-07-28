@@ -1,0 +1,31 @@
+meta {
+  name: Menu item - create
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{gateway}}/catalog/restaurants/{{restaurantId}}/menu-items
+  body: json
+  auth: bearer
+}
+
+auth:bearer { token: {{token}} }
+
+body:json {
+  {
+    "name": "Pho Bo",
+    "description": "Beef noodle soup",
+    "priceCents": 5000,
+    "isAvailable": true
+  }
+}
+
+script:post-response {
+  if (res.body && res.body.id) bru.setEnvVar("menuItemId", res.body.id);
+}
+
+docs {
+  Owner/admin only. Saves menuItemId (used by Place order). priceCents is integer
+  cents. Needs a restaurantId (run Restaurant - create first).
+}
