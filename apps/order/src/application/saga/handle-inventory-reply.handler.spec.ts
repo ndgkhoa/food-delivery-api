@@ -1,0 +1,103 @@
+import { randomUUID } from 'node:crypto';
+import { OrderSaga } from '@order/domain/saga/order-saga';
+import {
+  HandleInventoryReplyHandler,
+  STOCK_RESERVATION_FAILED,
+  STOCK_RESERVED,
+} from './handle-inventory-reply.handler';
+import {
+  buildOrder,
+  envelope,
+  FakeOrderRepository,
+  FakeOutboxWriter,
+  FakeProcessedEventStore,
+  FakeSagaRepository,
+  FakeTransaction,
+  TENANT_ID,
+} from './saga-reply-test-doubles';
+
+function buildHandler() {
+  const sagaRepo = new FakeSagaRepository();
+  const orderRepo = new FakeOrderRepository();
+  const outbox = new FakeOutboxWriter();
+  const processed = new FakeProcessedEventStore();
+  const handler = new HandleInventoryReplyHandler(
+    sagaRepo,
+    orderRepo,
+    outbox,
+    processed,
+    new FakeTransaction(),
+  );
+  return { sagaRepo, orderRepo, outbox, handler };
+}
+
+function seedStarted(
+  sagaRepo: FakeSagaRepository,
+  orderRepo: FakeOrderRepository,
+  orderId: string,
+) {
+  sagaRepo.seed(OrderSaga.start({ orderId, tenantId: TENANT_ID }));
+  orderRepo.seed(buildOrder(orderId, 'PENDING'));
+}
+
+describe('HandleInventoryReplyHandler', () => {
+  it('on StockReserved: reserves the order, advances the saga, and enqueues ChargePayment', async () => {
+    const { sagaRepo, orderRepo, outbox, handler } = buildHandler();
+    const orderId = randomUUID();
+    seedStarted(sagaRepo, orderRepo, orderId);
+
+    await handler.execute(envelope(STOCK_RESERVED, orderId, randomUUID()), { orderId });
+
+    expect(orderRepo.rows.get(orderId)?.status).toBe('RESERVED');
+    expect(sagaRepo.rows.get(orderId)?.state).toBe('STOCK_RESERVED');
+    expect(outbox.entries).toHaveLength(1);
+    expect(outbox.entries[0]).toMatchObject({
+      topic: 'payment.commands',
+      eventType: 'ChargePayment',
+      payload: { orderId, totalCents: 1000 },
+    });
+  });
+
+  it('on StockReservationFailed: cancels the order and the saga, emits no further command', async () => {
+    const { sagaRepo, orderRepo, outbox, handler } = buildHandler();
+    const orderId = randomUUID();
+    seedStarted(sagaRepo, orderRepo, orderId);
+
+    await handler.execute(envelope(STOCK_RESERVATION_FAILED, orderId, randomUUID()), {
+      orderId,
+      reason: 'no stock',
+    });
+
+    expect(orderRepo.rows.get(orderId)?.status).toBe('CANCELLED');
+    expect(sagaRepo.rows.get(orderId)?.state).toBe('CANCELLED');
+    expect(outbox.entries).toHaveLength(0);
+  });
+
+  it('is a no-op on a re-delivered reply (same event id) — no double transition', async () => {
+    const { sagaRepo, orderRepo, outbox, handler } = buildHandler();
+    const orderId = randomUUID();
+    seedStarted(sagaRepo, orderRepo, orderId);
+    const reply = envelope(STOCK_RESERVED, orderId, randomUUID());
+
+    await handler.execute(reply, { orderId });
+    await handler.execute(reply, { orderId });
+
+    expect(sagaRepo.rows.get(orderId)?.state).toBe('STOCK_RESERVED');
+    expect(outbox.entries).toHaveLength(1);
+  });
+
+  it('is a no-op when a fresh StockReserved arrives but the saga already moved past STARTED', async () => {
+    const { sagaRepo, orderRepo, outbox, handler } = buildHandler();
+    const orderId = randomUUID();
+    sagaRepo.seed(
+      OrderSaga.start({ orderId, tenantId: TENANT_ID }).transition('STOCK_RESERVED', randomUUID()),
+    );
+    orderRepo.seed(buildOrder(orderId, 'RESERVED'));
+
+    await handler.execute(envelope(STOCK_RESERVED, orderId, randomUUID()), { orderId });
+
+    // State unchanged and no duplicate ChargePayment enqueued.
+    expect(sagaRepo.rows.get(orderId)?.state).toBe('STOCK_RESERVED');
+    expect(outbox.entries).toHaveLength(0);
+  });
+});

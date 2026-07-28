@@ -84,3 +84,38 @@ export class OrderForbiddenError extends Error {
     this.name = 'OrderForbiddenError';
   }
 }
+
+/**
+ * Raised by the saga state machine when a requested transition is not in its
+ * allowed-transitions table (e.g. STOCK_RESERVED→STARTED). Framework-free so
+ * the messaging edge decides whether to retry or skip.
+ */
+export class IllegalSagaTransitionError extends Error {
+  constructor(
+    readonly from: string,
+    readonly to: string,
+  ) {
+    super(`Illegal saga transition from "${from}" to "${to}"`);
+    this.name = 'IllegalSagaTransitionError';
+  }
+}
+
+/**
+ * Raised when the optimistic-locked saga transition update affects zero rows —
+ * a concurrent reply already advanced the saga past the version this handler
+ * read. The redelivered/racing reply is safely abandoned.
+ */
+export class SagaConcurrencyConflictError extends Error {
+  constructor(readonly orderId: string) {
+    super(`Concurrent saga transition conflict for order "${orderId}"`);
+    this.name = 'SagaConcurrencyConflictError';
+  }
+}
+
+/** Raised when a reply references an order id that has no saga row (should never happen once place-order committed). */
+export class SagaNotFoundError extends Error {
+  constructor(readonly orderId: string) {
+    super(`No saga found for order "${orderId}"`);
+    this.name = 'SagaNotFoundError';
+  }
+}

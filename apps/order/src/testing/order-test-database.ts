@@ -1,4 +1,5 @@
 import { CreateOrderTables1753747400000 } from '@order/infrastructure/persistence/migrations/1753747400000-create-order-tables';
+import { CreateOrderSagaAndOutbox1753747500000 } from '@order/infrastructure/persistence/migrations/1753747500000-create-order-saga-and-outbox';
 import { orderOrmEntities } from '@order/infrastructure/persistence/typeorm-options';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
@@ -25,7 +26,7 @@ export async function startOrderTestDatabase(): Promise<OrderTestDatabase> {
     password: container.getPassword(),
     database: container.getDatabase(),
     entities: orderOrmEntities,
-    migrations: [CreateOrderTables1753747400000],
+    migrations: [CreateOrderTables1753747400000, CreateOrderSagaAndOutbox1753747500000],
     synchronize: false,
     logging: false,
   });
@@ -46,6 +47,6 @@ export async function stopOrderTestDatabase({
 
 export async function truncateOrderTables(dataSource: DataSource): Promise<void> {
   await dataSource.query(
-    'TRUNCATE TABLE "idempotency_keys", "order_items", "orders" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "processed_events", "order_saga", "order_outbox", "idempotency_keys", "order_items", "orders" RESTART IDENTITY CASCADE',
   );
 }

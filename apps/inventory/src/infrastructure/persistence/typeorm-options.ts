@@ -1,9 +1,16 @@
 import { join } from 'node:path';
+import { InventoryOutboxOrmEntity } from '@inventory/infrastructure/persistence/entities/inventory-outbox.orm-entity';
+import { ProcessedEventOrmEntity } from '@inventory/infrastructure/persistence/entities/processed-event.orm-entity';
 import { ReservationOrmEntity } from '@inventory/infrastructure/persistence/entities/reservation.orm-entity';
 import { StockOrmEntity } from '@inventory/infrastructure/persistence/entities/stock.orm-entity';
 import type { DataSourceOptions } from 'typeorm';
 
-export const inventoryOrmEntities = [StockOrmEntity, ReservationOrmEntity];
+export const inventoryOrmEntities = [
+  StockOrmEntity,
+  ReservationOrmEntity,
+  InventoryOutboxOrmEntity,
+  ProcessedEventOrmEntity,
+];
 
 export interface InventoryDbEnv {
   DB_HOST: string;

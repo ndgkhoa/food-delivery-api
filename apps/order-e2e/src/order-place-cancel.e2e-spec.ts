@@ -5,18 +5,22 @@ import { bootOrderStack, type OrderStack, shutdownOrderStack } from './support/b
 import { buildIdentityHeaders } from './support/build-identity-headers';
 
 /**
- * Proves the core synchronous saga end-to-end against real Postgres (order +
- * inventory) and a real inventory gRPC channel: placing an order reserves
- * stock and lands RESERVED; cancelling it releases the stock again.
+ * Proves the ASYNC place-order contract against real Postgres (order +
+ * inventory) + a real broker: placing an order no longer reserves inline — it
+ * returns PENDING and, in ONE transaction, opens the saga (STARTED) and enqueues
+ * a `ReserveStock` command to the outbox. The saga's cross-service progression
+ * (relay + inventory/payment consumers) is OFF in this in-process stack
+ * (NODE_ENV=test), so this asserts the provable-here portion; the full
+ * happy-path lands in the compose e2e.
  *
  *   pnpm nx e2e order-e2e
  */
-describe('Order place + cancel (e2e)', () => {
+describe('Order place (async saga contract) + cancel (e2e)', () => {
   let stack: OrderStack;
 
   beforeAll(async () => {
     stack = await bootOrderStack();
-  }, 180000);
+  }, 240000);
 
   afterAll(async () => {
     await shutdownOrderStack(stack);
@@ -29,15 +33,22 @@ describe('Order place + cancel (e2e)', () => {
     );
   }
 
-  async function stockAvailable(tenantId: string, itemId: string): Promise<number> {
-    const rows = await stack.inventoryDb.dataSource.query(
-      'SELECT "available" FROM "stock" WHERE "tenant_id" = $1 AND "item_id" = $2',
-      [tenantId, itemId],
+  async function sagaState(orderId: string): Promise<string | undefined> {
+    const rows = await stack.orderDb.dataSource.query(
+      'SELECT "state" FROM "order_saga" WHERE "order_id" = $1',
+      [orderId],
     );
-    return Number(rows[0]?.available);
+    return rows[0]?.state;
   }
 
-  it('reserves stock and returns a RESERVED order', async () => {
+  async function outboxRows(orderId: string): Promise<{ topic: string; event_type: string }[]> {
+    return stack.orderDb.dataSource.query(
+      'SELECT "topic", "event_type" FROM "order_outbox" WHERE "aggregate_id" = $1',
+      [orderId],
+    );
+  }
+
+  it('returns PENDING, opens the saga STARTED, and enqueues a ReserveStock command', async () => {
     const tenantId = randomUUID();
     const userId = randomUUID();
     const itemId = randomUUID();
@@ -59,12 +70,16 @@ describe('Order place + cancel (e2e)', () => {
       .send({ items: [{ itemId, qty: 2 }] });
 
     expect(response.status).toBe(201);
-    expect(response.body.status).toBe('RESERVED');
+    expect(response.body.status).toBe('PENDING');
     expect(response.body.totalCents).toBe(2400);
-    expect(await stockAvailable(tenantId, itemId)).toBe(3);
+
+    expect(await sagaState(response.body.id)).toBe('STARTED');
+    const outbox = await outboxRows(response.body.id);
+    expect(outbox).toHaveLength(1);
+    expect(outbox[0]).toEqual({ topic: 'inventory.commands', event_type: 'ReserveStock' });
   });
 
-  it('cancels a reserved order and releases the stock', async () => {
+  it('cancels a PENDING order (no stock was reserved inline)', async () => {
     const tenantId = randomUUID();
     const userId = randomUUID();
     const itemId = randomUUID();
@@ -86,7 +101,7 @@ describe('Order place + cancel (e2e)', () => {
       .set('Idempotency-Key', randomUUID())
       .send({ items: [{ itemId, qty: 3 }] });
     expect(placed.status).toBe(201);
-    expect(await stockAvailable(tenantId, itemId)).toBe(2);
+    expect(placed.body.status).toBe('PENDING');
 
     const cancelled = await request(stack.orderApp.getHttpServer())
       .post(`/api/v1/orders/${placed.body.id}/cancel`)
@@ -95,7 +110,6 @@ describe('Order place + cancel (e2e)', () => {
 
     expect(cancelled.status).toBe(200);
     expect(cancelled.body.status).toBe('CANCELLED');
-    expect(await stockAvailable(tenantId, itemId)).toBe(5);
   });
 
   it('rejects placing an order when the item is unavailable in the catalog', async () => {
@@ -120,6 +134,5 @@ describe('Order place + cancel (e2e)', () => {
       .send({ items: [{ itemId, qty: 1 }] });
 
     expect(response.status).toBe(422);
-    expect(await stockAvailable(tenantId, itemId)).toBe(5);
   });
 });

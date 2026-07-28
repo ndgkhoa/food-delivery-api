@@ -1,0 +1,89 @@
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { OrderSaga, type SagaState } from '@order/domain/saga/order-saga';
+import type { OrderSagaRepository } from '@order/domain/saga/order-saga.repository';
+import { SagaConcurrencyConflictError } from '@order/domain/shared/errors';
+import { OrderSagaOrmEntity } from '@order/infrastructure/persistence/entities/order-saga.orm-entity';
+import { getTransactionalEntityManager } from '@order/infrastructure/persistence/transaction/transactional-entity-manager';
+import type { Repository } from 'typeorm';
+
+function toDomain(row: OrderSagaOrmEntity): OrderSaga {
+  return OrderSaga.reconstitute({
+    orderId: row.orderId,
+    tenantId: row.tenantId,
+    state: row.state as SagaState,
+    correlationId: row.correlationId,
+    lastEventId: row.lastEventId,
+    version: row.version,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  });
+}
+
+@Injectable()
+export class TypeOrmOrderSagaRepository implements OrderSagaRepository {
+  constructor(
+    @InjectRepository(OrderSagaOrmEntity)
+    private readonly ormRepository: Repository<OrderSagaOrmEntity>,
+  ) {}
+
+  /** Enlists in the active transaction when one is open, else the default connection. */
+  private get repository(): Repository<OrderSagaOrmEntity> {
+    return getTransactionalEntityManager()?.getRepository(OrderSagaOrmEntity) ?? this.ormRepository;
+  }
+
+  async insert(saga: OrderSaga): Promise<void> {
+    await this.repository.insert({
+      orderId: saga.orderId,
+      tenantId: saga.tenantId,
+      state: saga.state,
+      correlationId: saga.correlationId,
+      lastEventId: saga.lastEventId,
+      version: saga.version,
+    });
+  }
+
+  async findByOrderId(tenantId: string, orderId: string): Promise<OrderSaga | undefined> {
+    const row = await this.repository.findOne({ where: { orderId, tenantId } });
+    return row ? toDomain(row) : undefined;
+  }
+
+  /**
+   * Optimistic-lock transition: an atomic conditional `UPDATE ... WHERE
+   * order_id = :orderId AND version = :version` that also bumps the version.
+   * Zero affected rows means a concurrent reply already advanced the saga since
+   * this instance was loaded — a real conflict the caller abandons.
+   */
+  async transition(saga: OrderSaga): Promise<OrderSaga> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(OrderSagaOrmEntity)
+      .set({
+        state: saga.state,
+        lastEventId: saga.lastEventId,
+        version: () => 'version + 1',
+        updatedAt: () => 'now()',
+      })
+      .where('order_id = :orderId AND tenant_id = :tenantId AND version = :version', {
+        orderId: saga.orderId,
+        tenantId: saga.tenantId,
+        version: saga.version,
+      })
+      .execute();
+
+    if ((result.affected ?? 0) === 0) {
+      throw new SagaConcurrencyConflictError(saga.orderId);
+    }
+
+    return OrderSaga.reconstitute({
+      orderId: saga.orderId,
+      tenantId: saga.tenantId,
+      state: saga.state,
+      correlationId: saga.correlationId,
+      lastEventId: saga.lastEventId,
+      version: saga.version + 1,
+      createdAt: saga.createdAt,
+      updatedAt: new Date(),
+    });
+  }
+}

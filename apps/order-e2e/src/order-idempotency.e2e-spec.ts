@@ -6,24 +6,24 @@ import { buildIdentityHeaders } from './support/build-identity-headers';
 
 /**
  * Proves that replaying the same `Idempotency-Key` (a client retry after a
- * dropped response, or a genuine double-submit) never double-reserves stock
- * or creates a second order — the key is claimed via a real Postgres unique
- * constraint before inventory is ever called.
+ * dropped response, or a genuine double-submit) never creates a second order or
+ * a second saga/command — the key is claimed via a real Postgres unique
+ * constraint in the same transaction as the order + saga + outbox command.
  *
  *   pnpm nx e2e order-e2e
  */
-describe('Order idempotency (e2e)', () => {
+describe('Order idempotency (async, e2e)', () => {
   let stack: OrderStack;
 
   beforeAll(async () => {
     stack = await bootOrderStack();
-  }, 180000);
+  }, 240000);
 
   afterAll(async () => {
     await shutdownOrderStack(stack);
   });
 
-  it('returns the same order for a duplicate Idempotency-Key and decrements stock once', async () => {
+  it('returns the same PENDING order for a duplicate key and enqueues ReserveStock once', async () => {
     const tenantId = randomUUID();
     const userId = randomUUID();
     const itemId = randomUUID();
@@ -52,25 +52,26 @@ describe('Order idempotency (e2e)', () => {
         .send({ items: [{ itemId, qty: 2 }] });
 
     // A client retry (e.g. a dropped response) resends the identical request
-    // sequentially, after the first has fully completed — the scenario the
-    // idempotency key is meant to guard.
+    // after the first fully completed — the scenario the key guards.
     const first = await placeOnce();
     const second = await placeOnce();
 
     expect(first.status).toBe(201);
+    expect(first.body.status).toBe('PENDING');
     expect(second.status).toBe(201);
     expect(second.body.id).toBe(first.body.id);
-
-    const rows = await stack.inventoryDb.dataSource.query(
-      'SELECT "available" FROM "stock" WHERE "tenant_id" = $1 AND "item_id" = $2',
-      [tenantId, itemId],
-    );
-    expect(Number(rows[0].available)).toBe(8);
 
     const orders = await stack.orderDb.dataSource.query(
       'SELECT COUNT(*)::int AS count FROM "orders" WHERE "tenant_id" = $1',
       [tenantId],
     );
     expect(orders[0].count).toBe(1);
+
+    // Exactly one saga and one ReserveStock command — the replay did not re-emit.
+    const commands = await stack.orderDb.dataSource.query(
+      'SELECT COUNT(*)::int AS count FROM "order_outbox" WHERE "aggregate_id" = $1',
+      [first.body.id],
+    );
+    expect(commands[0].count).toBe(1);
   });
 });

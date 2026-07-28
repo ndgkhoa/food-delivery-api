@@ -5,8 +5,8 @@ Report: [researcher-260728-phase-03-event-driven-stack.md](./reports/researcher-
 
 ## Overview
 - **Priority**: P0
-- **Status**: Not started
-- **Branch (example)**: `feat/order-saga-events`
+- **Status**: ✅ Verified + reviewed — branch `feat/order-saga-events` (PR #12). Full async saga proven live (see Verification outcome). **Adversarial review: no Critical** — core saga airtight (tx atomicity, state-guarded transitions, dedupe by stable event id, idempotent effects, tenant scope, outbox at-least-once, payment determinism all verified). Cheap fixes applied: payment `main.ts` `.catch`, dropped unused `idx_order_saga_tenant_id`, reworded "Phase 1/2"→"Step 1/2" boot comments. **Deferred to 3d (documented in phase-03d): H1** — `runHandlerWithRetry` skip-on-exhaustion strands a saga + leaks stock on a >retry-budget transient fault; 3d's DLQ (split decode-skip vs handler-DLQ) is the fix + top item. **M2** wire `attempts`, **M3** propagate one correlation id per saga — folded into 3d. Ready to merge. Review report: `reports/code-reviewer-260728-1540-slice-3c-order-saga-red-team-review-report.md`.
+- **Branch**: `feat/order-saga-events`
 - **Brief**: Replace P2's inline synchronous reserve/charge with an **orchestrated Saga** in `order`, driven by Kafka command/reply events, reliable via a **polling outbox** (contrast to 3b's Debezium relay). Place-order becomes async: persist `PENDING` + saga `STARTED` + first command in one tx, return immediately. Inventory gains a **messaging interface** (consume `inventory.commands`, emit replies) reusing its already-idempotent reserve/release. New `apps/payment` STUB consumes `payment.commands`, emits deterministic ok/fail replies.
 
 ## Key insights / decisions
@@ -79,16 +79,21 @@ Every saga transition is **optimistic-locked** (`order_saga.version`) and **idem
 10. Update plan todos/status BEFORE push.
 
 ## Todo
-- [ ] order migrations (order_outbox, order_saga, processed_events)
-- [ ] order saga domain model + repo (optimistic lock)
-- [ ] PlaceOrder rewritten to async (persist PENDING+saga+outbox in one tx); inline gRPC reserve removed
-- [ ] order OutboxRelay + MessagingModule wired
-- [ ] order reply consumers → idempotent saga transitions + next-command emission
-- [ ] inventory messaging command consumer + outbox reply (reuses Reserve/Release)
-- [ ] payment STUB app (consumer + deterministic charge + outbox reply)
-- [ ] compose: payment service + broker env; gateway async contract + OpenAPI
-- [ ] happy-path + concurrency e2e green
-- [ ] biome/cruiser/knip clean; plan updated before push
+- [x] order migrations (order_outbox, order_saga, processed_events) — single migration `create-order-saga-and-outbox`
+- [x] order saga domain model + repo (optimistic lock)
+- [x] PlaceOrder rewritten to async (persist PENDING+saga+outbox in one tx); inline gRPC reserve removed from place path (inventory gRPC kept for manual cancel/release)
+- [x] order OutboxRelay + MessagingModule wired (relay-start provider bootstraps topics + relay)
+- [x] order reply consumers → idempotent saga transitions + next-command emission
+- [x] inventory messaging command consumer + outbox reply (reuses Reserve/Release)
+- [x] payment STUB app (consumer + deterministic charge + outbox reply)
+- [x] payment added to dev/db:migrate scripts + db-init + env; gateway async contract + OpenAPI documented (no app container per host-process convention)
+- [x] happy-path + concurrency e2e RUN GREEN on live compose stack: order PENDING→CONFIRMED via reserve+charge (saga COMPLETED, stock decremented); **100 concurrent orders on stock=10 → exactly 10 CONFIRMED, 90 CANCELLED, zero oversell, fully async**. In-process order-e2e trio (place-cancel/idempotency/async-placement) green too.
+- [x] biome/cruiser/knip clean; unit tests green (order 51 / inventory 14 / payment 6); builds pass; plan updated before push
+
+## Verification outcome (live)
+✅ **Full async saga proven end-to-end** on `core`+`messaging` compose with all 6 services live. Two real bugs found + fixed during verify:
+1. **Payment consumer never joined its group** — it subscribed to `payment.commands` before the topic existed; librdkafka only refreshes topic metadata every ~5 min, so the consumer sat idle and every order stalled at `STOCK_RESERVED`. Fixed in the shared subscriber: it now idempotently creates the topics it subscribes to before subscribing (commit `fix(shared-messaging)`). This also retro-fixes the catalog projection consumer's same latent stall.
+2. **In-process concurrency e2e `read ECONNRESET`** — ~100 concurrent supertest requests each raced `listen(0)` on a not-yet-listening order HTTP server. Fixed by binding the server once (`app.listen(0)`) in the e2e boot harness; also added a Kafka broker warmup (admin round-trip) as a readiness barrier. Not a product defect.
 
 ## Success criteria
 - Place order returns PENDING; polls to CONFIRMED via events; no inline gRPC reserve in the path.
