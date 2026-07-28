@@ -1,5 +1,6 @@
 import { CreateRestaurantHandler } from '@catalog/application/restaurant/commands/create-restaurant.handler';
 import type { AuditEntry, AuditPort } from '@catalog/domain/shared/audit.port';
+import type { OutboxEntry, OutboxWriter } from '@catalog/domain/shared/outbox.port';
 import { RestaurantOrmEntity } from '@catalog/infrastructure/persistence/entities/restaurant.orm-entity';
 import { TypeOrmRestaurantRepository } from '@catalog/infrastructure/persistence/repositories/typeorm-restaurant.repository';
 import { TypeOrmTransactionAdapter } from '@catalog/infrastructure/persistence/transaction/typeorm-transaction.adapter';
@@ -36,6 +37,12 @@ describe('write + audit atomicity (integration)', () => {
     },
   };
 
+  // Audit throws before the outbox write is reached, so this is never invoked;
+  // present only to satisfy the handler's constructor.
+  const noopOutbox: OutboxWriter = {
+    write: async (_entry: OutboxEntry) => {},
+  };
+
   beforeAll(async () => {
     db = await startCatalogTestDatabase();
     repository = new TypeOrmRestaurantRepository(db.dataSource.getRepository(RestaurantOrmEntity));
@@ -55,6 +62,7 @@ describe('write + audit atomicity (integration)', () => {
       repository,
       tenantContext,
       throwingAudit,
+      noopOutbox,
       transaction,
     );
 

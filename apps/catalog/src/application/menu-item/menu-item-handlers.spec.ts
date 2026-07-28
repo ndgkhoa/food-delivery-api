@@ -6,12 +6,17 @@ import { ListMenuItemsHandler } from '@catalog/application/menu-item/queries/lis
 import { CreateRestaurantHandler } from '@catalog/application/restaurant/commands/create-restaurant.handler';
 import { DeleteRestaurantHandler } from '@catalog/application/restaurant/commands/delete-restaurant.handler';
 import { GetRestaurantHandler } from '@catalog/application/restaurant/queries/get-restaurant.handler';
-import type { MenuItem } from '@catalog/domain/menu-item/menu-item';
+import { MenuItem } from '@catalog/domain/menu-item/menu-item';
 import type { MenuItemRepository } from '@catalog/domain/menu-item/menu-item.repository';
+import type {
+  ReadMenuItemRepository,
+  ReadMenuItemRow,
+} from '@catalog/domain/read-model/read-menu-item.repository';
 import type { Restaurant } from '@catalog/domain/restaurant/restaurant';
 import type { RestaurantRepository } from '@catalog/domain/restaurant/restaurant.repository';
 import type { AuditEntry, AuditPort } from '@catalog/domain/shared/audit.port';
 import { AuditAction } from '@catalog/domain/shared/audit-action';
+import type { OutboxEntry, OutboxWriter } from '@catalog/domain/shared/outbox.port';
 import type { PageResult, Pagination } from '@catalog/domain/shared/pagination';
 import type { TransactionPort } from '@catalog/domain/shared/transaction.port';
 import type { TenantContextPort, TenantRequestContext } from '@food-delivery-api/shared-tenancy';
@@ -43,8 +48,11 @@ class FakeRestaurantRepository implements RestaurantRepository {
   }
 }
 
-/** In-memory fake — no DB, exercises the same contract as the TypeORM adapter. */
-class FakeMenuItemRepository implements MenuItemRepository {
+/**
+ * In-memory fake — no DB. Backs both the write port and the read-model port off
+ * one map so a `save` in a command is visible to the list handler (read model).
+ */
+class FakeMenuItemRepository implements MenuItemRepository, ReadMenuItemRepository {
   private readonly rows = new Map<string, MenuItem>();
 
   async save(menuItem: MenuItem): Promise<MenuItem> {
@@ -76,6 +84,12 @@ class FakeMenuItemRepository implements MenuItemRepository {
     }
   }
 
+  async findAllByRestaurant(restaurantId: string, tenantId: string): Promise<MenuItem[]> {
+    return [...this.rows.values()].filter(
+      (item) => item.restaurantId === restaurantId && item.tenantId === tenantId,
+    );
+  }
+
   async softDeleteByRestaurant(restaurantId: string, tenantId: string): Promise<void> {
     for (const [id, row] of this.rows) {
       if (row.restaurantId === restaurantId && row.tenantId === tenantId) {
@@ -88,6 +102,30 @@ class FakeMenuItemRepository implements MenuItemRepository {
     return [...this.rows.values()].filter(
       (item) => ids.includes(item.id) && item.tenantId === tenantId,
     );
+  }
+
+  async upsert(row: ReadMenuItemRow): Promise<void> {
+    this.rows.set(row.id, MenuItem.reconstitute({ ...row, deletedAt: null }));
+  }
+
+  async remove(id: string, tenantId: string): Promise<void> {
+    const row = this.rows.get(id);
+    if (row && row.tenantId === tenantId) {
+      this.rows.delete(id);
+    }
+  }
+
+  async removeByRestaurant(restaurantId: string, tenantId: string): Promise<void> {
+    await this.softDeleteByRestaurant(restaurantId, tenantId);
+  }
+}
+
+/** Records emitted outbox entries so tests can assert an event was appended per write. */
+class FakeOutboxWriter implements OutboxWriter {
+  readonly entries: OutboxEntry[] = [];
+
+  async write(entry: OutboxEntry): Promise<void> {
+    this.entries.push(entry);
   }
 }
 
@@ -135,6 +173,7 @@ describe('menu-item application handlers', () => {
   let menuItemRepository: FakeMenuItemRepository;
   let tenantContext: FakeTenantContext;
   let auditPort: FakeAuditPort;
+  let outboxWriter: FakeOutboxWriter;
   let transaction: FakeTransactionPort;
   let getRestaurant: GetRestaurantHandler;
   let createRestaurantHandler: CreateRestaurantHandler;
@@ -150,18 +189,21 @@ describe('menu-item application handlers', () => {
     menuItemRepository = new FakeMenuItemRepository();
     tenantContext = new FakeTenantContext({ tenantId: tenantA, actor: 'test-suite', roles: [] });
     auditPort = new FakeAuditPort();
+    outboxWriter = new FakeOutboxWriter();
     transaction = new FakeTransactionPort();
     getRestaurant = new GetRestaurantHandler(restaurantRepository, tenantContext);
     createRestaurantHandler = new CreateRestaurantHandler(
       restaurantRepository,
       tenantContext,
       auditPort,
+      outboxWriter,
       transaction,
     );
     deleteRestaurant = new DeleteRestaurantHandler(
       restaurantRepository,
       menuItemRepository,
       auditPort,
+      outboxWriter,
       transaction,
       getRestaurant,
     );
@@ -170,18 +212,21 @@ describe('menu-item application handlers', () => {
       menuItemRepository,
       tenantContext,
       auditPort,
+      outboxWriter,
       transaction,
       getRestaurant,
     );
     updateMenuItem = new UpdateMenuItemHandler(
       menuItemRepository,
       auditPort,
+      outboxWriter,
       transaction,
       getMenuItem,
     );
     deleteMenuItem = new DeleteMenuItemHandler(
       menuItemRepository,
       auditPort,
+      outboxWriter,
       transaction,
       getMenuItem,
     );

@@ -5,6 +5,8 @@ import {
 } from '@catalog/domain/menu-item/menu-item.repository';
 import { AUDIT_PORT, type AuditPort } from '@catalog/domain/shared/audit.port';
 import { AuditAction } from '@catalog/domain/shared/audit-action';
+import { CatalogEventFactory } from '@catalog/domain/shared/catalog-event.factory';
+import { OUTBOX_PORT, type OutboxWriter } from '@catalog/domain/shared/outbox.port';
 import { TRANSACTION_PORT, type TransactionPort } from '@catalog/domain/shared/transaction.port';
 import { Inject, Injectable } from '@nestjs/common';
 
@@ -13,6 +15,7 @@ export class DeleteMenuItemHandler {
   constructor(
     @Inject(MENU_ITEM_REPOSITORY) private readonly menuItemRepository: MenuItemRepository,
     @Inject(AUDIT_PORT) private readonly auditPort: AuditPort,
+    @Inject(OUTBOX_PORT) private readonly outboxWriter: OutboxWriter,
     @Inject(TRANSACTION_PORT) private readonly transaction: TransactionPort,
     private readonly getMenuItem: GetMenuItemHandler,
   ) {}
@@ -20,7 +23,8 @@ export class DeleteMenuItemHandler {
   async execute(restaurantId: string, id: string): Promise<void> {
     const before = await this.getMenuItem.execute(restaurantId, id);
 
-    // Write + audit share one commit boundary: if the audit insert fails, the soft-delete is rolled back.
+    // Write + audit + outbox share one commit boundary: the soft-delete and its
+    // emitted event commit or roll back together.
     await this.transaction.runInTransaction(async () => {
       await this.menuItemRepository.softDelete(before.id, before.tenantId);
 
@@ -30,6 +34,7 @@ export class DeleteMenuItemHandler {
         entityId: id,
         before: before.toSnapshot(),
       });
+      await this.outboxWriter.write(CatalogEventFactory.menuItemDeleted(before));
     });
   }
 }

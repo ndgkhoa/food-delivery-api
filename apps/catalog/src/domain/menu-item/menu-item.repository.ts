@@ -15,6 +15,13 @@ export interface MenuItemRepository {
     restaurantId: string,
     pagination: Pagination,
   ): Promise<PageResult<MenuItem>>;
+  /**
+   * Every live menu item of a restaurant (unpaginated). Used when a restaurant
+   * is deleted to emit one delete event per item, keyed by the item id so each
+   * item's own partition sees its terminal event in order — the read model can
+   * never keep an orphan item pointing at a removed restaurant.
+   */
+  findAllByRestaurant(restaurantId: string, tenantId: string): Promise<MenuItem[]>;
   softDelete(id: string, tenantId: string): Promise<void>;
   /** Cascades a soft-delete to every menu item of a restaurant when its parent is soft-deleted. */
   softDeleteByRestaurant(restaurantId: string, tenantId: string): Promise<void>;

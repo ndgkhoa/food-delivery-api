@@ -18,6 +18,7 @@
     "apps/*/src/main.ts",
     "apps/auth/src/infrastructure/persistence/data-source.ts",
     "apps/catalog/src/infrastructure/persistence/data-source.ts",
+    "apps/catalog/src/infrastructure/outbox/backfill-read-model.ts",
     "apps/inventory/src/infrastructure/persistence/data-source.ts",
     "apps/order/src/infrastructure/persistence/data-source.ts",
     "apps/**/*.spec.ts",

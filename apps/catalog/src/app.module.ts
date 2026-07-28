@@ -8,6 +8,7 @@ import { CreateRestaurantHandler } from '@catalog/application/restaurant/command
 import { DeleteRestaurantHandler } from '@catalog/application/restaurant/commands/delete-restaurant.handler';
 import { UpdateRestaurantHandler } from '@catalog/application/restaurant/commands/update-restaurant.handler';
 import { GetRestaurantHandler } from '@catalog/application/restaurant/queries/get-restaurant.handler';
+import { GetRestaurantViewHandler } from '@catalog/application/restaurant/queries/get-restaurant-view.handler';
 import { ListRestaurantsHandler } from '@catalog/application/restaurant/queries/list-restaurants.handler';
 import { catalogEnvSchema } from '@catalog/config/catalog-env-schema';
 import { AuditModule } from '@catalog/infrastructure/audit/audit.module';
@@ -17,14 +18,21 @@ import { GrpcTenantContextInterceptor } from '@catalog/interface/grpc/grpc-tenan
 import { EntityNotFoundFilter } from '@catalog/interface/http/filters/entity-not-found.filter';
 import { MenuItemsController } from '@catalog/interface/http/menu-items.controller';
 import { RestaurantsController } from '@catalog/interface/http/restaurants.controller';
+import { CatalogProjectionConsumer } from '@catalog/interface/messaging/catalog-projection.consumer';
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
+import {
+  createKafkaClient,
+  KAFKA_CLIENT,
+  KafkaConsumerSubscriber,
+} from '@food-delivery-api/shared-messaging';
 import {
   RolesGuard,
   TenancyModule,
   TrustedIdentityInterceptor,
 } from '@food-delivery-api/shared-tenancy';
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 /**
@@ -43,12 +51,15 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
   ],
   controllers: [RestaurantsController, MenuItemsController, CatalogGrpcController],
   providers: [
-    // Restaurant use cases
+    // Restaurant use cases. GetRestaurantHandler stays on the write model
+    // (command validation); GetRestaurantViewHandler serves reads from the
+    // eventually-consistent read model.
     CreateRestaurantHandler,
     UpdateRestaurantHandler,
     DeleteRestaurantHandler,
     ListRestaurantsHandler,
     GetRestaurantHandler,
+    GetRestaurantViewHandler,
     // Menu item use cases
     CreateMenuItemHandler,
     UpdateMenuItemHandler,
@@ -56,6 +67,19 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
     ListMenuItemsHandler,
     GetMenuItemHandler,
     GetMenuItemsByIdsHandler,
+    // Read-model projection: shared Kafka client + subscriber + the consumer
+    // that tails catalog.events. Debezium emits, so no producer is registered.
+    {
+      provide: KAFKA_CLIENT,
+      useFactory: (config: ConfigService) =>
+        createKafkaClient({
+          clientId: config.getOrThrow<string>('KAFKA_CLIENT_ID'),
+          brokers: config.getOrThrow<string>('KAFKA_BROKERS').split(','),
+        }),
+      inject: [ConfigService],
+    },
+    KafkaConsumerSubscriber,
+    CatalogProjectionConsumer,
     // Establishes tenant scope for gRPC calls from their metadata (per-controller
     // interceptor on the gRPC controller — not global, so HTTP is untouched).
     GrpcTenantContextInterceptor,

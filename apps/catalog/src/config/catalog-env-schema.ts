@@ -10,4 +10,8 @@ import { z } from 'zod';
 export const catalogEnvSchema = baseEnvSchema.extend({
   PORT: z.coerce.number().int().positive().default(3001),
   DB_NAME: z.string().min(1).default('catalog'),
+  // Kafka for the read-model projection consumer. Debezium (not the app) emits
+  // catalog events, so no producer is wired here — only the consumer client.
+  KAFKA_BROKERS: z.string().min(1).default('localhost:9092'),
+  KAFKA_CLIENT_ID: z.string().min(1).default('catalog'),
 });

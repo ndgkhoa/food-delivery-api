@@ -1,7 +1,7 @@
 import { CreateRestaurantHandler } from '@catalog/application/restaurant/commands/create-restaurant.handler';
 import { DeleteRestaurantHandler } from '@catalog/application/restaurant/commands/delete-restaurant.handler';
 import { UpdateRestaurantHandler } from '@catalog/application/restaurant/commands/update-restaurant.handler';
-import { GetRestaurantHandler } from '@catalog/application/restaurant/queries/get-restaurant.handler';
+import { GetRestaurantViewHandler } from '@catalog/application/restaurant/queries/get-restaurant-view.handler';
 import { ListRestaurantsHandler } from '@catalog/application/restaurant/queries/list-restaurants.handler';
 import { CreateRestaurantRequest } from '@catalog/interface/http/dto/create-restaurant.request';
 import type { PaginatedResponse } from '@catalog/interface/http/dto/paginated.response';
@@ -34,7 +34,7 @@ export class RestaurantsController {
     private readonly updateRestaurant: UpdateRestaurantHandler,
     private readonly deleteRestaurant: DeleteRestaurantHandler,
     private readonly listRestaurants: ListRestaurantsHandler,
-    private readonly getRestaurant: GetRestaurantHandler,
+    private readonly getRestaurant: GetRestaurantViewHandler,
   ) {}
 
   @Post()
