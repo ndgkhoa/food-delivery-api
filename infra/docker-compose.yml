@@ -96,6 +96,23 @@ services:
   # TLS certs are self-signed local (git-ignored) — see infra/nginx/nginx.conf for
   # mkcert/openssl generation and the HTTP-only fallback. `host.docker.internal`
   # lets the container reach the gateway running on the host.
+  # One-shot: generates a self-signed dev TLS cert into ./nginx/certs the FIRST
+  # time (skipped if one already exists), so nginx's :443 server can start without
+  # a manual openssl/mkcert step. The cert is git-ignored — never committed.
+  nginx-certs:
+    image: alpine/openssl:latest
+    container_name: food-delivery-nginx-certs
+    profiles: [core]
+    volumes:
+      - ./nginx/certs:/certs
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+        test -f /certs/dev.crt ||
+        openssl req -x509 -newkey rsa:2048 -nodes -days 365
+        -keyout /certs/dev.key -out /certs/dev.crt -subj '/CN=localhost'
+
   nginx:
     image: nginx:1.30-alpine
     container_name: food-delivery-nginx
@@ -110,7 +127,8 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     depends_on:
-      - postgres
+      nginx-certs:
+        condition: service_completed_successfully
 
 volumes:
   postgres-data:
