@@ -1,0 +1,29 @@
+meta {
+  name: Login (customer)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{keycloak}}/realms/{{realm}}/protocol/openid-connect/token
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  grant_type: password
+  client_id: {{client}}
+  username: customer-user
+  password: customer-pass
+}
+
+script:post-response {
+  if (res.body && res.body.access_token) {
+    bru.setEnvVar("token", res.body.access_token);
+  }
+}
+
+docs {
+  Direct-grant login for the seeded `customer-user`. Use this to test
+  customer-scoped flows (placing/reading own orders, reading the catalog).
+}

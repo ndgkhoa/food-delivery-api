@@ -1,0 +1,6 @@
+{
+  "version": "1",
+  "name": "food-delivery-api",
+  "type": "collection",
+  "ignore": ["node_modules", ".git"]
+}

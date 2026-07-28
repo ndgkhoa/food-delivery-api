@@ -51,25 +51,21 @@ pnpm db:migrate
 pnpm dev
 ```
 
-**Call the API** (through the gateway on `:3000`, versioned under `/api/v1`). Get a token from Keycloak (realm `food-delivery`, direct grant):
+**Call the API** through the **gateway** on `:3000` — the single client entry point (`/api/v1/...`). The per-service ports (3001/3002/3003) are internal; in production they sit behind the gateway.
 
-| user | password | role |
-|------|----------|------|
-| `customer-user` | `customer-pass` | customer |
-| `owner-user` | `owner-pass` | restaurant-owner |
-| `admin-user` | `admin-pass` | admin |
+Login is delegated to Keycloak (you don't build it). Grab a token for a seeded dev user (roles: `owner`, `customer`, `admin`):
 
 ```bash
-TOKEN=$(curl -s -X POST http://localhost:8080/realms/food-delivery/protocol/openid-connect/token \
-  -d grant_type=password -d client_id=food-delivery-spa \
-  -d username=owner-user -d password=owner-pass | jq -r .access_token)
+TOKEN=$(pnpm -s token owner)      # or: customer | admin
 
 curl -X POST http://localhost:3000/api/v1/catalog/restaurants \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"name":"Pho 24","description":"..."}'
 ```
 
-Interactive API reference (Scalar): `http://localhost:3001/api/v1/reference`.
+**Explore / test the API:**
+- **Aggregated API reference (Scalar):** `http://localhost:3000/api/v1/reference` — one UI listing every service's OpenAPI (or per-service at `:3001`/`:3002`/`:3003/api/v1/reference`). Click **Authorize** and paste the token.
+- **Bruno collection** (`bruno/`): open it in [Bruno](https://usebruno.com), pick the **Local** environment, run **Auth › Login** (saves the token), then any request — all go through the gateway.
 
 **Tests** (e2e use testcontainers — real Postgres/Redis/Keycloak/gRPC, no manual infra):
 

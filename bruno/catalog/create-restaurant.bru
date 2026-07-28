@@ -1,0 +1,27 @@
+meta {
+  name: Create restaurant
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{gateway}}/catalog/restaurants
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "name": "Pho 24",
+    "description": "Vietnamese noodle house"
+  }
+}
+
+docs {
+  Requires an owner/admin token (run Auth > Login (owner) first). A customer
+  token gets 403.
+}
