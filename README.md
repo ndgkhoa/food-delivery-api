@@ -53,15 +53,19 @@ pnpm dev
 
 **Call the API** through the **gateway** on `:3000` — the single client entry point (`/api/v1/...`). The per-service ports (3001/3002/3003) are internal; in production they sit behind the gateway.
 
-Login is delegated to Keycloak (you don't build it). Grab a token for a seeded dev user (roles: `owner`, `customer`, `admin`):
+Login is delegated to Keycloak (you don't build it). Grab a token for a seeded dev user (`owner-user` / `customer-user` / `admin-user`, password `<role>-pass`):
 
 ```bash
-TOKEN=$(pnpm -s token owner)      # or: customer | admin
+TOKEN=$(curl -s -X POST http://localhost:8080/realms/food-delivery/protocol/openid-connect/token \
+  -d grant_type=password -d client_id=food-delivery-spa \
+  -d username=owner-user -d password=owner-pass | jq -r .access_token)
 
 curl -X POST http://localhost:3000/api/v1/catalog/restaurants \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"name":"Pho 24","description":"..."}'
 ```
+
+(Or just use the Bruno collection below — its **Auth › Login** request grabs and stores the token for you.)
 
 **Explore / test the API:**
 - **Aggregated API reference (Scalar):** `http://localhost:3000/api/v1/reference` — one UI listing every service's OpenAPI (or per-service at `:3001`/`:3002`/`:3003/api/v1/reference`). Click **Authorize** and paste the token.
