@@ -98,6 +98,10 @@ export class PlaceOrderHandler {
     // 2. Validate menu against the catalog — price/availability are never trusted from the client.
     const orderItems = await this.buildOrderItems(command);
     const orderId = randomUUID();
+    // Root trace id for the whole saga: it rides the first ReserveStock command
+    // and is carried through every reply + follow-on command so the saga's
+    // events can be traced end to end.
+    const correlationId = randomUUID();
     const pendingOrder = Order.create({
       id: orderId,
       tenantId: command.tenantId,
@@ -118,11 +122,14 @@ export class PlaceOrderHandler {
           orderId,
         );
         const persistedOrder = await this.orderRepository.insert(pendingOrder);
-        await this.sagaRepository.insert(OrderSaga.start({ orderId, tenantId: command.tenantId }));
+        await this.sagaRepository.insert(
+          OrderSaga.start({ orderId, tenantId: command.tenantId, correlationId }),
+        );
         await this.outbox.append(
           reserveStockCommand(
             orderId,
             persistedOrder.items.map((item) => ({ itemId: item.itemId, qty: item.qty })),
+            correlationId,
           ),
         );
         return persistedOrder;

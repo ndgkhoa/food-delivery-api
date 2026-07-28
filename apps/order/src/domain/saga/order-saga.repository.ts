@@ -1,4 +1,5 @@
 import type { OrderSaga } from '@order/domain/saga/order-saga';
+import type { StrandedSagaCandidate } from '@order/domain/saga/stranded-saga-sweep';
 
 export interface OrderSagaRepository {
   /**
@@ -15,6 +16,14 @@ export interface OrderSagaRepository {
    * update affects zero rows (a concurrent reply already advanced the saga).
    */
   transition(saga: OrderSaga): Promise<OrderSaga>;
+  /**
+   * System-wide (not tenant-scoped) sweep for the stranded-saga reaper: returns
+   * non-terminal sagas that have not advanced since `olderThan`, reduced to the
+   * fields the sweep needs. The `updated_at` bound is pushed into the query so
+   * the `(state, updated_at)` index does the work and the result set stays
+   * bounded (a healthy saga advances well inside the timeout). Operational only.
+   */
+  findNonTerminal(olderThan: Date): Promise<StrandedSagaCandidate[]>;
 }
 
 export const ORDER_SAGA_REPOSITORY = Symbol('OrderSagaRepository');

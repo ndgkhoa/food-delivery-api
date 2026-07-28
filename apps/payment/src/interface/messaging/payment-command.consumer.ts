@@ -80,7 +80,7 @@ export class PaymentCommandConsumer implements OnApplicationBootstrap, OnModuleD
       this.logger.warn(`Ignoring unknown payment command type "${envelope.eventType}"`);
       return;
     }
-    const reply = this.buildReply(payload);
+    const reply = this.buildReply(payload, envelope.correlationId);
     await this.transaction.runInTransaction(async () => {
       await IdempotentConsumer.runOnce(this.processedEvents, envelope.eventId, undefined, () =>
         this.outbox.append(reply),
@@ -88,10 +88,10 @@ export class PaymentCommandConsumer implements OnApplicationBootstrap, OnModuleD
     });
   }
 
-  private buildReply(payload: ChargePaymentPayload): OutboxCommandEntry {
+  private buildReply(payload: ChargePaymentPayload, correlationId: string): OutboxCommandEntry {
     const decision = decideCharge(payload.totalCents, this.failAtCents);
     return decision.ok
-      ? paymentSucceededReply(payload.orderId)
-      : paymentFailedReply(payload.orderId, decision.reason ?? 'payment declined');
+      ? paymentSucceededReply(payload.orderId, correlationId)
+      : paymentFailedReply(payload.orderId, decision.reason ?? 'payment declined', correlationId);
   }
 }

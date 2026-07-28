@@ -4,6 +4,7 @@ import { type OutboxPort, type OutboxRecord, OutboxRelay } from './outbox-relay'
 class FakeOutboxPort implements OutboxPort {
   rows: OutboxRecord[] = [];
   markPublishedCalls: string[][] = [];
+  incrementAttemptsCalls: string[][] = [];
 
   async fetchUnpublished(limit: number): Promise<OutboxRecord[]> {
     return this.rows.slice(0, limit);
@@ -12,6 +13,10 @@ class FakeOutboxPort implements OutboxPort {
   async markPublished(ids: string[]): Promise<void> {
     this.markPublishedCalls.push(ids);
     this.rows = this.rows.filter((row) => !ids.includes(row.id));
+  }
+
+  async incrementAttempts(ids: string[]): Promise<void> {
+    this.incrementAttemptsCalls.push(ids);
   }
 }
 
@@ -78,6 +83,18 @@ describe('OutboxRelay.runOnce', () => {
     const relay = new OutboxRelay(outbox, producer);
 
     await expect(relay.runOnce()).rejects.toThrow('broker unavailable');
+    expect(outbox.markPublishedCalls).toHaveLength(0);
+  });
+
+  it('increments the attempts counter for the rows it tried when the publish fails', async () => {
+    const outbox = new FakeOutboxPort();
+    outbox.rows = [makeRow('1'), makeRow('2')];
+    const producer = new FakeProducer();
+    producer.failNextBatch = true;
+    const relay = new OutboxRelay(outbox, producer);
+
+    await expect(relay.runOnce()).rejects.toThrow('broker unavailable');
+    expect(outbox.incrementAttemptsCalls).toEqual([['1', '2']]);
     expect(outbox.markPublishedCalls).toHaveLength(0);
   });
 

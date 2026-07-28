@@ -8,6 +8,10 @@ import type { OrderRepository } from '@order/domain/order/order.repository';
 import { OrderItem } from '@order/domain/order/order-item';
 import { OrderSaga } from '@order/domain/saga/order-saga';
 import type { OrderSagaRepository } from '@order/domain/saga/order-saga.repository';
+import {
+  NON_TERMINAL_SAGA_STATES,
+  type StrandedSagaCandidate,
+} from '@order/domain/saga/stranded-saga-sweep';
 import type { OutboxCommandEntry, OutboxWriter } from '@order/domain/shared/outbox.port';
 import type { TransactionPort } from '@order/domain/shared/transaction.port';
 
@@ -28,17 +32,21 @@ export function buildOrder(orderId: string, status: string): Order {
   return order;
 }
 
+/** The saga-wide correlation id the reply test doubles carry by default. */
+export const DEFAULT_CORRELATION_ID = '66666666-6666-4666-8666-666666666666';
+
 export function envelope(
   eventType: string,
   orderId: string,
   eventId: string,
+  correlationId: string = DEFAULT_CORRELATION_ID,
 ): EventEnvelopeHeaders {
   return {
     eventId,
     eventType,
     aggregateId: orderId,
     tenantId: TENANT_ID,
-    correlationId: '66666666-6666-4666-8666-666666666666',
+    correlationId,
     occurredAt: new Date().toISOString(),
   };
 }
@@ -62,6 +70,17 @@ export class FakeSagaRepository implements OrderSagaRepository {
   async transition(saga: OrderSaga): Promise<OrderSaga> {
     this.rows.set(saga.orderId, saga);
     return saga;
+  }
+
+  async findNonTerminal(): Promise<StrandedSagaCandidate[]> {
+    return [...this.rows.values()]
+      .filter((saga) => NON_TERMINAL_SAGA_STATES.includes(saga.state))
+      .map((saga) => ({
+        orderId: saga.orderId,
+        tenantId: saga.tenantId,
+        state: saga.state,
+        updatedAt: saga.updatedAt,
+      }));
   }
 }
 

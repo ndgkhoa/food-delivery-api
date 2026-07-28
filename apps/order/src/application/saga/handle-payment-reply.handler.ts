@@ -74,8 +74,9 @@ export class HandlePaymentReplyHandler {
       }
       case PAYMENT_FAILED: {
         // Begin compensation: keep the order RESERVED, release the stock hold.
+        // Carry the saga's correlation id from this reply onto the release command.
         await this.sagaRepository.transition(saga.transition('COMPENSATING', eventId));
-        await this.outbox.append(releaseStockCommand(orderId));
+        await this.outbox.append(releaseStockCommand(orderId, envelope.correlationId));
         return;
       }
       default:

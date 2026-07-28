@@ -15,6 +15,7 @@ const STOCK_RELEASED = 'StockReleased';
 function reply(
   orderId: string,
   eventType: string,
+  correlationId: string,
   extra: Record<string, unknown> = {},
 ): OutboxCommandEntry {
   return {
@@ -22,17 +23,23 @@ function reply(
     topic: INVENTORY_REPLIES_TOPIC,
     eventType,
     payload: { orderId, ...extra },
+    // Carry the triggering command's correlation id so the saga shares one trace id.
+    correlationId,
   };
 }
 
-export function stockReservedReply(orderId: string): OutboxCommandEntry {
-  return reply(orderId, STOCK_RESERVED);
+export function stockReservedReply(orderId: string, correlationId: string): OutboxCommandEntry {
+  return reply(orderId, STOCK_RESERVED, correlationId);
 }
 
-export function stockReservationFailedReply(orderId: string, reason: string): OutboxCommandEntry {
-  return reply(orderId, STOCK_RESERVATION_FAILED, { reason });
+export function stockReservationFailedReply(
+  orderId: string,
+  reason: string,
+  correlationId: string,
+): OutboxCommandEntry {
+  return reply(orderId, STOCK_RESERVATION_FAILED, correlationId, { reason });
 }
 
-export function stockReleasedReply(orderId: string): OutboxCommandEntry {
-  return reply(orderId, STOCK_RELEASED);
+export function stockReleasedReply(orderId: string, correlationId: string): OutboxCommandEntry {
+  return reply(orderId, STOCK_RELEASED, correlationId);
 }

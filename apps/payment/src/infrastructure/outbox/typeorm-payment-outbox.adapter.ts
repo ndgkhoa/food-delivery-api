@@ -26,8 +26,9 @@ interface UnpublishedRow {
 /**
  * `OutboxWriter.append` enlists in the caller's transaction so a reply row
  * commits atomically with its dedupe marker; tenant is read from the tenant
- * context (set by the consumer from the command header) and a correlation id is
- * minted. `OutboxPort.fetchUnpublished` / `markPublished` are the relay's drain:
+ * context (set by the consumer from the command header) and the triggering
+ * command's `correlationId` is carried onto the reply (minted only when absent)
+ * so the saga shares one trace id. `OutboxPort.fetchUnpublished` / `markPublished` are the relay's drain:
  * claim a batch with `FOR UPDATE SKIP LOCKED`, map each to a keyed Kafka record
  * (key = order id) with the six envelope headers, publish, mark done.
  */
@@ -55,10 +56,18 @@ export class TypeOrmPaymentOutboxAdapter implements OutboxWriter, OutboxPort {
       eventType: entry.eventType,
       payload: entry.payload,
       tenantId,
-      correlationId: randomUUID(),
+      correlationId: entry.correlationId ?? randomUUID(),
       publishedAt: null,
     });
     await this.repository.save(row);
+  }
+
+  /** Bumps `attempts` for rows whose relay publish just failed — poison-row visibility. */
+  async incrementAttempts(ids: string[]): Promise<void> {
+    if (ids.length === 0) {
+      return;
+    }
+    await this.outboxRepository.increment({ id: In(ids) }, 'attempts', 1);
   }
 
   async fetchUnpublished(limit: number): Promise<OutboxRecord[]> {

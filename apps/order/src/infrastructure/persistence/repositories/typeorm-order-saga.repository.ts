@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { OrderSaga, type SagaState } from '@order/domain/saga/order-saga';
 import type { OrderSagaRepository } from '@order/domain/saga/order-saga.repository';
+import {
+  NON_TERMINAL_SAGA_STATES,
+  type StrandedSagaCandidate,
+} from '@order/domain/saga/stranded-saga-sweep';
 import { SagaConcurrencyConflictError } from '@order/domain/shared/errors';
 import { OrderSagaOrmEntity } from '@order/infrastructure/persistence/entities/order-saga.orm-entity';
 import { getTransactionalEntityManager } from '@order/infrastructure/persistence/transaction/transactional-entity-manager';
@@ -85,5 +89,23 @@ export class TypeOrmOrderSagaRepository implements OrderSagaRepository {
       createdAt: saga.createdAt,
       updatedAt: new Date(),
     });
+  }
+
+  async findNonTerminal(olderThan: Date): Promise<StrandedSagaCandidate[]> {
+    const rows = await this.ormRepository
+      .createQueryBuilder('saga')
+      .select(['saga.order_id AS order_id', 'saga.tenant_id AS tenant_id'])
+      .addSelect('saga.state', 'state')
+      .addSelect('saga.updated_at', 'updated_at')
+      .where('saga.state IN (:...states)', { states: [...NON_TERMINAL_SAGA_STATES] })
+      .andWhere('saga.updated_at < :olderThan', { olderThan })
+      .getRawMany<{ order_id: string; tenant_id: string; state: string; updated_at: Date }>();
+
+    return rows.map((row) => ({
+      orderId: row.order_id,
+      tenantId: row.tenant_id,
+      state: row.state as SagaState,
+      updatedAt: new Date(row.updated_at),
+    }));
   }
 }

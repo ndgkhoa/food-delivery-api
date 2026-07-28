@@ -54,10 +54,21 @@ export class ConfluentMessageProducer implements MessageProducer, OnModuleInit, 
   }
 
   async onModuleInit(): Promise<void> {
-    await this.producer.connect();
+    await this.connect();
   }
 
   async onModuleDestroy(): Promise<void> {
+    await this.disconnect();
+  }
+
+  /** Opens the underlying producer connection. Exposed so a manually-constructed
+   * instance (e.g. the subscriber's lazy DLQ producer) can connect without Nest. */
+  async connect(): Promise<void> {
+    await this.producer.connect();
+  }
+
+  /** Flushes in-flight sends then closes the connection. */
+  async disconnect(): Promise<void> {
     await this.producer.flush();
     await this.producer.disconnect();
   }
