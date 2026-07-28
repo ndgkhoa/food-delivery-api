@@ -5,7 +5,7 @@ import { buildDeadLetterMessage, deadLetterTopic, type RawInboundMessage } from 
 import type { RawKafkaHeaders } from './event-envelope';
 import { DEFAULT_TOPIC_PARTITIONS, DEFAULT_TOPIC_REPLICATION_FACTOR } from './kafka-admin';
 import { KAFKA_CLIENT, type KafkaClient } from './kafka-client';
-import { ConfluentMessageProducer, type MessageProducer } from './kafka-producer';
+import { ConfluentMessageProducer } from './kafka-producer';
 import { type DropReason, MessageDropCounter } from './message-drop-counter';
 import { consumeOneMessage, type KafkaMessageHandler } from './message-processing';
 
@@ -29,6 +29,11 @@ export interface KafkaSubscribeOptions<TPayload = unknown> {
 
 const DEFAULT_MAX_ATTEMPTS = 3;
 const DEFAULT_RETRY_DELAY_MS = 200;
+/** DLQ-publish retries before giving up and leaving the message uncommitted for redelivery. */
+const DLQ_PUBLISH_ATTEMPTS = 3;
+const DLQ_PUBLISH_RETRY_DELAY_MS = 200;
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Manual-commit subscribe helper: for each message, decodes the envelope
@@ -36,16 +41,19 @@ const DEFAULT_RETRY_DELAY_MS = 200;
  * carries — never trusting the payload alone for tenant identity — then commits
  * the offset. An undecodable message and a handler that exhausts its retries are
  * BOTH routed to `<topic>.dlq` (original bytes + failure reason preserved) and
- * counted, then committed past: the partition always advances and no saga
- * command/reply is silently lost. The DLQ publish is best-effort — if it itself
- * fails it is logged and the offset still advances (the accepted trade-off vs a
- * permanent partition stall).
+ * counted, then committed past: no saga command/reply is silently lost. The DLQ
+ * publish retries transient faults; if it still can't be written the offset is
+ * left UNCOMMITTED so the message redelivers (handlers are idempotent) rather
+ * than vanishing — the DLQ shares the broker with the source topic, so a DLQ
+ * outage means the broker is down and the partition is stalled regardless.
  */
 @Injectable()
 export class KafkaConsumerSubscriber implements OnModuleDestroy {
   private readonly logger = new Logger(KafkaConsumerSubscriber.name);
   private readonly dropCounter = new MessageDropCounter();
-  private dlqProducer: ConfluentMessageProducer | null = null;
+  // A promise (not the resolved producer) so two consumers sharing this
+  // singleton subscriber can't each connect a producer in a lazy-init race.
+  private dlqProducerPromise: Promise<ConfluentMessageProducer> | null = null;
 
   constructor(
     @Inject(KAFKA_CLIENT) private readonly client: KafkaClient,
@@ -83,38 +91,51 @@ export class KafkaConsumerSubscriber implements OnModuleDestroy {
   }
 
   /** Lazily connects one shared idempotent producer used only for DLQ publishes. */
-  private async deadLetterProducer(): Promise<MessageProducer> {
-    if (!this.dlqProducer) {
-      const producer = new ConfluentMessageProducer(this.client);
-      await producer.connect();
-      this.dlqProducer = producer;
+  private deadLetterProducer(): Promise<ConfluentMessageProducer> {
+    if (!this.dlqProducerPromise) {
+      this.dlqProducerPromise = (async () => {
+        const producer = new ConfluentMessageProducer(this.client);
+        await producer.connect();
+        return producer;
+      })();
     }
-    return this.dlqProducer;
+    return this.dlqProducerPromise;
   }
 
+  /**
+   * Publishes the message to `<topic>.dlq`, retrying transient broker faults.
+   * Resolves `true` once the DLQ write is durable, `false` if it could not be
+   * written after `DLQ_PUBLISH_ATTEMPTS` — never throws (throwing out of
+   * eachMessage would re-seek and stall the partition). On `false` the caller
+   * leaves the offset uncommitted so the message redelivers instead of vanishing.
+   */
   private async publishDeadLetter(
     raw: RawInboundMessage,
     reason: DropReason,
     failureReason: string,
-  ): Promise<void> {
-    try {
-      const producer = await this.deadLetterProducer();
-      await producer.publish(buildDeadLetterMessage(raw, reason, failureReason));
-      this.logger.warn(
-        `Dead-lettered ${raw.topic}[${raw.partition}]@${raw.message.offset} to ` +
-          `${deadLetterTopic(raw.topic)} (${reason}); drop counts: ${JSON.stringify(
-            this.dropCounter.snapshot(),
-          )}`,
-      );
-    } catch (error) {
-      // Never throw out of eachMessage: that would re-seek and re-stall the
-      // partition. The message is lost in this rare case — the accepted
-      // trade-off vs a permanent stall — so log it loudly.
-      const detail = error instanceof Error ? error.message : String(error);
-      this.logger.error(
-        `Failed to dead-letter ${raw.topic}[${raw.partition}]@${raw.message.offset}: ${detail} (message dropped)`,
-      );
+  ): Promise<boolean> {
+    for (let attempt = 1; attempt <= DLQ_PUBLISH_ATTEMPTS; attempt += 1) {
+      try {
+        const producer = await this.deadLetterProducer();
+        await producer.publish(buildDeadLetterMessage(raw, reason, failureReason));
+        this.logger.warn(
+          `Dead-lettered ${raw.topic}[${raw.partition}]@${raw.message.offset} to ` +
+            `${deadLetterTopic(raw.topic)} (${reason})`,
+        );
+        return true;
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        if (attempt >= DLQ_PUBLISH_ATTEMPTS) {
+          this.logger.error(
+            `Failed to dead-letter ${raw.topic}[${raw.partition}]@${raw.message.offset} after ` +
+              `${DLQ_PUBLISH_ATTEMPTS} attempts: ${detail}`,
+          );
+          return false;
+        }
+        await sleep(DLQ_PUBLISH_RETRY_DELAY_MS * attempt);
+      }
     }
+    return false;
   }
 
   async subscribe<TPayload = unknown>(
@@ -170,6 +191,9 @@ export class KafkaConsumerSubscriber implements OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    await this.dlqProducer?.disconnect();
+    if (this.dlqProducerPromise) {
+      const producer = await this.dlqProducerPromise.catch(() => null);
+      await producer?.disconnect();
+    }
   }
 }

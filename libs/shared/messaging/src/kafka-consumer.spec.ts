@@ -94,7 +94,7 @@ interface DlqCall {
   failureReason: string;
 }
 
-function makeConsumeDeps(handler: jest.Mock) {
+function makeConsumeDeps(handler: jest.Mock, dlqOk = true) {
   const dropCounter = new MessageDropCounter();
   const dlqCalls: DlqCall[] = [];
   const commit = jest.fn(async () => {});
@@ -105,6 +105,7 @@ function makeConsumeDeps(handler: jest.Mock) {
     deadLetter: jest.fn(
       async (raw: RawInboundMessage, reason: DropReason, failureReason: string) => {
         dlqCalls.push({ raw, reason, failureReason });
+        return dlqOk;
       },
     ),
     commit,
@@ -191,5 +192,31 @@ describe('consumeOneMessage dead-letter paths', () => {
     expect(dropCounter.total()).toBe(0);
     expect(dlqCalls).toHaveLength(0);
     expect(commit).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT commit or count when the dead-letter write itself fails (message redelivers, not lost)', async () => {
+    const handler = jest.fn().mockRejectedValue(new Error('db lock timeout'));
+    // deadLetter resolves false → the DLQ write could not be made durable.
+    const { deps, dropCounter, dlqCalls, commit } = makeConsumeDeps(handler, false);
+
+    await consumeOneMessage(
+      rawMessage(
+        encodeHeaders({
+          eventId: 'evt-3',
+          eventType: 'StockReserved',
+          aggregateId: 'order-1',
+          tenantId: 'tenant-1',
+          correlationId: 'corr-1',
+          occurredAt: '2026-07-28T00:00:00.000Z',
+        }),
+      ),
+      deps,
+    );
+
+    // DLQ was attempted, but since it failed the offset stays put (redelivery)
+    // and the drop is not counted — no silent loss.
+    expect(dlqCalls).toHaveLength(1);
+    expect(dropCounter.total()).toBe(0);
+    expect(commit).not.toHaveBeenCalled();
   });
 });

@@ -80,9 +80,17 @@ export interface ConsumeMessageDeps {
   handler: KafkaMessageHandler;
   tenantContext: TenantContextPort;
   dropCounter: MessageDropCounter;
-  /** Publishes the raw message to its dead-letter topic. Best-effort — must not throw. */
-  deadLetter: (raw: RawInboundMessage, reason: DropReason, failureReason: string) => Promise<void>;
-  /** Advances the group past this message. Called on EVERY path so a partition never stalls. */
+  /**
+   * Publishes the raw message to its dead-letter topic, retrying transient
+   * broker faults. Resolves `true` once the DLQ write is durable, `false` if it
+   * could not be written — it must NOT throw.
+   */
+  deadLetter: (
+    raw: RawInboundMessage,
+    reason: DropReason,
+    failureReason: string,
+  ) => Promise<boolean>;
+  /** Advances the group past this message. Called once the message is safely handled or dead-lettered. */
   commit: () => Promise<void>;
   maxAttempts: number;
   retryDelayMs: number;
@@ -90,12 +98,16 @@ export interface ConsumeMessageDeps {
 }
 
 /**
- * Processes one inbound message end to end and ALWAYS advances the partition:
- * an undecodable message (structurally unrecoverable) and a handler that
- * exhausts its retry budget are both routed to the dead-letter topic + counted,
- * then committed past — the message is preserved for replay, never silently
- * lost, and the partition keeps moving. Extracted from the subscriber so both
- * drop paths are unit-testable without a broker.
+ * Processes one inbound message end to end. An undecodable message
+ * (structurally unrecoverable) and a handler that exhausts its retry budget are
+ * both routed to the dead-letter topic, and the offset advances ONLY once that
+ * DLQ write is confirmed — so the message is never silently lost. If the DLQ
+ * write itself fails, the offset is left UNCOMMITTED so the message redelivers
+ * (handlers are idempotent) instead of vanishing: the DLQ shares the broker with
+ * the source topic, so a DLQ outage means the broker is down and everything is
+ * stalled anyway. The drop counter counts confirmed DLQ writes, not intents.
+ * Extracted from the subscriber so both drop paths are unit-testable without a
+ * broker.
  */
 export async function consumeOneMessage(
   raw: RawInboundMessage,
@@ -107,13 +119,7 @@ export async function consumeOneMessage(
   try {
     decoded = decodeMessage(topic, partition, message);
   } catch (error) {
-    const failureReason = reasonOf(error);
-    deps.logger.error(
-      `Dead-lettering undecodable message ${topic}[${partition}]@${message.offset}: ${failureReason}`,
-    );
-    deps.dropCounter.record(topic, 'undecodable');
-    await deps.deadLetter(raw, 'undecodable', failureReason);
-    await deps.commit();
+    await deadLetterThenCommit(raw, 'undecodable', reasonOf(error), deps);
     return;
   }
 
@@ -122,9 +128,36 @@ export async function consumeOneMessage(
     retryDelayMs: deps.retryDelayMs,
     logger: deps.logger,
   });
-  if (!outcome.ok) {
-    deps.dropCounter.record(topic, 'handler-exhausted');
-    await deps.deadLetter(raw, 'handler-exhausted', outcome.reason);
+  if (outcome.ok) {
+    await deps.commit();
+    return;
   }
+  await deadLetterThenCommit(raw, 'handler-exhausted', outcome.reason, deps);
+}
+
+/**
+ * Dead-letter the message, then advance the offset only if the DLQ write
+ * succeeded. On DLQ failure the offset stays put so the message redelivers
+ * rather than being lost, and the drop is not counted (it counts durable DLQ
+ * writes, not attempts).
+ */
+async function deadLetterThenCommit(
+  raw: RawInboundMessage,
+  reason: DropReason,
+  failureReason: string,
+  deps: ConsumeMessageDeps,
+): Promise<void> {
+  const { topic, partition, message } = raw;
+  deps.logger.error(
+    `Dead-lettering ${reason} message ${topic}[${partition}]@${message.offset}: ${failureReason}`,
+  );
+  const published = await deps.deadLetter(raw, reason, failureReason);
+  if (!published) {
+    deps.logger.error(
+      `Could not dead-letter ${topic}[${partition}]@${message.offset}; leaving it uncommitted for redelivery`,
+    );
+    return;
+  }
+  deps.dropCounter.record(topic, reason);
   await deps.commit();
 }
