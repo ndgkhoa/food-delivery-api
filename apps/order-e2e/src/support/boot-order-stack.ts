@@ -85,7 +85,7 @@ export async function bootOrderStack(): Promise<OrderStack> {
   process.env.LOG_LEVEL = 'fatal';
   process.env.KAFKA_BROKERS = brokers;
 
-  // Phase 1: boot inventory against its own Postgres + Redis.
+  // Step 1: boot inventory against its own Postgres + Redis.
   process.env.DB_HOST = inventoryDb.container.getHost();
   process.env.DB_PORT = String(inventoryDb.container.getPort());
   process.env.DB_USERNAME = inventoryDb.container.getUsername();
@@ -111,7 +111,7 @@ export async function bootOrderStack(): Promise<OrderStack> {
   );
   await inventoryService.listen();
 
-  // Phase 2: boot order against its own Postgres + the two gRPC endpoints above.
+  // Step 2: boot order against its own Postgres + the two gRPC endpoints above.
   process.env.DB_HOST = orderDb.container.getHost();
   process.env.DB_PORT = String(orderDb.container.getPort());
   process.env.DB_USERNAME = orderDb.container.getUsername();

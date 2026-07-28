@@ -17,4 +17,7 @@ async function bootstrap() {
   Logger.log('payment stub worker started (consuming payment.commands)', 'Bootstrap');
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  Logger.error(error, 'Bootstrap');
+  process.exit(1);
+});

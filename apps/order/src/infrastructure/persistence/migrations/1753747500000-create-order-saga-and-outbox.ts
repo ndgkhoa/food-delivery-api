@@ -50,9 +50,6 @@ export class CreateOrderSagaAndOutbox1753747500000 implements MigrationInterface
         "updated_at" timestamptz NOT NULL DEFAULT now()
       )
     `);
-    await queryRunner.query(
-      'CREATE INDEX "idx_order_saga_tenant_id" ON "order_saga" ("tenant_id")',
-    );
 
     await queryRunner.query(`
       CREATE TABLE "processed_events" (
