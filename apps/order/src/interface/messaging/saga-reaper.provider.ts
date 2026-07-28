@@ -62,8 +62,13 @@ export class SagaReaperProvider implements OnApplicationBootstrap, OnModuleDestr
   /** One sweep: find + report stranded sagas. Exposed for an off-cycle trigger/tests. */
   async sweep(): Promise<number> {
     try {
-      const candidates = await this.sagaRepository.findNonTerminal();
-      const stranded = selectStrandedSagas(candidates, new Date(), this.timeoutMs);
+      const now = new Date();
+      // The DB bounds the fetch to sagas idle past the timeout (index-backed);
+      // selectStrandedSagas re-applies the same rule as the authoritative,
+      // unit-tested selection so the two can never silently drift.
+      const olderThan = new Date(now.getTime() - this.timeoutMs);
+      const candidates = await this.sagaRepository.findNonTerminal(olderThan);
+      const stranded = selectStrandedSagas(candidates, now, this.timeoutMs);
       if (stranded.length > 0) {
         this.strandedTotal += stranded.length;
         this.logger.warn(

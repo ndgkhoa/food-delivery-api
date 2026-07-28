@@ -18,10 +18,12 @@ export interface OrderSagaRepository {
   transition(saga: OrderSaga): Promise<OrderSaga>;
   /**
    * System-wide (not tenant-scoped) sweep for the stranded-saga reaper: returns
-   * every saga still in a non-terminal state, reduced to the fields the sweep
-   * needs. Backed by the `(state, updated_at)` index. Operational use only.
+   * non-terminal sagas that have not advanced since `olderThan`, reduced to the
+   * fields the sweep needs. The `updated_at` bound is pushed into the query so
+   * the `(state, updated_at)` index does the work and the result set stays
+   * bounded (a healthy saga advances well inside the timeout). Operational only.
    */
-  findNonTerminal(): Promise<StrandedSagaCandidate[]>;
+  findNonTerminal(olderThan: Date): Promise<StrandedSagaCandidate[]>;
 }
 
 export const ORDER_SAGA_REPOSITORY = Symbol('OrderSagaRepository');

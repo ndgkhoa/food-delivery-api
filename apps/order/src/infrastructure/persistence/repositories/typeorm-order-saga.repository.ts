@@ -91,13 +91,14 @@ export class TypeOrmOrderSagaRepository implements OrderSagaRepository {
     });
   }
 
-  async findNonTerminal(): Promise<StrandedSagaCandidate[]> {
+  async findNonTerminal(olderThan: Date): Promise<StrandedSagaCandidate[]> {
     const rows = await this.ormRepository
       .createQueryBuilder('saga')
       .select(['saga.order_id AS order_id', 'saga.tenant_id AS tenant_id'])
       .addSelect('saga.state', 'state')
       .addSelect('saga.updated_at', 'updated_at')
       .where('saga.state IN (:...states)', { states: [...NON_TERMINAL_SAGA_STATES] })
+      .andWhere('saga.updated_at < :olderThan', { olderThan })
       .getRawMany<{ order_id: string; tenant_id: string; state: string; updated_at: Date }>();
 
     return rows.map((row) => ({
