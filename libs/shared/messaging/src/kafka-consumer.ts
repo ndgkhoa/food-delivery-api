@@ -2,6 +2,7 @@ import type { KafkaJS } from '@confluentinc/kafka-javascript';
 import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { decodeHeaders, type EventEnvelopeHeaders, type RawKafkaHeaders } from './event-envelope';
+import { DEFAULT_TOPIC_PARTITIONS, DEFAULT_TOPIC_REPLICATION_FACTOR } from './kafka-admin';
 import { KAFKA_CLIENT, type KafkaClient } from './kafka-client';
 
 export interface DecodedKafkaMessage<TPayload = unknown> {
@@ -98,6 +99,30 @@ export class KafkaConsumerSubscriber {
     @Inject(TENANT_CONTEXT_PORT) private readonly tenantContext: TenantContextPort,
   ) {}
 
+  /**
+   * Idempotently create the topics this consumer subscribes to (3 partitions,
+   * RF=1 — the repo's single-broker dev shape) so the subscribe never stalls on
+   * a topic that no producer has created yet. A no-op for existing topics.
+   */
+  private async ensureTopicsExist(topics: string[]): Promise<void> {
+    if (topics.length === 0) {
+      return;
+    }
+    const admin = this.client.admin();
+    await admin.connect();
+    try {
+      await admin.createTopics({
+        topics: topics.map((topic) => ({
+          topic,
+          numPartitions: DEFAULT_TOPIC_PARTITIONS,
+          replicationFactor: DEFAULT_TOPIC_REPLICATION_FACTOR,
+        })),
+      });
+    } finally {
+      await admin.disconnect();
+    }
+  }
+
   async subscribe<TPayload = unknown>(
     options: KafkaSubscribeOptions<TPayload>,
   ): Promise<KafkaJS.Consumer> {
@@ -111,6 +136,14 @@ export class KafkaConsumerSubscriber {
       },
     });
     await consumer.connect();
+    // Ensure the subscribed topics exist BEFORE subscribing. librdkafka only
+    // refreshes topic metadata every ~5 min by default, so a consumer that
+    // subscribes to a not-yet-created topic would sit idle ("Unknown topic or
+    // partition") for minutes until the next refresh — long past any request or
+    // test timeout. createTopics is idempotent (no-op if the topic already
+    // exists), so this is safe on every boot and races cleanly with a producer
+    // that also ensures the same topic.
+    await this.ensureTopicsExist(options.topics);
     await consumer.subscribe({ topics: options.topics });
     await consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
