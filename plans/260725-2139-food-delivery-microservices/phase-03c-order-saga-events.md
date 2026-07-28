@@ -87,8 +87,13 @@ Every saga transition is **optimistic-locked** (`order_saga.version`) and **idem
 - [x] inventory messaging command consumer + outbox reply (reuses Reserve/Release)
 - [x] payment STUB app (consumer + deterministic charge + outbox reply)
 - [x] payment added to dev/db:migrate scripts + db-init + env; gateway async contract + OpenAPI documented (no app container per host-process convention)
-- [~] happy-path + concurrency e2e — spec files written (compose-based `order-saga-happy-path` + async testcontainer variants); NOT run here (orchestrator runs compose+testcontainers)
+- [x] happy-path + concurrency e2e RUN GREEN on live compose stack: order PENDING→CONFIRMED via reserve+charge (saga COMPLETED, stock decremented); **100 concurrent orders on stock=10 → exactly 10 CONFIRMED, 90 CANCELLED, zero oversell, fully async**. In-process order-e2e trio (place-cancel/idempotency/async-placement) green too.
 - [x] biome/cruiser/knip clean; unit tests green (order 51 / inventory 14 / payment 6); builds pass; plan updated before push
+
+## Verification outcome (live)
+✅ **Full async saga proven end-to-end** on `core`+`messaging` compose with all 6 services live. Two real bugs found + fixed during verify:
+1. **Payment consumer never joined its group** — it subscribed to `payment.commands` before the topic existed; librdkafka only refreshes topic metadata every ~5 min, so the consumer sat idle and every order stalled at `STOCK_RESERVED`. Fixed in the shared subscriber: it now idempotently creates the topics it subscribes to before subscribing (commit `fix(shared-messaging)`). This also retro-fixes the catalog projection consumer's same latent stall.
+2. **In-process concurrency e2e `read ECONNRESET`** — ~100 concurrent supertest requests each raced `listen(0)` on a not-yet-listening order HTTP server. Fixed by binding the server once (`app.listen(0)`) in the e2e boot harness; also added a Kafka broker warmup (admin round-trip) as a readiness barrier. Not a product defect.
 
 ## Success criteria
 - Place order returns PENDING; polls to CONFIRMED via events; no inline gRPC reserve in the path.
