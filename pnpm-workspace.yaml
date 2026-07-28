@@ -8,3 +8,4 @@ onlyBuiltDependencies:
   - '@biomejs/biome'
   - '@swc/core'
   - esbuild
+  - '@confluentinc/kafka-javascript'

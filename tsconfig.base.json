@@ -25,6 +25,7 @@
       "@food-delivery-api/shared-tenancy": ["libs/shared/tenancy/src/index.ts"],
       "@food-delivery-api/shared-contracts": ["libs/shared/contracts/src/index.ts"],
       "@food-delivery-api/shared-locking": ["libs/shared/locking/src/index.ts"],
+      "@food-delivery-api/shared-messaging": ["libs/shared/messaging/src/index.ts"],
       "@auth/*": ["apps/auth/src/*"],
       "@catalog/*": ["apps/catalog/src/*"],
       "@gateway/*": ["apps/gateway/src/*"],

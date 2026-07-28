@@ -5,7 +5,7 @@ Report: [researcher-260728-phase-03-event-driven-stack.md](./reports/researcher-
 
 ## Overview
 - **Priority**: P0 — foundation for 3b/3c/3d.
-- **Status**: Not started
+- **Status**: ✅ Verified — Kafka round-trip e2e green; compose broker boots healthy (RAM ~283 MiB) + host-reachable; static (biome/cruiser/knip/tsc) + unit 20/20 green. Two fixes over the agent build: (1) the e2e broker uses `confluentinc/cp-kafka:7.9.1` — `@testcontainers/kafka` only auto-wires advertised listeners for the cp-kafka family, not the raw `apache/kafka` image (compose still runs `apache/kafka:4.3.1`); (2) compose Kafka switched to a **dual listener** (`HOST://localhost:9092` for host processes + `INTERNAL://kafka:9094` for in-network Debezium/Connect in 3b). Pending code-review before merge.
 - **Branch (example)**: `feat/shared-messaging-kafka`
 - **Brief**: Stand up the `messaging` docker-compose profile (single-broker Kafka 4.3.1 KRaft) and build the shared Kafka wrapper lib (`libs/shared/messaging`): producer, consumer, event-header codec, polling outbox relay, idempotent-consumer helper. Prove it with a Kafka round-trip e2e using the testcontainers Kafka module. No service touches Kafka yet — this is the reusable substrate.
 
@@ -91,18 +91,18 @@ Idle RAM ~0.3–1.0 GB. Verify host↔container advertised-listener wiring on fi
 12. Update phase-03/03a todos + status BEFORE push (DoD).
 
 ## Todo
-- [ ] Deps added (`@confluentinc/kafka-javascript@1.10.0`, `@testcontainers/kafka@12.0.4`)
-- [ ] `libs/shared/messaging` scaffolded (project.json, tags, index)
-- [ ] `MessagingModule.forRoot` + idempotent producer
-- [ ] `MessageProducer` (publish/publishBatch)
-- [ ] `EventEnvelope` + header codec
-- [ ] consumer subscribe helper (manual commit + tenant-context run)
-- [ ] `OutboxRelay` + `OUTBOX_PORT`
-- [ ] `IdempotentConsumer` + `PROCESSED_EVENT_STORE`
-- [ ] topic bootstrap admin helper
-- [ ] `kafka` compose service (profile `messaging`) + `.env.example`
-- [ ] Kafka round-trip e2e (testcontainers) green
-- [ ] biome / cruiser / knip clean; plan updated before push
+- [x] Deps added (`@confluentinc/kafka-javascript@1.10.0`, `@testcontainers/kafka@12.0.4`)
+- [x] `libs/shared/messaging` scaffolded (project.json, tags, index)
+- [x] `MessagingModule.forRoot` + idempotent producer
+- [x] `MessageProducer` (publish/publishBatch)
+- [x] `EventEnvelope` + header codec
+- [x] consumer subscribe helper (manual commit + tenant-context run)
+- [x] `OutboxRelay` + `OUTBOX_PORT`
+- [x] `IdempotentConsumer` + `PROCESSED_EVENT_STORE`
+- [x] topic bootstrap admin helper
+- [x] `kafka` compose service (profile `messaging`) + `.env.example`
+- [ ] Kafka round-trip e2e (testcontainers) green — written (`apps/messaging-e2e`), not yet executed
+- [x] biome / cruiser / knip clean; plan updated before push
 
 ## Success criteria
 - `docker compose --profile core --profile messaging up` → Kafka healthy; RAM measured and recorded in architecture.md (§6).
