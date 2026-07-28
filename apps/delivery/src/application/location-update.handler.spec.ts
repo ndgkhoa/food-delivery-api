@@ -15,7 +15,7 @@ function buildHandler() {
 describe('LocationUpdateHandler', () => {
   it('pushes the position and returns the driver’s assigned order rooms', async () => {
     const { locations, assignments, handler } = buildHandler();
-    await assignments.assign(TENANT_A, 'order-1', 'driver-1');
+    await assignments.assign(TENANT_A, 'order-1', ['driver-1']);
 
     const orderIds = await handler.execute(TENANT_A, 'driver-1', { lat: 10, lng: 20 });
 

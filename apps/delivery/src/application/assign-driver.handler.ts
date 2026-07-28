@@ -1,24 +1,23 @@
-import type { Assignment } from '@delivery/domain/delivery/assignment';
+import type { AssignmentClaim } from '@delivery/domain/delivery/assignment.store';
 import { ASSIGNMENT_STORE, type AssignmentStore } from '@delivery/domain/delivery/assignment.store';
 import {
   DRIVER_LOCATION_STORE,
   type DriverLocationStore,
 } from '@delivery/domain/delivery/driver-location.store';
-import type { NearbyDriver } from '@delivery/domain/delivery/nearby-driver';
-import { selectNearestAvailableDriver } from '@delivery/domain/delivery/select-nearest-driver';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 /**
- * Assigns the nearest available driver to a confirmed order — idempotent under
- * `order.events` redelivery. If the order is already assigned it returns that
- * assignment unchanged. Otherwise it picks the nearest free driver from the
- * online roster and stores the assignment via the store's compare-and-set
- * (`HSETNX`), so two concurrent deliveries can never double-assign an order.
+ * Assigns the nearest available driver to a confirmed order, and releases the
+ * assignment when the order is cancelled. Both are idempotent under
+ * `order.events` redelivery: the store's atomic claim returns the incumbent
+ * (not a second binding) for an already-assigned order, and picks the first
+ * candidate that is not already busy — so two orders confirmed concurrently can
+ * never grab the same driver.
  *
- * The order payload carries no pickup coordinate yet, so "nearest" ranks over
- * the online roster at distance 0 and degrades to "first available driver". Once
- * the order exposes its pickup location (future refinement), the same pure
- * selector ranks candidates by real distance with no change here.
+ * The order payload carries no pickup coordinate yet, so candidates are the
+ * online roster in list order ("first available"); once the order exposes a
+ * pickup location the roster is simply sorted by distance before the claim, with
+ * no change to the atomic-claim contract.
  */
 @Injectable()
 export class AssignDriverHandler {
@@ -29,31 +28,21 @@ export class AssignDriverHandler {
     @Inject(ASSIGNMENT_STORE) private readonly assignments: AssignmentStore,
   ) {}
 
-  async execute(tenantId: string, orderId: string): Promise<Assignment | undefined> {
-    const existing = await this.assignments.get(tenantId, orderId);
-    if (existing) {
-      return existing;
-    }
-
-    const [onlineDriverIds, busyDriverIds] = await Promise.all([
-      this.locations.onlineDriverIds(tenantId),
-      this.assignments.busyDriverIds(tenantId),
-    ]);
-    const candidates: NearbyDriver[] = onlineDriverIds.map((driverId) => ({
-      driverId,
-      distanceMeters: 0,
-    }));
-
-    const selected = selectNearestAvailableDriver(candidates, new Set(busyDriverIds));
-    if (!selected) {
-      // No free driver online: leave the order unassigned. A retry/reaper sweep
-      // that re-attempts assignment when a driver frees up is future work.
+  async execute(tenantId: string, orderId: string): Promise<AssignmentClaim | undefined> {
+    const candidates = await this.locations.onlineDriverIds(tenantId);
+    const claim = await this.assignments.assign(tenantId, orderId, candidates);
+    if (!claim) {
+      // Every online driver is busy (or none online): leave the order
+      // unassigned. A retry/reaper that re-attempts when a driver frees up is
+      // future work.
       this.logger.warn(`No available driver for order ${orderId}; left unassigned`);
       return undefined;
     }
+    return claim;
+  }
 
-    // HSETNX makes this the single winner even if two events race — the returned
-    // assignment reflects whoever actually won the slot.
-    return this.assignments.assign(tenantId, orderId, selected.driverId);
+  /** Releases the driver held by a cancelled order (idempotent no-op if unassigned). */
+  async release(tenantId: string, orderId: string): Promise<void> {
+    await this.assignments.unassign(tenantId, orderId);
   }
 }

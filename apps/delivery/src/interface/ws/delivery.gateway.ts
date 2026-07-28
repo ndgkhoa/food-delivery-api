@@ -8,6 +8,7 @@ import { AccessTokenVerifier, type VerifiedIdentity } from '@food-delivery-api/s
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  type OnGatewayDisconnect,
   type OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
@@ -46,7 +47,7 @@ type DeliverySocket = Socket & { data: Partial<DeliverySocketData> };
  */
 @Injectable()
 @WebSocketGateway({ cors: { origin: '*' } })
-export class DeliveryGateway implements OnGatewayInit {
+export class DeliveryGateway implements OnGatewayInit, OnGatewayDisconnect {
   private readonly logger = new Logger(DeliveryGateway.name);
   private readonly rateLimitPerSec: number;
 
@@ -84,6 +85,14 @@ export class DeliveryGateway implements OnGatewayInit {
         next(new Error('unauthenticated'));
       }
     });
+  }
+
+  /** Drop a disconnected driver from the online roster so it stops being assignable/searchable. */
+  async handleDisconnect(client: DeliverySocket): Promise<void> {
+    const identity = client.data.identity;
+    if (identity?.roles.includes(DRIVER_ROLE)) {
+      await this.locationUpdate.goOffline(identity.tenantId, identity.sub);
+    }
   }
 
   @SubscribeMessage(WS_EVENTS.LOCATION)

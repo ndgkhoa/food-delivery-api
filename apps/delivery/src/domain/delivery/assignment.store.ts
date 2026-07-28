@@ -1,21 +1,36 @@
 import type { Assignment } from '@delivery/domain/delivery/assignment';
 
+/** Result of a claim attempt: the effective assignment + whether it was newly made this call. */
+export interface AssignmentClaim {
+  assignment: Assignment;
+  /** `true` when this call bound the driver; `false` when it returned an incumbent (redelivery). */
+  created: boolean;
+}
+
 /**
  * Port for order→driver assignments. The adapter persists them in tenant-scoped
- * Redis structures; the domain only knows this contract. `assign` MUST be
- * idempotent — one driver per order, even under `order.events` redelivery.
+ * Redis structures; the domain only knows this contract. The claim MUST be
+ * atomic on BOTH invariants — one driver per order AND one order per driver —
+ * even when two `order.events` are processed concurrently.
  */
 export interface AssignmentStore {
   /**
-   * Assigns `driverId` to `orderId` iff the order has none yet (idempotent).
-   * Returns the effective assignment: the newly-written one, or the pre-existing
-   * one when the order was already assigned (a redelivered event is a no-op).
+   * Atomically binds the FIRST candidate driver that is not already busy to
+   * `orderId` (candidates passed nearest-first). Returns the incumbent (with
+   * `created:false`) if the order is already assigned, the new binding (with
+   * `created:true`) on success, or `undefined` if every candidate is busy. The
+   * whole check-and-claim runs in one Redis operation, so two orders can never
+   * both grab the same free driver.
    */
-  assign(tenantId: string, orderId: string, driverId: string): Promise<Assignment>;
+  assign(
+    tenantId: string,
+    orderId: string,
+    candidateDriverIdsNearestFirst: string[],
+  ): Promise<AssignmentClaim | undefined>;
+  /** Frees an order's assignment — removes the binding and clears the driver's busy flag when it holds no other orders. */
+  unassign(tenantId: string, orderId: string): Promise<void>;
   /** The current assignment for an order, or `undefined` if unassigned. */
   get(tenantId: string, orderId: string): Promise<Assignment | undefined>;
-  /** Driver ids currently holding at least one active assignment (the busy roster). */
-  busyDriverIds(tenantId: string): Promise<string[]>;
   /** Order ids currently assigned to a driver — the rooms its location updates fan out to. */
   ordersForDriver(tenantId: string, driverId: string): Promise<string[]>;
 }

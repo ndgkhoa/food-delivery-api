@@ -26,6 +26,11 @@ export class RedisDriverLocationStore implements DriverLocationStore {
     await this.redis.geoadd(driversKey(tenantId), location.lng, location.lat, driverId);
   }
 
+  async remove(tenantId: string, driverId: string): Promise<void> {
+    // A GEO set is a sorted set; ZREM drops the driver from the online roster.
+    await this.redis.zrem(driversKey(tenantId), driverId);
+  }
+
   async nearby(tenantId: string, origin: Location, radiusMeters: number): Promise<NearbyDriver[]> {
     // WITHDIST returns each hit as [member, distanceString]; ASC = nearest first.
     const raw = (await this.redis.geosearch(

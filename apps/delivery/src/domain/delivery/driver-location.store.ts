@@ -10,6 +10,8 @@ import type { NearbyDriver } from '@delivery/domain/delivery/nearby-driver';
 export interface DriverLocationStore {
   /** Upserts the driver's current position (last write wins). */
   push(tenantId: string, driverId: string, location: Location): Promise<void>;
+  /** Removes the driver from the online roster (e.g. on disconnect) so it stops surfacing in search/assignment. */
+  remove(tenantId: string, driverId: string): Promise<void>;
   /** Drivers within `radiusMeters` of the origin, nearest first. */
   nearby(tenantId: string, origin: Location, radiusMeters: number): Promise<NearbyDriver[]>;
   /** All driver ids currently reporting a position for the tenant (the online roster). */

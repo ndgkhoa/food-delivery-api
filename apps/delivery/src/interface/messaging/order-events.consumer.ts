@@ -17,6 +17,7 @@ const ORDER_EVENTS_TOPIC = 'order.events';
 /** Delivery's own consumer group — tails `order.events` with independent offsets. */
 const CONSUMER_GROUP_ID = 'delivery-order-events';
 const ORDER_CONFIRMED = 'OrderConfirmed';
+const ORDER_CANCELLED = 'OrderCancelled';
 
 interface OrderEventPayload {
   orderId?: string;
@@ -62,18 +63,29 @@ export class OrderEventsConsumer implements OnApplicationBootstrap, OnModuleDest
   }
 
   private async handle(envelope: EventEnvelopeHeaders, payload: OrderEventPayload): Promise<void> {
-    if (envelope.eventType !== ORDER_CONFIRMED) {
+    if (envelope.eventType !== ORDER_CONFIRMED && envelope.eventType !== ORDER_CANCELLED) {
       return;
     }
     const orderId = payload.orderId;
     if (!orderId) {
-      this.logger.warn(`Skipping ${ORDER_CONFIRMED} with no orderId (event ${envelope.eventId})`);
+      this.logger.warn(
+        `Skipping ${envelope.eventType} with no orderId (event ${envelope.eventId})`,
+      );
       return;
     }
 
-    const assignment = await this.assignDriver.execute(envelope.tenantId, orderId);
-    if (assignment) {
-      this.gateway.broadcastAssignment(envelope.tenantId, orderId, assignment.driverId);
+    if (envelope.eventType === ORDER_CANCELLED) {
+      // Free the driver a cancelled order was holding so the busy roster can't
+      // leak (idempotent — a redelivered cancel or an unassigned order is a no-op).
+      await this.assignDriver.release(envelope.tenantId, orderId);
+      return;
+    }
+
+    const claim = await this.assignDriver.execute(envelope.tenantId, orderId);
+    // Broadcast only on a NEW binding — a redelivered OrderConfirmed returns the
+    // incumbent and must not re-emit `assigned`.
+    if (claim?.created) {
+      this.gateway.broadcastAssignment(envelope.tenantId, orderId, claim.assignment.driverId);
     }
   }
 

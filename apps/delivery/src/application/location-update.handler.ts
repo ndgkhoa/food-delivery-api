@@ -24,4 +24,9 @@ export class LocationUpdateHandler {
     await this.locations.push(tenantId, driverId, location);
     return this.assignments.ordersForDriver(tenantId, driverId);
   }
+
+  /** Drops a disconnected driver from the online roster so it stops being assignable/searchable. */
+  async goOffline(tenantId: string, driverId: string): Promise<void> {
+    await this.locations.remove(tenantId, driverId);
+  }
 }

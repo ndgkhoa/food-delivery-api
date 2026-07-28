@@ -1,5 +1,5 @@
 import type { Assignment } from '@delivery/domain/delivery/assignment';
-import type { AssignmentStore } from '@delivery/domain/delivery/assignment.store';
+import type { AssignmentClaim, AssignmentStore } from '@delivery/domain/delivery/assignment.store';
 import type { DriverLocationStore } from '@delivery/domain/delivery/driver-location.store';
 import type { Location } from '@delivery/domain/delivery/location';
 import type { NearbyDriver } from '@delivery/domain/delivery/nearby-driver';
@@ -25,6 +25,13 @@ export class FakeDriverLocationStore implements DriverLocationStore {
     this.pushed.push({ tenantId, driverId, location });
   }
 
+  async remove(tenantId: string, driverId: string): Promise<void> {
+    this.online.set(
+      tenantId,
+      (this.online.get(tenantId) ?? []).filter((id) => id !== driverId),
+    );
+  }
+
   async nearby(tenantId: string, _origin: Location, radiusMeters: number): Promise<NearbyDriver[]> {
     return (this.near.get(tenantId) ?? []).filter((d) => d.distanceMeters <= radiusMeters);
   }
@@ -34,7 +41,11 @@ export class FakeDriverLocationStore implements DriverLocationStore {
   }
 }
 
-/** In-memory assignment store with the same idempotent-assign semantics as HSETNX. */
+/**
+ * In-memory assignment store mirroring the Lua adapter's atomic semantics: an
+ * already-assigned order returns its incumbent, otherwise the first candidate
+ * NOT already busy is bound (one driver per order AND one order per driver).
+ */
 export class FakeAssignmentStore implements AssignmentStore {
   private readonly byOrder = new Map<string, string>();
   private readonly busy = new Map<string, Set<string>>();
@@ -44,25 +55,44 @@ export class FakeAssignmentStore implements AssignmentStore {
     return `${tenantId}:${orderId}`;
   }
 
-  async assign(tenantId: string, orderId: string, driverId: string): Promise<Assignment> {
+  async assign(
+    tenantId: string,
+    orderId: string,
+    candidateDriverIdsNearestFirst: string[],
+  ): Promise<AssignmentClaim | undefined> {
     const key = this.orderKey(tenantId, orderId);
-    const existing = this.byOrder.get(key);
-    if (existing) {
-      return { orderId, driverId: existing };
+    const incumbent = this.byOrder.get(key);
+    if (incumbent) {
+      return { assignment: { orderId, driverId: incumbent }, created: false };
+    }
+    const busy = this.busy.get(tenantId) ?? new Set<string>();
+    const driverId = candidateDriverIdsNearestFirst.find((id) => !busy.has(id));
+    if (!driverId) {
+      return undefined;
     }
     this.byOrder.set(key, driverId);
     this.addTo(this.busy, tenantId, driverId);
     this.addTo(this.driverOrders, `${tenantId}:${driverId}`, orderId);
-    return { orderId, driverId };
+    return { assignment: { orderId, driverId }, created: true };
+  }
+
+  async unassign(tenantId: string, orderId: string): Promise<void> {
+    const key = this.orderKey(tenantId, orderId);
+    const driverId = this.byOrder.get(key);
+    if (!driverId) {
+      return;
+    }
+    this.byOrder.delete(key);
+    const orders = this.driverOrders.get(`${tenantId}:${driverId}`);
+    orders?.delete(orderId);
+    if (!orders || orders.size === 0) {
+      this.busy.get(tenantId)?.delete(driverId);
+    }
   }
 
   async get(tenantId: string, orderId: string): Promise<Assignment | undefined> {
     const driverId = this.byOrder.get(this.orderKey(tenantId, orderId));
     return driverId ? { orderId, driverId } : undefined;
-  }
-
-  async busyDriverIds(tenantId: string): Promise<string[]> {
-    return [...(this.busy.get(tenantId) ?? [])];
   }
 
   async ordersForDriver(tenantId: string, driverId: string): Promise<string[]> {
