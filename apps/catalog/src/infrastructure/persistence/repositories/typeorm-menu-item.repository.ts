@@ -55,6 +55,11 @@ export class TypeOrmMenuItemRepository implements MenuItemRepository {
     return { data: rows.map(MenuItemMapper.toDomain), total };
   }
 
+  async findAllByRestaurant(restaurantId: string, tenantId: string): Promise<MenuItem[]> {
+    const rows = await this.repository.find({ where: { restaurantId, tenantId } });
+    return rows.map(MenuItemMapper.toDomain);
+  }
+
   async softDelete(id: string, tenantId: string): Promise<void> {
     await this.repository.softDelete({ id, tenantId });
   }

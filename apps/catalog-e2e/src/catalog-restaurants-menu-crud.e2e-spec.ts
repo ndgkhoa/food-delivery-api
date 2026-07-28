@@ -3,6 +3,7 @@ import {
   type CatalogTestDatabase,
   startCatalogTestDatabase,
   stopCatalogTestDatabase,
+  syncReadModelFromWriteModel,
   truncateCatalogTables,
 } from '@catalog/testing/catalog-test-database';
 import { type INestApplication, ValidationPipe } from '@nestjs/common';
@@ -76,6 +77,10 @@ describe('Catalog REST API (e2e)', () => {
       .set(ownerHeaders)
       .send({ name: 'Pho Bo', priceCents: 8500 })
       .expect(201);
+
+    // List/get endpoints serve the CQRS read model; stand in for the CDC
+    // projection so reads reflect the writes just made.
+    await syncReadModelFromWriteModel(db.dataSource);
 
     const listRes = await request(app.getHttpServer())
       .get('/api/v1/restaurants')

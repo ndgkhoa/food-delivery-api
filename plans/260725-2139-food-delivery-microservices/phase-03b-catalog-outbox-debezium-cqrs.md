@@ -5,8 +5,15 @@ Report: [researcher-260728-phase-03-event-driven-stack.md](./reports/researcher-
 
 ## Overview
 - **Priority**: P0
-- **Status**: Not started
-- **Branch (example)**: `feat/catalog-outbox-cqrs`
+- **Status**: ✅ Verified — full Outbox→Debezium→Kafka→projection→read-model chain proven live (connector RUNNING, `catalog.events` carries all 6 envelope headers, read model + `processed_events` populated, tenant isolation 404). Static gates clean (tsc/biome/cruiser 367 modules/knip), catalog unit 50/50, catalog-e2e 13/13. **Real bug found+fixed during verify**: connector `event.timestamp: created_at` killed the EventRouter task (`Field 'created_at' is not of type INT64`) — removed; `x-occurred-at` comes via header placement (see connector Notes).
+
+**Adversarial code-review done — no Critical, no tenant leak; idempotency tx boundary verified solid. All findings addressed:**
+- **M1 (orphan menu-item read rows)** — restaurant vs item on different Kafka partitions; a bulk read-model cascade on RestaurantDeleted couldn't be ordered against an in-flight item update → orphan. **Fixed**: delete handler now enumerates live items and emits a per-item `MenuItemDeleted` keyed by item id, so each item's own partition carries its terminal event in order. **Verified live**: create restaurant+2 items (read model 1/2) → delete → read_restaurants=0, read_menu_items=0, outbox `MenuItemDeleted×2`+`RestaurantDeleted×1`. removeByRestaurant kept as immediate common-case cleanup.
+- **M2 (down migration couldn't DROP ROLE debezium — dependent grants)** — fixed with `DROP OWNED BY debezium` before `DROP ROLE`.
+- **L1** projection-disabled-in-test now `logger.warn` (not silent). **L3** `correlationid` column now `NOT NULL` (matches the always-set, fail-closed invariant). **L4** backfill count uses `RETURNING id` (was always 0).
+- Deferred (documented): **L2** poison-skip read gap → 3d/P5 DLQ; **L5** outbox prune + named slot WAL headroom → P5; **L6** dev connector password kept out of prod config.
+Review report: `reports/code-reviewer-260728-1420-slice-3b-catalog-outbox-cqrs-red-team-review-report.md`. Ready to merge.
+- **Branch**: `feat/catalog-outbox-cqrs`
 - **Brief**: Add a Debezium-routed outbox to catalog: every restaurant/menu-item write inserts an `outbox` row in the SAME tx as the domain change. Kafka Connect + Debezium tails the WAL and the Outbox Event Router SMT publishes to `catalog.events`. A projection consumer (in catalog) builds a denormalized **read model**; catalog's list/get endpoints are switched to serve from it. Teaches Outbox-via-CDC + CQRS in one vertical slice.
 
 ## Key insights / decisions
@@ -80,9 +87,8 @@ catalog write handler ──tx──▶ [restaurants|menu_items] + [outbox row] 
     "transforms.outbox.table.field.event.key": "aggregateid",
     "transforms.outbox.table.field.event.type": "type",
     "transforms.outbox.table.field.event.payload": "payload",
-    "transforms.outbox.table.field.event.timestamp": "created_at",
     "transforms.outbox.table.expand.json.payload": "true",
-    "transforms.outbox.table.fields.additional.placement": "type:header:x-event-type,tenant_id:header:x-tenant-id,correlationid:header:x-correlation-id,id:header:x-event-id",
+    "transforms.outbox.table.fields.additional.placement": "id:header:x-event-id,type:header:x-event-type,aggregateid:header:x-aggregate-id,tenant_id:header:x-tenant-id,correlationid:header:x-correlation-id,created_at:header:x-occurred-at",
 
     "key.converter": "org.apache.kafka.connect.json.JsonConverter",
     "key.converter.schemas.enable": "false",
@@ -92,7 +98,7 @@ catalog write handler ──tx──▶ [restaurants|menu_items] + [outbox row] 
   }
 }
 ```
-Notes: `aggregatetype='catalog'` on every outbox row → topic `catalog.events`. `aggregateid` → message key → per-restaurant ordering across 3 partitions. `x-event-id` header = the dedupe key the projection consumer keys on (matches the lib's `decodeHeaders`). `snapshot.mode=no_data` (outbox starts empty; we don't want to snapshot historical restaurants — the read model is bootstrapped by re-emitting or by a one-off backfill, see risks).
+Notes: `aggregatetype='catalog'` on every outbox row → topic `catalog.events`. `aggregateid` → message key → per-restaurant ordering across 3 partitions. **All 6 envelope headers the lib's `decodeHeaders` requires are produced via `additional.placement`** (`x-event-id/x-event-type/x-aggregate-id/x-tenant-id/x-correlation-id/x-occurred-at`). **Do NOT set `event.timestamp: created_at`** — the EventRouter's `event.timestamp` maps to the Kafka *record* timestamp and requires an INT64 epoch; a `timestamptz` column serializes as a Debezium ZonedTimestamp and the SMT throws `Field 'created_at' is not of type INT64`, killing the task. `x-occurred-at` (ISO string) comes from the header placement instead — verified live. `snapshot.mode=no_data` (outbox starts empty; we don't want to snapshot historical restaurants — the read model is bootstrapped by re-emitting or by a one-off backfill, see risks).
 
 ## Kafka Connect / Debezium compose service
 ```yaml
@@ -134,16 +140,16 @@ Postgres change (existing `postgres` service `command`): `-c wal_level=logical -
 10. Update plan todos/status BEFORE push.
 
 ## Todo
-- [ ] migration: outbox + processed_events + read_restaurants + read_menu_items
-- [ ] `OUTBOX_PORT` + TypeORM outbox adapter + event factory
-- [ ] outbox write wired into 6 catalog write handlers (in-tx)
-- [ ] Postgres `wal_level=logical` + `debezium` role
-- [ ] `kafka-connect` compose service + `register-connectors.sh` + connector JSON
-- [ ] projection consumer (idempotent + tenant-scoped) → read tables
-- [ ] read-model repos; list/get endpoints served from read model
-- [ ] backfill existing catalog data into read model
-- [ ] E2E: write → read-model within seconds; headers + keying asserted; tenant isolation
-- [ ] biome/cruiser/knip clean; plan updated before push
+- [x] migration: outbox + processed_events + read_restaurants + read_menu_items
+- [x] `OUTBOX_PORT` + TypeORM outbox adapter + event factory
+- [x] outbox write wired into 6 catalog write handlers (in-tx)
+- [x] Postgres `wal_level=logical` + `debezium` role
+- [x] `kafka-connect` compose service + `register-connectors.sh` + connector JSON
+- [x] projection consumer (idempotent + tenant-scoped) → read tables
+- [x] read-model repos; list/get endpoints served from read model
+- [x] backfill existing catalog data into read model
+- [x] E2E RUN GREEN on live compose stack: POST /restaurants → outbox row → Debezium `catalog.events` (6 envelope headers verified on the wire) → projection → `read_restaurants` within seconds; tenant isolation (other tenant 404); `processed_events` deduped; full catalog-e2e suite 13/13 (crud+grpc+cdc) — no CQRS regression
+- [x] biome/cruiser/knip clean; build + unit tests green; plan updated before push
 
 ## Success criteria
 - Restaurant/menu write propagates to the read model within seconds via Outbox→Debezium→Kafka→projection.

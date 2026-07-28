@@ -7,6 +7,8 @@ import {
 } from '@catalog/domain/menu-item/menu-item.repository';
 import { AUDIT_PORT, type AuditPort } from '@catalog/domain/shared/audit.port';
 import { AuditAction } from '@catalog/domain/shared/audit-action';
+import { CatalogEventFactory } from '@catalog/domain/shared/catalog-event.factory';
+import { OUTBOX_PORT, type OutboxWriter } from '@catalog/domain/shared/outbox.port';
 import { TRANSACTION_PORT, type TransactionPort } from '@catalog/domain/shared/transaction.port';
 import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable } from '@nestjs/common';
@@ -24,6 +26,7 @@ export class CreateMenuItemHandler {
     @Inject(MENU_ITEM_REPOSITORY) private readonly menuItemRepository: MenuItemRepository,
     @Inject(TENANT_CONTEXT_PORT) private readonly tenantContext: TenantContextPort,
     @Inject(AUDIT_PORT) private readonly auditPort: AuditPort,
+    @Inject(OUTBOX_PORT) private readonly outboxWriter: OutboxWriter,
     @Inject(TRANSACTION_PORT) private readonly transaction: TransactionPort,
     private readonly getRestaurant: GetRestaurantHandler,
   ) {}
@@ -35,7 +38,8 @@ export class CreateMenuItemHandler {
 
     const menuItem = MenuItem.create({ id: randomUUID(), tenantId, restaurantId, ...command });
 
-    // Write + audit share one commit boundary: if the audit insert fails, the menu item is not persisted.
+    // Write + audit + outbox share one commit boundary: the menu item and its
+    // emitted event are persisted atomically.
     return this.transaction.runInTransaction(async () => {
       const saved = await this.menuItemRepository.save(menuItem);
 
@@ -45,6 +49,7 @@ export class CreateMenuItemHandler {
         entityId: saved.id,
         after: saved.toSnapshot(),
       });
+      await this.outboxWriter.write(CatalogEventFactory.menuItemCreated(saved));
 
       return saved;
     });

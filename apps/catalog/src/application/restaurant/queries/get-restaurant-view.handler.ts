@@ -3,23 +3,32 @@ import {
   type ReadRestaurantRepository,
 } from '@catalog/domain/read-model/read-restaurant.repository';
 import type { Restaurant } from '@catalog/domain/restaurant/restaurant';
-import type { PaginatedResult, Pagination } from '@catalog/domain/shared/pagination';
+import { EntityNotFoundError } from '@catalog/domain/shared/errors';
 import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable } from '@nestjs/common';
 
-/** Served from the CQRS read model — eventually consistent with writes via the projection. */
+/**
+ * Serves `GET /restaurants/:id` from the CQRS read model (eventually consistent
+ * with writes). Distinct from `GetRestaurantHandler`, which stays on the write
+ * model because command handlers depend on it for strongly-consistent
+ * parent-existence checks.
+ */
 @Injectable()
-export class ListRestaurantsHandler {
+export class GetRestaurantViewHandler {
   constructor(
     @Inject(READ_RESTAURANT_REPOSITORY)
     private readonly readRestaurantRepository: ReadRestaurantRepository,
     @Inject(TENANT_CONTEXT_PORT) private readonly tenantContext: TenantContextPort,
   ) {}
 
-  async execute(pagination: Pagination): Promise<PaginatedResult<Restaurant>> {
+  async execute(id: string): Promise<Restaurant> {
     const tenantId = this.tenantContext.getTenantIdOrThrow();
-    const { data, total } = await this.readRestaurantRepository.findAndCount(tenantId, pagination);
+    const restaurant = await this.readRestaurantRepository.findById(id, tenantId);
 
-    return { data, total, page: pagination.page, limit: pagination.limit };
+    if (!restaurant) {
+      throw new EntityNotFoundError('Restaurant', id);
+    }
+
+    return restaurant;
   }
 }

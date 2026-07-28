@@ -1,10 +1,22 @@
 import { join } from 'node:path';
 import { AuditLogOrmEntity } from '@catalog/infrastructure/persistence/entities/audit-log.orm-entity';
 import { MenuItemOrmEntity } from '@catalog/infrastructure/persistence/entities/menu-item.orm-entity';
+import { OutboxOrmEntity } from '@catalog/infrastructure/persistence/entities/outbox.orm-entity';
+import { ProcessedEventOrmEntity } from '@catalog/infrastructure/persistence/entities/processed-event.orm-entity';
+import { ReadMenuItemOrmEntity } from '@catalog/infrastructure/persistence/entities/read-menu-item.orm-entity';
+import { ReadRestaurantOrmEntity } from '@catalog/infrastructure/persistence/entities/read-restaurant.orm-entity';
 import { RestaurantOrmEntity } from '@catalog/infrastructure/persistence/entities/restaurant.orm-entity';
 import type { DataSourceOptions } from 'typeorm';
 
-export const catalogOrmEntities = [RestaurantOrmEntity, MenuItemOrmEntity, AuditLogOrmEntity];
+export const catalogOrmEntities = [
+  RestaurantOrmEntity,
+  MenuItemOrmEntity,
+  AuditLogOrmEntity,
+  OutboxOrmEntity,
+  ProcessedEventOrmEntity,
+  ReadRestaurantOrmEntity,
+  ReadMenuItemOrmEntity,
+];
 
 export interface CatalogDbEnv {
   DB_HOST: string;
