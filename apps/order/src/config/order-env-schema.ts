@@ -13,6 +13,10 @@ export const orderEnvSchema = baseEnvSchema.extend({
   PORT: z.coerce.number().int().positive().default(3003),
   /** gRPC endpoint of the catalog service (internal only — never exposed via Nginx). */
   CATALOG_GRPC_URL: z.string().min(1).default('0.0.0.0:50051'),
-  /** gRPC endpoint of the inventory service (internal only — never exposed via Nginx). */
+  /** gRPC endpoint of the inventory service (used by the manual cancel/release path). */
   INVENTORY_GRPC_URL: z.string().min(1).default('0.0.0.0:50052'),
+  /** Kafka brokers for the saga producer (outbox relay) + reply consumers. */
+  KAFKA_BROKERS: z.string().min(1).default('localhost:9092'),
+  /** Kafka client id — shows up in broker logs/metrics. */
+  KAFKA_CLIENT_ID: z.string().min(1).default('order'),
 });

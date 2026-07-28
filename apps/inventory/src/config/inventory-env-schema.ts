@@ -13,4 +13,8 @@ export const inventoryEnvSchema = baseEnvSchema.extend({
   REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
   /** gRPC bind address (internal only — never exposed via Nginx). */
   INVENTORY_GRPC_URL: z.string().min(1).default('0.0.0.0:50052'),
+  /** Kafka brokers for the command consumer + reply outbox relay. */
+  KAFKA_BROKERS: z.string().min(1).default('localhost:9092'),
+  /** Kafka client id — shows up in broker logs/metrics. */
+  KAFKA_CLIENT_ID: z.string().min(1).default('inventory'),
 });

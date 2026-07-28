@@ -5,8 +5,8 @@ Report: [researcher-260728-phase-03-event-driven-stack.md](./reports/researcher-
 
 ## Overview
 - **Priority**: P0
-- **Status**: Not started
-- **Branch (example)**: `feat/order-saga-events`
+- **Status**: Code complete — branch `feat/order-saga-events` off develop (3a #10 + 3b #11 merged). Builds + unit tests + biome/cruiser/knip green; saga e2e specs written (compose-based, run by orchestrator).
+- **Branch**: `feat/order-saga-events`
 - **Brief**: Replace P2's inline synchronous reserve/charge with an **orchestrated Saga** in `order`, driven by Kafka command/reply events, reliable via a **polling outbox** (contrast to 3b's Debezium relay). Place-order becomes async: persist `PENDING` + saga `STARTED` + first command in one tx, return immediately. Inventory gains a **messaging interface** (consume `inventory.commands`, emit replies) reusing its already-idempotent reserve/release. New `apps/payment` STUB consumes `payment.commands`, emits deterministic ok/fail replies.
 
 ## Key insights / decisions
@@ -79,16 +79,16 @@ Every saga transition is **optimistic-locked** (`order_saga.version`) and **idem
 10. Update plan todos/status BEFORE push.
 
 ## Todo
-- [ ] order migrations (order_outbox, order_saga, processed_events)
-- [ ] order saga domain model + repo (optimistic lock)
-- [ ] PlaceOrder rewritten to async (persist PENDING+saga+outbox in one tx); inline gRPC reserve removed
-- [ ] order OutboxRelay + MessagingModule wired
-- [ ] order reply consumers → idempotent saga transitions + next-command emission
-- [ ] inventory messaging command consumer + outbox reply (reuses Reserve/Release)
-- [ ] payment STUB app (consumer + deterministic charge + outbox reply)
-- [ ] compose: payment service + broker env; gateway async contract + OpenAPI
-- [ ] happy-path + concurrency e2e green
-- [ ] biome/cruiser/knip clean; plan updated before push
+- [x] order migrations (order_outbox, order_saga, processed_events) — single migration `create-order-saga-and-outbox`
+- [x] order saga domain model + repo (optimistic lock)
+- [x] PlaceOrder rewritten to async (persist PENDING+saga+outbox in one tx); inline gRPC reserve removed from place path (inventory gRPC kept for manual cancel/release)
+- [x] order OutboxRelay + MessagingModule wired (relay-start provider bootstraps topics + relay)
+- [x] order reply consumers → idempotent saga transitions + next-command emission
+- [x] inventory messaging command consumer + outbox reply (reuses Reserve/Release)
+- [x] payment STUB app (consumer + deterministic charge + outbox reply)
+- [x] payment added to dev/db:migrate scripts + db-init + env; gateway async contract + OpenAPI documented (no app container per host-process convention)
+- [~] happy-path + concurrency e2e — spec files written (compose-based `order-saga-happy-path` + async testcontainer variants); NOT run here (orchestrator runs compose+testcontainers)
+- [x] biome/cruiser/knip clean; unit tests green (order 51 / inventory 14 / payment 6); builds pass; plan updated before push
 
 ## Success criteria
 - Place order returns PENDING; polls to CONFIRMED via events; no inline gRPC reserve in the path.

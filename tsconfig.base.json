@@ -30,7 +30,8 @@
       "@catalog/*": ["apps/catalog/src/*"],
       "@gateway/*": ["apps/gateway/src/*"],
       "@inventory/*": ["apps/inventory/src/*"],
-      "@order/*": ["apps/order/src/*"]
+      "@order/*": ["apps/order/src/*"],
+      "@payment/*": ["apps/payment/src/*"]
     }
   },
   "exclude": ["node_modules", "tmp"]

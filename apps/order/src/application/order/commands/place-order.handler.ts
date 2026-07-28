@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import { reserveStockCommand } from '@order/application/saga/saga-commands';
 import {
   IDEMPOTENCY_REPOSITORY,
   type IdempotencyRepository,
@@ -7,20 +8,21 @@ import {
 import { Order } from '@order/domain/order/order';
 import { ORDER_REPOSITORY, type OrderRepository } from '@order/domain/order/order.repository';
 import { OrderItem } from '@order/domain/order/order-item';
+import { OrderSaga } from '@order/domain/saga/order-saga';
+import {
+  ORDER_SAGA_REPOSITORY,
+  type OrderSagaRepository,
+} from '@order/domain/saga/order-saga.repository';
 import {
   CATALOG_GATEWAY_PORT,
   type CatalogGatewayPort,
 } from '@order/domain/shared/catalog-gateway.port';
 import {
   IdempotencyConflictError,
-  InsufficientStockError,
   InvalidOrderRequestError,
   MenuValidationError,
 } from '@order/domain/shared/errors';
-import {
-  INVENTORY_GATEWAY_PORT,
-  type InventoryGatewayPort,
-} from '@order/domain/shared/inventory-gateway.port';
+import { OUTBOX_WRITER, type OutboxWriter } from '@order/domain/shared/outbox.port';
 import { TRANSACTION_PORT, type TransactionPort } from '@order/domain/shared/transaction.port';
 
 interface PlaceOrderItemInput {
@@ -58,37 +60,39 @@ function assertValidCommand(command: PlaceOrderCommand): void {
 }
 
 /**
- * Places an order as a synchronous saga over gRPC. Correctness hinges on making
- * the order durable BEFORE any external effect: the idempotency-key claim and a
- * PENDING order row are written in ONE transaction, then stock is reserved and
- * the order transitioned to RESERVED (or CANCELLED). Because the order row
- * always exists once the key is claimed, a retry after any failure re-drives the
- * saga — inventory.reserve is idempotent by orderId — instead of wedging on a
- * claimed-but-orderless key or stranding a reserved hold. This inline coupling
- * is deliberate for this slice; P3 replaces it with a Kafka saga + outbox.
+ * Places an order as an ASYNCHRONOUS saga. Menu validation stays a synchronous
+ * catalog query (never trusts client prices), but reserve/charge no longer run
+ * inline: in ONE transaction we claim the idempotency key, insert the PENDING
+ * order, open its saga (STARTED), and append the first `ReserveStock` command to
+ * the outbox. A polling relay publishes that command to Kafka; inventory and
+ * payment replies drive the saga forward on later ticks. The caller gets the
+ * PENDING order back immediately and polls `GET /orders/:id` for the terminal
+ * state. Because everything commits together, a lost response just replays to
+ * the same durable order — the saga, not this call, owns progression.
  */
 @Injectable()
 export class PlaceOrderHandler {
   constructor(
     @Inject(ORDER_REPOSITORY) private readonly orderRepository: OrderRepository,
     @Inject(IDEMPOTENCY_REPOSITORY) private readonly idempotencyRepository: IdempotencyRepository,
+    @Inject(ORDER_SAGA_REPOSITORY) private readonly sagaRepository: OrderSagaRepository,
     @Inject(CATALOG_GATEWAY_PORT) private readonly catalogGateway: CatalogGatewayPort,
-    @Inject(INVENTORY_GATEWAY_PORT) private readonly inventoryGateway: InventoryGatewayPort,
+    @Inject(OUTBOX_WRITER) private readonly outbox: OutboxWriter,
     @Inject(TRANSACTION_PORT) private readonly transaction: TransactionPort,
   ) {}
 
   async execute(command: PlaceOrderCommand): Promise<Order> {
     assertValidCommand(command);
 
-    // 1. Replay: an existing key maps to a durable order — resume it (re-driving
-    //    a still-PENDING one) rather than starting over.
+    // 1. Replay: an existing key maps to a durable order whose saga is already
+    //    in flight — return it as-is rather than starting a second saga.
     const existingOrderId = await this.idempotencyRepository.findOrderId(
       command.tenantId,
       command.userId,
       command.idempotencyKey,
     );
     if (existingOrderId) {
-      return this.resumeExisting(command.tenantId, existingOrderId, command.idempotencyKey);
+      return this.loadExisting(command.tenantId, existingOrderId, command.idempotencyKey);
     }
 
     // 2. Validate menu against the catalog — price/availability are never trusted from the client.
@@ -101,25 +105,32 @@ export class PlaceOrderHandler {
       items: orderItems,
     });
 
-    // 3. Durably record intent: claim the key AND insert the PENDING order in ONE
-    //    transaction, so a later failure can never leave a claimed key without a
-    //    recoverable order row. Keep the persisted order — it carries the DB's
-    //    authoritative version the optimistic-lock transition needs.
-    let persistedOrder: Order;
+    // 3. Durably record intent + start the saga atomically: claim the key, insert
+    //    the PENDING order, open the STARTED saga, and enqueue the ReserveStock
+    //    command — all in ONE transaction so the relay can never publish a
+    //    command for an order that failed to persist.
     try {
-      persistedOrder = await this.transaction.runInTransaction(async () => {
+      return await this.transaction.runInTransaction(async () => {
         await this.idempotencyRepository.save(
           command.tenantId,
           command.userId,
           command.idempotencyKey,
           orderId,
         );
-        return this.orderRepository.insert(pendingOrder);
+        const persistedOrder = await this.orderRepository.insert(pendingOrder);
+        await this.sagaRepository.insert(OrderSaga.start({ orderId, tenantId: command.tenantId }));
+        await this.outbox.append(
+          reserveStockCommand(
+            orderId,
+            persistedOrder.items.map((item) => ({ itemId: item.itemId, qty: item.qty })),
+          ),
+        );
+        return persistedOrder;
       });
     } catch (error) {
       if (isUniqueViolation(error)) {
         // A concurrent request won the key; its order committed atomically with
-        // the claim, so resume that one.
+        // the claim, so return that one.
         return this.resolveConcurrentClaim(
           command.tenantId,
           command.userId,
@@ -128,12 +139,9 @@ export class PlaceOrderHandler {
       }
       throw error;
     }
-
-    // 4. Drive the reservation. Idempotent by orderId, so a retry re-drives safely.
-    return this.driveReservation(persistedOrder);
   }
 
-  private async resumeExisting(
+  private async loadExisting(
     tenantId: string,
     orderId: string,
     idempotencyKey: string,
@@ -146,7 +154,7 @@ export class PlaceOrderHandler {
         `order for key "${idempotencyKey}" is being created — retry shortly`,
       );
     }
-    return order.status === 'PENDING' ? this.driveReservation(order) : order;
+    return order;
   }
 
   private async resolveConcurrentClaim(
@@ -160,7 +168,7 @@ export class PlaceOrderHandler {
       idempotencyKey,
     );
     if (winningOrderId) {
-      return this.resumeExisting(tenantId, winningOrderId, idempotencyKey);
+      return this.loadExisting(tenantId, winningOrderId, idempotencyKey);
     }
     throw new IdempotencyConflictError(
       `order for key "${idempotencyKey}" is being created — retry shortly`,
@@ -186,23 +194,5 @@ export class PlaceOrderHandler {
         unitPriceCents: menuItem.priceCents,
       });
     });
-  }
-
-  /**
-   * Reserve stock for a PENDING order, then transition it. Safe to call again on
-   * a retry: inventory.reserve is idempotent by orderId, and the optimistic-lock
-   * transition either wins or 409s a concurrent driver (which then resumes).
-   */
-  private async driveReservation(order: Order): Promise<Order> {
-    const reserveResult = await this.inventoryGateway.reserve(
-      order.tenantId,
-      order.id,
-      order.items.map((item) => ({ itemId: item.itemId, qty: item.qty })),
-    );
-    if (!reserveResult.ok) {
-      await this.orderRepository.updateStatus(order.cancel());
-      throw new InsufficientStockError(order.id);
-    }
-    return this.orderRepository.updateStatus(order.reserve());
   }
 }

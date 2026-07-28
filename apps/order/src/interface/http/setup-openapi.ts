@@ -11,7 +11,13 @@ import type { Request, Response } from 'express';
 export function setupOpenApi(app: INestApplication): void {
   const config = new DocumentBuilder()
     .setTitle('Order Service API')
-    .setDescription('Order placement lifecycle for the food-delivery platform.')
+    .setDescription(
+      'Order placement lifecycle for the food-delivery platform. Placement is ' +
+        'ASYNCHRONOUS: `POST /orders` returns a `PENDING` order immediately while a ' +
+        'Kafka-driven saga reserves stock and charges payment in the background. ' +
+        'Clients poll `GET /orders/:id` until the status settles to `CONFIRMED` or ' +
+        '`CANCELLED`.',
+    )
     .setVersion('1.0')
     .addBearerAuth()
     .build();

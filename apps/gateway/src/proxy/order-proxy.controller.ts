@@ -16,6 +16,12 @@ const GATEWAY_ORDER_PREFIX = '/api/v1';
  * JwtAuthGuard) and is relayed to the order service with the verified
  * identity attached as trusted headers; ownership of a given order is
  * enforced by the order service itself (owner or admin), not here.
+ *
+ * Placement is ASYNCHRONOUS: `POST /orders` returns a `PENDING` order while a
+ * Kafka saga reserves stock + charges payment in the background; clients poll
+ * `GET /orders/:id` for the terminal `CONFIRMED`/`CANCELLED` state. The proxy is
+ * a transparent passthrough — this contract is documented in the order service's
+ * own OpenAPI (served at its `/api/v1/reference`).
  */
 @Controller('orders')
 export class OrderProxyController {

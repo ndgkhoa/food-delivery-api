@@ -12,6 +12,7 @@ import {
   ParseUUIDPipe,
   Post,
 } from '@nestjs/common';
+import { ApiOperation } from '@nestjs/swagger';
 import { CancelOrderHandler } from '@order/application/order/commands/cancel-order.handler';
 import { ConfirmOrderHandler } from '@order/application/order/commands/confirm-order.handler';
 import { PlaceOrderHandler } from '@order/application/order/commands/place-order.handler';
@@ -33,6 +34,14 @@ export class OrdersController {
   ) {}
 
   @Post()
+  @ApiOperation({
+    summary: 'Place an order (asynchronous)',
+    description:
+      'Validates the menu, then persists a PENDING order and starts a Kafka saga ' +
+      '(reserve stock → charge payment) in one transaction. Returns the PENDING ' +
+      'order immediately; poll GET /orders/:id until CONFIRMED or CANCELLED. ' +
+      'Requires an `Idempotency-Key` header so retries replay the same order.',
+  })
   async place(
     @Body() dto: PlaceOrderRequest,
     @Headers(IDEMPOTENCY_KEY_HEADER) idempotencyKey?: string,

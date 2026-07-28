@@ -1,5 +1,6 @@
 import { CreateInventoryTables1753747200000 } from '@inventory/infrastructure/persistence/migrations/1753747200000-create-inventory-tables';
 import { AddActiveReservationUniqueIndex1753747300000 } from '@inventory/infrastructure/persistence/migrations/1753747300000-add-active-reservation-unique-index';
+import { CreateInventoryOutbox1753747600000 } from '@inventory/infrastructure/persistence/migrations/1753747600000-create-inventory-outbox';
 import { inventoryOrmEntities } from '@inventory/infrastructure/persistence/typeorm-options';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
@@ -27,7 +28,11 @@ export async function startInventoryTestDatabase(): Promise<InventoryTestDatabas
     password: container.getPassword(),
     database: container.getDatabase(),
     entities: inventoryOrmEntities,
-    migrations: [CreateInventoryTables1753747200000, AddActiveReservationUniqueIndex1753747300000],
+    migrations: [
+      CreateInventoryTables1753747200000,
+      AddActiveReservationUniqueIndex1753747300000,
+      CreateInventoryOutbox1753747600000,
+    ],
     synchronize: false,
     logging: false,
   });
@@ -47,5 +52,7 @@ export async function stopInventoryTestDatabase({
 }
 
 export async function truncateInventoryTables(dataSource: DataSource): Promise<void> {
-  await dataSource.query('TRUNCATE TABLE "reservations", "stock" RESTART IDENTITY CASCADE');
+  await dataSource.query(
+    'TRUNCATE TABLE "processed_events", "inventory_outbox", "reservations", "stock" RESTART IDENTITY CASCADE',
+  );
 }

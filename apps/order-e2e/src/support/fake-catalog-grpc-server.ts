@@ -42,7 +42,10 @@ export async function startFakeCatalogGrpcServer(): Promise<FakeCatalogGrpcServe
     catalog: { CatalogService: { service: ServiceDefinition } };
   };
 
-  const server = new Server();
+  // Raise the HTTP/2 stream ceiling: the concurrency e2e fires ~100 validate
+  // calls at once over the single client channel, and grpc-js's default
+  // per-connection stream cap would reset the excess ("read ECONNRESET").
+  const server = new Server({ 'grpc.max_concurrent_streams': 1000 });
   server.addService(proto.catalog.CatalogService.service, {
     getMenuItems: (
       call: ServerUnaryCall<GetMenuItemsRequest, MenuItemsResponse>,
