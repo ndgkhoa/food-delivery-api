@@ -35,6 +35,7 @@
     "docker:core:down": "docker compose --env-file .env -f infra/docker-compose.yml --profile core down"
   },
   "dependencies": {
+    "@confluentinc/kafka-javascript": "1.10.0",
     "@grpc/grpc-js": "^1.14.4",
     "@grpc/proto-loader": "^0.8.1",
     "@nestjs/common": "^11.1.28",
@@ -72,6 +73,7 @@
     "@nx/webpack": "23.1.0",
     "@nx/workspace": "23.1.0",
     "@swc/helpers": "~0.5.18",
+    "@testcontainers/kafka": "12.0.4",
     "@testcontainers/postgresql": "^12.0.4",
     "@types/express": "^5.0.0",
     "@types/jest": "~30.0.0",

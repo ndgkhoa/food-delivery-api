@@ -110,6 +110,43 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
 
+  # Event backbone. Enable with the `messaging` profile alongside `core`:
+  #   docker compose -f infra/docker-compose.yml --profile core --profile messaging up -d
+  # Single-broker KRaft (no separate ZooKeeper) — dev/e2e only. `libs/shared/messaging`
+  # bootstraps topics idempotently on service start; nothing here pre-creates topics.
+  kafka:
+    image: apache/kafka:4.3.1
+    container_name: food-delivery-kafka
+    profiles: [messaging]
+    restart: unless-stopped
+    ports:
+      - '${KAFKA_PORT:-9092}:9092'
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093'
+      # Dual client listener: HOST (advertised as localhost) so host processes —
+      # the services run via `pnpm dev` — and e2e reach the broker on the 9092
+      # mapping; INTERNAL (advertised by container name) for in-network clients
+      # like Kafka Connect/Debezium added in 3b.
+      KAFKA_LISTENERS: 'CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:9094,HOST://0.0.0.0:9092'
+      KAFKA_ADVERTISED_LISTENERS: 'INTERNAL://kafka:9094,HOST://localhost:9092'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,HOST:PLAINTEXT'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'INTERNAL'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_HEAP_OPTS: '-Xmx512m -Xms512m'
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qg'
+    healthcheck:
+      test: ['CMD-SHELL', '/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
 volumes:
   postgres-data:
   redis-data:
