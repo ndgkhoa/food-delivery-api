@@ -21,7 +21,7 @@ See [architecture.md](./architecture.md) for the layering diagram, 13-service ma
 |---|-------|---------------------|--------|
 | 0 | [Foundation — monorepo + catalog](./phase-00-foundation-monorepo-catalog.md) | Catalog CRUD (hexagonal) over HTTP | ✅ Done (PR #1) — gateway/Nginx/OpenAPI moved to P1 |
 | 1 | [Auth & Gateway hardening](./phase-01-auth-gateway-hardening.md) | Login (Keycloak) → JWT-guarded catalog | ✅ Done (PR #2–#5) |
-| 2 | [Order core + Inventory](./phase-02-order-core-inventory.md) | Place order → reserve stock (gRPC) | 🔨 In progress |
+| 2 | [Order core + Inventory](./phase-02-order-core-inventory.md) | Place order → reserve stock (gRPC) | ✅ Done (PR #6–#7) |
 | 3 | [Event-driven backbone](./phase-03-event-driven-backbone.md) | Order Saga via Kafka + Outbox + CDC; catalog CQRS read model | Not started |
 | 4 | [Search & Real-time & Media](./phase-04-search-realtime-media.md) | Search restaurants (ES), live driver location (WS), image upload (MinIO) | Not started |
 | 5 | [Payment workflow & resilience](./phase-05-payment-resilience-notification.md) | Pay order (Temporal) → notification (email/SMS) | Not started |

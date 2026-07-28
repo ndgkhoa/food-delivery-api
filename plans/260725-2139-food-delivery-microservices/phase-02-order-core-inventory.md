@@ -4,7 +4,7 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 
 ## Overview
 - **Priority**: P0
-- **Status**: 🔨 In progress
+- **Status**: ✅ Done — Slice 2a (PR #6) + Slice 2b (PR #7) merged to develop. Order placement verified end-to-end through the gateway.
 - **Slicing**: **2a** — gRPC contracts (`.proto` in `shared/contracts`) + `inventory` service (stock/reservations, reserve/release with Redis lock + tx, gRPC server) + catalog gRPC server (GetMenuItems) + `shared/locking`. **2b** — `order` service (state machine, create-order flow over gRPC, idempotency, optimistic lock) + gRPC identity/tenant/correlation metadata propagation + place/cancel/concurrency/idempotency e2e.
 - **Brief**: Build the order lifecycle as an explicit state machine with idempotency, optimistic + distributed locking. Split stock into `inventory` service. Introduce gRPC for east-west calls (order↔catalog↔inventory). Still synchronous — no Kafka. This exposes WHY events are needed (P3).
 
