@@ -19,6 +19,12 @@ export const gatewayEnvSchema = baseEnvSchema
     /** Base URL of the search service the gateway forwards `/api/v1/search/*` to. */
     SEARCH_SERVICE_URL: z.string().url().default('http://localhost:3004'),
     /**
+     * Base URL of the delivery service the gateway forwards `/api/v1/delivery/*`
+     * to (HTTP reads only). Live driver location is WebSocket — clients connect
+     * DIRECT to the delivery service (Nginx WS-upgrade is a later infra step).
+     */
+    DELIVERY_SERVICE_URL: z.string().url().default('http://localhost:3005'),
+    /**
      * Keycloak base URL + realm. The issuer (`<url>/realms/<realm>`) and JWKS
      * endpoint are derived from these, so both stay in lockstep and only the
      * host has to change between environments.

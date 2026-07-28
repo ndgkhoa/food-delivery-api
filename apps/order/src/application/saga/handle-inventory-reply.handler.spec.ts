@@ -15,6 +15,7 @@ import {
   FakeSagaRepository,
   FakeTransaction,
   TENANT_ID,
+  USER_ID,
 } from './saga-reply-test-doubles';
 
 function buildHandler() {
@@ -71,7 +72,7 @@ describe('HandleInventoryReplyHandler', () => {
     expect(outbox.entries[0].correlationId).toBe(DEFAULT_CORRELATION_ID);
   });
 
-  it('on StockReservationFailed: cancels the order and the saga, emits no further command', async () => {
+  it('on StockReservationFailed: cancels the order and the saga, emits OrderCancelled (no further command)', async () => {
     const { sagaRepo, orderRepo, outbox, handler } = buildHandler();
     const orderId = randomUUID();
     seedStarted(sagaRepo, orderRepo, orderId);
@@ -83,7 +84,13 @@ describe('HandleInventoryReplyHandler', () => {
 
     expect(orderRepo.rows.get(orderId)?.status).toBe('CANCELLED');
     expect(sagaRepo.rows.get(orderId)?.state).toBe('CANCELLED');
-    expect(outbox.entries).toHaveLength(0);
+    // The only outbox row is the lifecycle event — no compensating command from here.
+    expect(outbox.entries).toHaveLength(1);
+    expect(outbox.entries[0]).toMatchObject({
+      topic: 'order.events',
+      eventType: 'OrderCancelled',
+      payload: { orderId, userId: USER_ID, status: 'CANCELLED', totalCents: 1000 },
+    });
   });
 
   it('is a no-op on a re-delivered reply (same event id) — no double transition', async () => {

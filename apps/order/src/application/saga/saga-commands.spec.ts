@@ -1,6 +1,9 @@
 import {
   chargePaymentCommand,
   INVENTORY_COMMANDS_TOPIC,
+  ORDER_EVENTS_TOPIC,
+  orderCancelledEvent,
+  orderConfirmedEvent,
   PAYMENT_COMMANDS_TOPIC,
   releaseStockCommand,
   reserveStockCommand,
@@ -37,6 +40,28 @@ describe('saga command factories', () => {
       topic: PAYMENT_COMMANDS_TOPIC,
       eventType: 'ChargePayment',
       payload: { orderId, totalCents: 1000 },
+      correlationId,
+    });
+  });
+
+  it('orderConfirmedEvent targets order.events with the CONFIRMED lifecycle payload', () => {
+    const userId = '77777777-7777-4777-8777-777777777777';
+    expect(orderConfirmedEvent(orderId, userId, 1000, correlationId)).toEqual({
+      aggregateId: orderId,
+      topic: ORDER_EVENTS_TOPIC,
+      eventType: 'OrderConfirmed',
+      payload: { orderId, userId, status: 'CONFIRMED', totalCents: 1000 },
+      correlationId,
+    });
+  });
+
+  it('orderCancelledEvent targets order.events with the CANCELLED lifecycle payload', () => {
+    const userId = '77777777-7777-4777-8777-777777777777';
+    expect(orderCancelledEvent(orderId, userId, 1000, correlationId)).toEqual({
+      aggregateId: orderId,
+      topic: ORDER_EVENTS_TOPIC,
+      eventType: 'OrderCancelled',
+      payload: { orderId, userId, status: 'CANCELLED', totalCents: 1000 },
       correlationId,
     });
   });

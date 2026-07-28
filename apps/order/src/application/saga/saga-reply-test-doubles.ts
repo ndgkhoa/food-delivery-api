@@ -16,7 +16,7 @@ import type { OutboxCommandEntry, OutboxWriter } from '@order/domain/shared/outb
 import type { TransactionPort } from '@order/domain/shared/transaction.port';
 
 export const TENANT_ID = '11111111-1111-4111-8111-111111111111';
-const USER_ID = '22222222-2222-4222-8222-222222222222';
+export const USER_ID = '22222222-2222-4222-8222-222222222222';
 const ITEM_ID = '33333333-3333-4333-8333-333333333333';
 
 /** Builds an order advanced to the given status via its own state machine. */

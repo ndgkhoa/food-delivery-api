@@ -5,7 +5,7 @@ import {
   type ProcessedEventStorePort,
 } from '@food-delivery-api/shared-messaging';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { releaseStockCommand } from '@order/application/saga/saga-commands';
+import { orderConfirmedEvent, releaseStockCommand } from '@order/application/saga/saga-commands';
 import { ORDER_REPOSITORY, type OrderRepository } from '@order/domain/order/order.repository';
 import {
   ORDER_SAGA_REPOSITORY,
@@ -70,6 +70,11 @@ export class HandlePaymentReplyHandler {
         const order = await this.loadOrder(tenantId, orderId);
         await this.orderRepository.updateStatus(order.confirm());
         await this.sagaRepository.transition(saga.transition('COMPLETED', eventId));
+        // Publish the order's lifecycle event atomically with the transition so
+        // downstream contexts (delivery assignment) learn the order is CONFIRMED.
+        await this.outbox.append(
+          orderConfirmedEvent(orderId, order.userId, order.totalCents, envelope.correlationId),
+        );
         return;
       }
       case PAYMENT_FAILED: {

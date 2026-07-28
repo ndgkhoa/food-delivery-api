@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '@gateway/guards/jwt-auth.guard';
 import { HealthController } from '@gateway/health/health.controller';
 import { AuthProxyController } from '@gateway/proxy/auth-proxy.controller';
 import { CatalogProxyController } from '@gateway/proxy/catalog-proxy.controller';
+import { DeliveryProxyController } from '@gateway/proxy/delivery-proxy.controller';
 import { HttpForwarder } from '@gateway/proxy/http-forwarder';
 import { OrderProxyController } from '@gateway/proxy/order-proxy.controller';
 import { SearchProxyController } from '@gateway/proxy/search-proxy.controller';
@@ -46,15 +47,17 @@ import { APP_GUARD } from '@nestjs/core';
   // Session controller first: its specific `/auth/token|refresh|logout` routes
   // must be matched before AuthProxyController's `@All('*path')` catch-all.
   // HealthController owns a distinct `/health` path so its order is immaterial.
-  // CatalogProxyController/OrderProxyController/SearchProxyController own their
-  // own distinct prefixes (`catalog`/`orders`/`search`) but are still registered
-  // ahead of AuthProxyController's catch-all for consistency with that constraint.
+  // CatalogProxyController/OrderProxyController/SearchProxyController/
+  // DeliveryProxyController own their own distinct prefixes
+  // (`catalog`/`orders`/`search`/`delivery`) but are still registered ahead of
+  // AuthProxyController's catch-all for consistency with that constraint.
   controllers: [
     HealthController,
     KeycloakSessionController,
     CatalogProxyController,
     OrderProxyController,
     SearchProxyController,
+    DeliveryProxyController,
     AuthProxyController,
   ],
   providers: [

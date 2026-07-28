@@ -5,8 +5,10 @@ import {
   type ProcessedEventStorePort,
 } from '@food-delivery-api/shared-messaging';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { chargePaymentCommand } from '@order/application/saga/saga-commands';
+import { chargePaymentCommand, orderCancelledEvent } from '@order/application/saga/saga-commands';
+import type { Order } from '@order/domain/order/order';
 import { ORDER_REPOSITORY, type OrderRepository } from '@order/domain/order/order.repository';
+import type { OrderSaga } from '@order/domain/saga/order-saga';
 import {
   ORDER_SAGA_REPOSITORY,
   type OrderSagaRepository,
@@ -83,8 +85,7 @@ export class HandleInventoryReplyHandler {
           return;
         }
         const order = await this.loadOrder(tenantId, orderId);
-        await this.orderRepository.updateStatus(order.cancel());
-        await this.sagaRepository.transition(saga.transition('CANCELLED', eventId));
+        await this.cancelOrder(order, saga, eventId, envelope.correlationId);
         return;
       }
       case STOCK_RELEASED: {
@@ -93,8 +94,7 @@ export class HandleInventoryReplyHandler {
           return;
         }
         const order = await this.loadOrder(tenantId, orderId);
-        await this.orderRepository.updateStatus(order.cancel());
-        await this.sagaRepository.transition(saga.transition('CANCELLED', eventId));
+        await this.cancelOrder(order, saga, eventId, envelope.correlationId);
         return;
       }
       default:
@@ -103,6 +103,24 @@ export class HandleInventoryReplyHandler {
         );
         return;
     }
+  }
+
+  /**
+   * Cancels the order + saga and emits the `OrderCancelled` lifecycle event in
+   * the same transaction — shared by both cancel legs (reservation failed / stock
+   * released) so the emission can never diverge from the transition.
+   */
+  private async cancelOrder(
+    order: Order,
+    saga: OrderSaga,
+    eventId: string,
+    correlationId: string,
+  ): Promise<void> {
+    await this.orderRepository.updateStatus(order.cancel());
+    await this.sagaRepository.transition(saga.transition('CANCELLED', eventId));
+    await this.outbox.append(
+      orderCancelledEvent(order.id, order.userId, order.totalCents, correlationId),
+    );
   }
 
   private async loadOrder(tenantId: string, orderId: string) {
