@@ -17,4 +17,6 @@ auth:bearer {
   token: {{token}}
 }
 
-docs { RESERVED -> CONFIRMED. Owner (or admin). Optimistic-lock conflict -> 409. }
+docs {
+  RESERVED to CONFIRMED. Owner or admin. Optimistic-lock conflict returns 409.
+}
