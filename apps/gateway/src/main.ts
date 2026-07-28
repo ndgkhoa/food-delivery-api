@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { correlationIdMiddleware } from '@food-delivery-api/shared-logging';
 import { AppModule } from '@gateway/app.module';
+import { setupAggregatedReference } from '@gateway/reference/setup-aggregated-reference';
 import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -28,9 +29,12 @@ async function bootstrap() {
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );
 
+  setupAggregatedReference(app);
+
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
   Logger.log(`gateway listening on http://localhost:${port}/api/v1`, 'Bootstrap');
+  Logger.log(`aggregated API reference at http://localhost:${port}/api/v1/reference`, 'Bootstrap');
 }
 
 bootstrap();

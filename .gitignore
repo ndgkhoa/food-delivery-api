@@ -32,10 +32,6 @@ logs/
 docker-data/
 *.local
 
-# Local self-signed TLS certs for the Nginx edge (never commit private keys)
-infra/nginx/certs/*
-!infra/nginx/certs/.gitkeep
-
 # Editor / OS
 .DS_Store
 .idea/

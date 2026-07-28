@@ -1,0 +1,29 @@
+meta {
+  name: Session refresh (gateway)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{gateway}}/auth/refresh
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "refreshToken": "{{refreshToken}}"
+  }
+}
+
+script:post-response {
+  if (res.body && res.body.access_token) {
+    bru.setEnvVar("token", res.body.access_token);
+    bru.setEnvVar("refreshToken", res.body.refresh_token);
+  }
+}
+
+docs {
+  Rotates the refresh token via the gateway session proxy (Keycloak under the
+  hood). Run a Login first so refreshToken is set.
+}

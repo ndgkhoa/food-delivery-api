@@ -1,0 +1,29 @@
+meta {
+  name: Login (customer)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{keycloak}}/realms/{{realm}}/protocol/openid-connect/token
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  grant_type: password
+  client_id: {{client}}
+  username: customer-user
+  password: customer-pass
+}
+
+script:post-response {
+  if (res.body && res.body.access_token) {
+    bru.setEnvVar("token", res.body.access_token);
+    bru.setEnvVar("refreshToken", res.body.refresh_token);
+  }
+}
+
+docs {
+  Seeded customer. Use for placing/reading own orders + reading the catalog.
+}

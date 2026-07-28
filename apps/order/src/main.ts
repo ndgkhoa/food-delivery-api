@@ -3,6 +3,7 @@ import { correlationIdMiddleware } from '@food-delivery-api/shared-logging';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '@order/app.module';
+import { setupOpenApi } from '@order/interface/http/setup-openapi';
 import { Logger as PinoLogger } from 'nestjs-pino';
 
 /**
@@ -26,9 +27,12 @@ async function bootstrap() {
     }),
   );
 
+  setupOpenApi(app);
+
   const port = process.env.PORT ?? 3003;
   await app.listen(port);
   Logger.log(`order listening on http://localhost:${port}/api/v1`, 'Bootstrap');
+  Logger.log(`order API reference at http://localhost:${port}/api/v1/reference`, 'Bootstrap');
 }
 
 bootstrap();

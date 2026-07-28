@@ -1,0 +1,25 @@
+meta {
+  name: Restaurant - update
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{gateway}}/catalog/restaurants/:restaurantId
+  body: json
+  auth: bearer
+}
+
+params:path {
+  restaurantId: 
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "description": "Updated description"
+  }
+}

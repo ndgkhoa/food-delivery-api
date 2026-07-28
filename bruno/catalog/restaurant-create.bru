@@ -1,0 +1,27 @@
+meta {
+  name: Restaurant - create
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{gateway}}/catalog/restaurants
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "name": "Pho 24",
+    "description": "Vietnamese noodle house"
+  }
+}
+
+docs {
+  Owner/admin only (customer -> 403). Copy the returned `id` into the
+  `restaurantId` path param of the requests below.
+}

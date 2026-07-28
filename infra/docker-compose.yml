@@ -21,6 +21,9 @@ services:
       # Postgres 18+ Docker images store data in a major-version subdirectory and
       # expect the mount at /var/lib/postgresql (NOT /var/lib/postgresql/data).
       - postgres-data:/var/lib/postgresql
+      # Creates one database per service on first init (catalog/auth/inventory/order),
+      # so no manual `createdb` is needed before running migrations.
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_NAME:-catalog}']
       interval: 5s
@@ -93,6 +96,8 @@ services:
   # TLS certs are self-signed local (git-ignored) — see infra/nginx/nginx.conf for
   # mkcert/openssl generation and the HTTP-only fallback. `host.docker.internal`
   # lets the container reach the gateway running on the host.
+  # HTTP-only reverse proxy for local dev — no TLS here (see nginx.conf). Real TLS
+  # is terminated at the ingress in the ops phase (P8), not in local compose.
   nginx:
     image: nginx:1.30-alpine
     container_name: food-delivery-nginx
@@ -100,14 +105,10 @@ services:
     restart: unless-stopped
     ports:
       - '${HTTP_PORT:-80}:80'
-      - '${HTTPS_PORT:-443}:443'
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./nginx/certs:/etc/nginx/certs:ro
     extra_hosts:
       - 'host.docker.internal:host-gateway'
-    depends_on:
-      - postgres
 
 volumes:
   postgres-data:

@@ -1,0 +1,21 @@
+meta {
+  name: Session logout (gateway)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{gateway}}/auth/logout
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "refreshToken": "{{refreshToken}}"
+  }
+}
+
+docs {
+  Revokes the refresh token / ends the Keycloak session (204).
+}

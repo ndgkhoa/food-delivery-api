@@ -9,6 +9,7 @@ import { DeleteRestaurantHandler } from '@catalog/application/restaurant/command
 import { UpdateRestaurantHandler } from '@catalog/application/restaurant/commands/update-restaurant.handler';
 import { GetRestaurantHandler } from '@catalog/application/restaurant/queries/get-restaurant.handler';
 import { ListRestaurantsHandler } from '@catalog/application/restaurant/queries/list-restaurants.handler';
+import { catalogEnvSchema } from '@catalog/config/catalog-env-schema';
 import { AuditModule } from '@catalog/infrastructure/audit/audit.module';
 import { PersistenceModule } from '@catalog/infrastructure/persistence/persistence.module';
 import { CatalogGrpcController } from '@catalog/interface/grpc/catalog.grpc.controller';
@@ -34,7 +35,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
  */
 @Module({
   imports: [
-    SharedConfigModule.forRoot(),
+    SharedConfigModule.forRoot(catalogEnvSchema),
     SharedLoggingModule.forRoot(),
     PersistenceModule,
     TenancyModule,
