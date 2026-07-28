@@ -22,6 +22,12 @@ export interface OutboxRecord {
 export interface OutboxPort {
   fetchUnpublished(limit: number): Promise<OutboxRecord[]>;
   markPublished(ids: string[]): Promise<void>;
+  /**
+   * Optionally bumps the `attempts` counter for rows whose publish just failed,
+   * so a row that never publishes (poison producer/broker) is visible for a
+   * reaper to escalate. Best-effort — a failure here is logged, not fatal.
+   */
+  incrementAttempts?(ids: string[]): Promise<void>;
 }
 
 export const OUTBOX_PORT = Symbol('OutboxPort');
@@ -93,9 +99,31 @@ export class OutboxRelay {
       headers: row.headers,
       value: row.value,
     }));
-    await this.producer.publishBatch(messages);
+    try {
+      await this.producer.publishBatch(messages);
+    } catch (error) {
+      // Record the failed publish attempt on each row before backing off, so a
+      // persistently-failing (poison) row surfaces via its climbing `attempts`.
+      await this.recordFailedAttempts(rows.map((row) => row.id));
+      throw error;
+    }
     await this.outbox.markPublished(rows.map((row) => row.id));
     return rows.length;
+  }
+
+  private async recordFailedAttempts(ids: string[]): Promise<void> {
+    if (!this.outbox.incrementAttempts) {
+      return;
+    }
+    try {
+      await this.outbox.incrementAttempts(ids);
+    } catch (error) {
+      this.logger.error(
+        `Failed to record outbox publish attempts: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   private scheduleNext(delayMs: number): void {
