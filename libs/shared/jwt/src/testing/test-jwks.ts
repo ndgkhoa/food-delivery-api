@@ -2,6 +2,8 @@ import {
   createLocalJWKSet,
   exportJWK,
   generateKeyPair,
+  importPKCS8,
+  importSPKI,
   type JWK,
   type JWTPayload,
   type KeyLike,
@@ -48,9 +50,21 @@ export async function createTestKeySet(config: {
   issuer: string;
   audience: string;
   kid?: string;
+  /**
+   * Fixed PEM key material instead of a fresh random pair. Use when several
+   * independent processes/suites must produce an IDENTICAL key set (e.g. a
+   * consumer that caches the fetched JWKS by `kid` — a per-suite random key
+   * under the same kid would fail every suite after the first).
+   */
+  keyPair?: { privateKeyPem: string; publicKeyPem: string };
 }): Promise<TestKeySet> {
   const kid = config.kid ?? 'test-key-1';
-  const { publicKey, privateKey } = await generateKeyPair('RS256');
+  const { publicKey, privateKey } = config.keyPair
+    ? {
+        publicKey: await importSPKI(config.keyPair.publicKeyPem, 'RS256'),
+        privateKey: await importPKCS8(config.keyPair.privateKeyPem, 'RS256'),
+      }
+    : await generateKeyPair('RS256');
   const publicJwk: JWK = { ...(await exportJWK(publicKey)), kid, alg: 'RS256', use: 'sig' };
   const jwks = { keys: [publicJwk] };
 

@@ -1,0 +1,39 @@
+{
+  "name": "delivery",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/delivery/src",
+  "projectType": "application",
+  "tags": ["scope:delivery", "type:app"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "webpack-cli build",
+        "env": { "NODE_ENV": "production" },
+        "cwd": "apps/delivery"
+      },
+      "configurations": {
+        "development": {
+          "env": { "NODE_ENV": "development" }
+        }
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "delivery:build",
+        "runBuildTargetDependencies": false
+      },
+      "configurations": {
+        "development": { "buildTarget": "delivery:build:development" },
+        "production": { "buildTarget": "delivery:build:production" }
+      }
+    },
+    "test": {
+      "options": { "passWithNoTests": true }
+    }
+  }
+}

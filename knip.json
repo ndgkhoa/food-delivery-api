@@ -4,6 +4,7 @@
   "paths": {
     "@auth/*": ["apps/auth/src/*"],
     "@catalog/*": ["apps/catalog/src/*"],
+    "@delivery/*": ["apps/delivery/src/*"],
     "@gateway/*": ["apps/gateway/src/*"],
     "@inventory/*": ["apps/inventory/src/*"],
     "@order/*": ["apps/order/src/*"],

@@ -15,6 +15,7 @@ import {
   FakeSagaRepository,
   FakeTransaction,
   TENANT_ID,
+  USER_ID,
 } from './saga-reply-test-doubles';
 
 function buildHandler() {
@@ -45,7 +46,7 @@ function seedStockReserved(
 }
 
 describe('HandlePaymentReplyHandler', () => {
-  it('on PaymentSucceeded: confirms the order and completes the saga', async () => {
+  it('on PaymentSucceeded: confirms the order, completes the saga, and emits OrderConfirmed', async () => {
     const { sagaRepo, orderRepo, outbox, handler } = buildHandler();
     const orderId = randomUUID();
     seedStockReserved(sagaRepo, orderRepo, orderId);
@@ -54,7 +55,14 @@ describe('HandlePaymentReplyHandler', () => {
 
     expect(orderRepo.rows.get(orderId)?.status).toBe('CONFIRMED');
     expect(sagaRepo.rows.get(orderId)?.state).toBe('COMPLETED');
-    expect(outbox.entries).toHaveLength(0);
+    // The lifecycle event rides the same transaction as the confirm transition.
+    expect(outbox.entries).toHaveLength(1);
+    expect(outbox.entries[0]).toMatchObject({
+      topic: 'order.events',
+      eventType: 'OrderConfirmed',
+      payload: { orderId, userId: USER_ID, status: 'CONFIRMED', totalCents: 1000 },
+    });
+    expect(outbox.entries[0].correlationId).toBe(DEFAULT_CORRELATION_ID);
   });
 
   it('on PaymentFailed: begins compensation (COMPENSATING + ReleaseStock), order stays RESERVED', async () => {
