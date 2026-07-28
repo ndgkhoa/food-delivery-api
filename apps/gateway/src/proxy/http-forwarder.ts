@@ -9,6 +9,8 @@ const BODYLESS_METHODS = new Set(['GET', 'HEAD']);
 const SKIP_RESPONSE_HEADERS = new Set(['content-encoding', 'content-length', 'transfer-encoding']);
 /** Bound the upstream call so a slow/hung upstream can never hang the gateway (fail closed with 504). */
 const FORWARD_TIMEOUT_MS = 10_000;
+/** Safe client headers relayed as-is to the upstream (lowercased — Express normalises header names). */
+const FORWARDED_CLIENT_HEADERS = ['idempotency-key'];
 
 /** Where a proxy route relays to: the gateway-exposed prefix + the upstream base URL. */
 export interface ForwardTarget {
@@ -44,6 +46,15 @@ export class HttpForwarder {
     const correlationId = req.headers[CORRELATION_ID_HEADER];
     if (typeof correlationId === 'string') {
       headers[CORRELATION_ID_HEADER] = correlationId;
+    }
+    // Forward a small allowlist of safe client headers the downstream needs
+    // (e.g. Idempotency-Key on create-order). NOT the client's Authorization or
+    // any identity header — those are rebuilt from the verified identity below.
+    for (const name of FORWARDED_CLIENT_HEADERS) {
+      const value = req.headers[name];
+      if (typeof value === 'string') {
+        headers[name] = value;
+      }
     }
     // Only the verified identity is forwarded — nothing the client supplied.
     applyTrustedIdentityHeaders(headers, req.identity);
