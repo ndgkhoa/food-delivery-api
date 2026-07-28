@@ -114,7 +114,29 @@ export class KafkaConsumerSubscriber {
     await consumer.subscribe({ topics: options.topics });
     await consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
-        const decoded = decodeMessage(topic, partition, message);
+        const commitPast = (): Promise<void> =>
+          consumer.commitOffsets([
+            { topic, partition, offset: String(BigInt(message.offset) + 1n) },
+          ]);
+
+        let decoded: DecodedKafkaMessage;
+        try {
+          decoded = decodeMessage(topic, partition, message);
+        } catch (error) {
+          // A message we can't decode (missing envelope headers — e.g. a
+          // non-enveloped message on the topic — or a corrupt payload) is NOT
+          // retryable: retrying can never add the headers. Log + commit past it
+          // so one poison message can never stall the partition forever — the
+          // failure mode if this throw escaped eachMessage (the vendor would
+          // seek back and redeliver the same offset indefinitely).
+          const reason = error instanceof Error ? error.message : String(error);
+          this.logger.error(
+            `Skipping undecodable message ${topic}[${partition}]@${message.offset}: ${reason}`,
+          );
+          await commitPast();
+          return;
+        }
+
         await runHandlerWithRetry(
           options.handler as KafkaMessageHandler,
           decoded,
@@ -125,9 +147,7 @@ export class KafkaConsumerSubscriber {
             logger: this.logger,
           },
         );
-        await consumer.commitOffsets([
-          { topic, partition, offset: String(BigInt(message.offset) + 1n) },
-        ]);
+        await commitPast();
       },
     });
     return consumer;

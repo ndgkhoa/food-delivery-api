@@ -28,13 +28,18 @@ export const PROCESSED_EVENT_STORE = Symbol('ProcessedEventStore');
  * transaction: records the event id first, and only runs `work` if that
  * succeeded. A `DuplicateEventError` means this event was already handled —
  * skip `work` and return `undefined` rather than re-applying the effect.
+ *
+ * `work` receives the SAME `tx` the dedupe row was written in, so the effect
+ * and "event processed" commit or roll back atomically. Callers MUST use this
+ * `tx` for their writes (not a separate connection) or the guarantee is lost —
+ * a crash after the effect but before commit would otherwise re-run it.
  */
 export class IdempotentConsumer {
   static async runOnce<TTx, TResult>(
     store: ProcessedEventStorePort<TTx>,
     eventId: string,
     tx: TTx,
-    work: () => Promise<TResult>,
+    work: (tx: TTx) => Promise<TResult>,
   ): Promise<TResult | undefined> {
     try {
       await store.markProcessed(tx, eventId);
@@ -44,6 +49,6 @@ export class IdempotentConsumer {
       }
       throw error;
     }
-    return work();
+    return work(tx);
   }
 }

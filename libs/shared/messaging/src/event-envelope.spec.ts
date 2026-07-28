@@ -63,5 +63,10 @@ describe('event envelope header codec', () => {
     it('throws MissingEventHeaderError (fails closed) when headers are entirely undefined', () => {
       expect(() => decodeHeaders(undefined)).toThrow(MissingEventHeaderError);
     });
+
+    it('treats an empty required header as missing (never runs in tenant scope "")', () => {
+      const raw = { ...encodeHeaders(headers), [TENANT_ID_HEADER]: '' };
+      expect(() => decodeHeaders(raw)).toThrow(MissingEventHeaderError);
+    });
   });
 });

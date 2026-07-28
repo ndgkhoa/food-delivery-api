@@ -127,4 +127,47 @@ describe('Kafka messaging round-trip (e2e)', () => {
     expect(received[0].partition).toBe(received[1].partition);
     expect(Number(received[1].offset)).toBeGreaterThan(Number(received[0].offset));
   });
+
+  it('skips an undecodable (header-less) message without stalling the partition', async () => {
+    const topic = `messaging-e2e-poison.${randomUUID()}`;
+    await admin.ensureTopics([{ topic, partitions: 1, replicationFactor: 1 }]);
+    const key = randomUUID();
+
+    // A message with NO envelope headers (e.g. a non-enveloped producer / a raw
+    // CDC message): decodeHeaders will throw. It sits BEFORE a valid one on the
+    // same partition — if decode failure stalled the partition, the valid
+    // message would never be delivered and this test would time out.
+    await producer.publish({ topic, key, headers: {}, value: { poison: true } });
+
+    const good = {
+      eventId: randomUUID(),
+      eventType: 'e2e.good-after-poison',
+      aggregateId: key,
+      tenantId: randomUUID(),
+      correlationId: randomUUID(),
+      occurredAt: new Date().toISOString(),
+    };
+    await producer.publish({ topic, key, headers: encodeHeaders(good), value: { ok: true } });
+
+    const received: DecodedKafkaMessage[] = [];
+    const subscriber = new KafkaConsumerSubscriber(client, new AlsTenantContextAdapter());
+    const consumer = await subscriber.subscribe({
+      groupId: `messaging-e2e-poison-${randomUUID()}`,
+      topics: [topic],
+      fromBeginning: true,
+      handler: async (message) => {
+        received.push(message);
+      },
+    });
+
+    try {
+      await waitUntil(() => received.length >= 1);
+    } finally {
+      await consumer.disconnect();
+    }
+
+    // The poison message was skipped; only the valid one reached the handler.
+    expect(received).toHaveLength(1);
+    expect(received[0].envelope.eventId).toBe(good.eventId);
+  });
 });

@@ -53,7 +53,13 @@ function headerToString(name: string, raw: RawKafkaHeaderValue): string {
   if (value === undefined) {
     throw new MissingEventHeaderError(name);
   }
-  return Buffer.isBuffer(value) ? value.toString('utf8') : value;
+  const str = Buffer.isBuffer(value) ? value.toString('utf8') : value;
+  // Treat an empty value as missing — an empty x-tenant-id would otherwise run
+  // the handler in tenant scope "" (fail closed on identity/dedupe headers).
+  if (str.length === 0) {
+    throw new MissingEventHeaderError(name);
+  }
+  return str;
 }
 
 /** Decodes a consumed Kafka message's raw headers back into envelope identity fields. Fails closed: throws on any missing required header rather than silently defaulting. */

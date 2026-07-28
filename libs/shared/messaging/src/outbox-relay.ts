@@ -11,8 +11,13 @@ export interface OutboxRecord {
 
 /**
  * Port a service's own outbox table adapter implements. `fetchUnpublished`
- * is expected to use `FOR UPDATE SKIP LOCKED` (or the store's equivalent) so
- * concurrent relay instances never double-claim a row.
+ * should use `FOR UPDATE SKIP LOCKED` so overlapping ticks/replicas claim
+ * DIFFERENT batches instead of blocking. This is **at-least-once, not
+ * exactly-once**: a row can still be published more than once — the relay may
+ * crash after `publishBatch` but before `markPublished`, or two relays can race
+ * the publish window (the row lock is released once `fetchUnpublished`'s own tx
+ * commits, well before publish). Consumers MUST dedupe by event id (see
+ * IdempotentConsumer); run one relay per service to keep re-publishes rare.
  */
 export interface OutboxPort {
   fetchUnpublished(limit: number): Promise<OutboxRecord[]>;
@@ -97,6 +102,9 @@ export class OutboxRelay {
     this.timer = setTimeout(() => {
       void this.tick();
     }, delayMs);
+    // Don't keep the event loop alive: a forgotten stop() must never hang
+    // process shutdown or a test runner.
+    this.timer.unref();
   }
 
   private async tick(): Promise<void> {
