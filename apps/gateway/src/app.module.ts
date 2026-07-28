@@ -8,6 +8,7 @@ import { AuthProxyController } from '@gateway/proxy/auth-proxy.controller';
 import { CatalogProxyController } from '@gateway/proxy/catalog-proxy.controller';
 import { HttpForwarder } from '@gateway/proxy/http-forwarder';
 import { OrderProxyController } from '@gateway/proxy/order-proxy.controller';
+import { SearchProxyController } from '@gateway/proxy/search-proxy.controller';
 import { RateLimitGuard } from '@gateway/rate-limit/rate-limit.guard';
 import { RateLimitModule } from '@gateway/rate-limit/rate-limit.module';
 import { KeycloakOidcClient } from '@gateway/session/keycloak-oidc.client';
@@ -45,14 +46,15 @@ import { APP_GUARD } from '@nestjs/core';
   // Session controller first: its specific `/auth/token|refresh|logout` routes
   // must be matched before AuthProxyController's `@All('*path')` catch-all.
   // HealthController owns a distinct `/health` path so its order is immaterial.
-  // CatalogProxyController/OrderProxyController own their own distinct prefixes
-  // (`catalog`/`orders`) but are still registered ahead of AuthProxyController's
-  // catch-all for consistency with that constraint.
+  // CatalogProxyController/OrderProxyController/SearchProxyController own their
+  // own distinct prefixes (`catalog`/`orders`/`search`) but are still registered
+  // ahead of AuthProxyController's catch-all for consistency with that constraint.
   controllers: [
     HealthController,
     KeycloakSessionController,
     CatalogProxyController,
     OrderProxyController,
+    SearchProxyController,
     AuthProxyController,
   ],
   providers: [

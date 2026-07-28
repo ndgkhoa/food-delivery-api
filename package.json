@@ -9,7 +9,7 @@
   },
   "scripts": {
     "prepare": "lefthook install",
-    "dev": "nx run-many -t serve -p gateway catalog auth inventory order payment",
+    "dev": "nx run-many -t serve -p gateway catalog auth inventory order payment search",
     "build": "nx build catalog",
     "test": "nx run-many -t test",
     "test:e2e": "nx run-many -t e2e",
@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "@confluentinc/kafka-javascript": "1.10.0",
+    "@elastic/elasticsearch": "9.4.2",
     "@grpc/grpc-js": "^1.14.4",
     "@grpc/proto-loader": "^0.8.1",
     "@nestjs/common": "^11.1.28",

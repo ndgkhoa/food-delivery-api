@@ -8,6 +8,7 @@
     "@inventory/*": ["apps/inventory/src/*"],
     "@order/*": ["apps/order/src/*"],
     "@payment/*": ["apps/payment/src/*"],
+    "@search/*": ["apps/search/src/*"],
     "@food-delivery-api/shared-jwt": ["libs/shared/jwt/src/index.ts"],
     "@food-delivery-api/shared-jwt/testing": ["libs/shared/jwt/src/testing/test-jwks.ts"],
     "@food-delivery-api/shared-tenancy": ["libs/shared/tenancy/src/index.ts"],

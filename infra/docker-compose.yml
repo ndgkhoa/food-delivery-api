@@ -189,7 +189,35 @@ services:
       retries: 5
       start_period: 30s
 
+  # Read-model search index. Enable with the `search` profile alongside
+  # `core` + `messaging` (the search service consumes catalog.events):
+  #   docker compose -f infra/docker-compose.yml --profile core --profile messaging --profile search up -d
+  # Single-node, security disabled — DEV ONLY (TLS + auth land in the ops phase).
+  # Heap capped so it fits alongside core + messaging on a 16GB dev box. The
+  # search service bootstraps the `restaurants` index idempotently on boot; there
+  # is no SQL migration for ES.
+  elasticsearch:
+    image: elasticsearch:9.4.4
+    container_name: food-delivery-elasticsearch
+    profiles: [search]
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: 'false'
+      ES_JAVA_OPTS: '-Xms512m -Xmx512m'
+    ports:
+      - '${ELASTICSEARCH_PORT:-9200}:9200'
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:9200/_cluster/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
 volumes:
   postgres-data:
   redis-data:
   keycloak-postgres-data:
+  elasticsearch-data:
