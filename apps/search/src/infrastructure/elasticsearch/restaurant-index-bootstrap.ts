@@ -1,4 +1,4 @@
-import { Client } from '@elastic/elasticsearch';
+import { Client, errors } from '@elastic/elasticsearch';
 import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -47,13 +47,26 @@ export class RestaurantIndexBootstrap implements OnApplicationBootstrap {
       return;
     }
 
-    await this.client.indices.create({
-      index: RESTAURANTS_INDEX,
-      settings: RESTAURANT_INDEX_SETTINGS,
-      mappings: RESTAURANT_INDEX_MAPPINGS,
-    });
-    this.logger.log(
-      `Created index ${RESTAURANTS_INDEX} (vn_text analyzer + autocomplete + rating)`,
-    );
+    try {
+      await this.client.indices.create({
+        index: RESTAURANTS_INDEX,
+        settings: RESTAURANT_INDEX_SETTINGS,
+        mappings: RESTAURANT_INDEX_MAPPINGS,
+      });
+      this.logger.log(
+        `Created index ${RESTAURANTS_INDEX} (vn_text analyzer + autocomplete + rating)`,
+      );
+    } catch (error) {
+      // Two instances first-booting a fresh cluster race to create the index;
+      // the loser gets resource_already_exists — a benign no-op, not a crash.
+      if (
+        error instanceof errors.ResponseError &&
+        error.body?.error?.type === 'resource_already_exists_exception'
+      ) {
+        this.logger.log(`Index ${RESTAURANTS_INDEX} created concurrently by another instance`);
+        return;
+      }
+      throw error;
+    }
   }
 }

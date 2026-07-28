@@ -35,11 +35,15 @@ const HTTP_NOT_FOUND = 404;
 
 /**
  * Elasticsearch adapter for the restaurant search read model. Writes use
- * EXTERNAL versioning (`version` = event occurrence time in epoch millis): ES
- * rejects an incoming write whose version is not newer, so a redelivered or
- * out-of-order event can never overwrite fresher state nor resurrect a deleted
- * doc. Per-aggregate Kafka ordering (key = restaurant id → one partition) makes
- * that near-impossible anyway; the version guard is the belt-and-suspenders.
+ * `external_gte` versioning (`version` = event occurrence time in epoch millis):
+ * ES rejects a write whose version is strictly OLDER than the stored one, so a
+ * redelivered or out-of-order event can't overwrite fresher state nor resurrect
+ * a delete — while an EQUAL version (two writes in the same millisecond, or a
+ * genuine redelivery) is still accepted, so a legitimate same-ms update is not
+ * silently dropped. Epoch-millis (logical event time) is chosen over the Kafka
+ * offset so the guard survives a topic re-creation (offsets reset to 0, the
+ * clock does not). Per-aggregate Kafka ordering (key = restaurant id → one
+ * partition) makes conflicts near-impossible anyway; this is belt-and-suspenders.
  * Writes are idempotent by id, so no dedupe ledger is needed.
  */
 @Injectable()
@@ -62,11 +66,11 @@ export class ElasticsearchRestaurantSearchRepository implements RestaurantSearch
         id: document.id,
         document: source,
         version: document.version,
-        version_type: 'external',
+        version_type: 'external_gte',
       });
     } catch (error) {
-      // A version conflict means a newer (or equal) state already applied — the
-      // redelivered/stale event is a safe no-op, not a failure.
+      // A version conflict means a strictly newer state already applied — the
+      // stale event is a safe no-op, not a failure.
       if (this.isStatus(error, HTTP_CONFLICT)) {
         return;
       }
@@ -80,7 +84,7 @@ export class ElasticsearchRestaurantSearchRepository implements RestaurantSearch
         index: RESTAURANTS_INDEX,
         id,
         version,
-        version_type: 'external',
+        version_type: 'external_gte',
       });
     } catch (error) {
       // Already gone (404) or superseded by a newer event (409): both terminal,

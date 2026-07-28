@@ -1,5 +1,5 @@
 import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import {
   RESTAURANT_SEARCH_REPOSITORY,
   type RestaurantSearchRepository,
@@ -12,6 +12,14 @@ export interface SearchRestaurantsParams {
   page: number;
   limit: number;
 }
+
+/**
+ * Elasticsearch's default `index.max_result_window`. `from + size` beyond this
+ * makes ES throw, so we reject deep pages with a 400 rather than surfacing a
+ * 500 (and deny a cheap deep-pagination DoS lever). Beyond this a cursor
+ * (`search_after`) would be the tool — out of scope for this slice.
+ */
+const MAX_RESULT_WINDOW = 10_000;
 
 /**
  * Full-text restaurant search over the ES read model, scoped to the caller's
@@ -27,7 +35,12 @@ export class SearchRestaurantsHandler {
     @Inject(TENANT_CONTEXT_PORT) private readonly tenantContext: TenantContextPort,
   ) {}
 
-  execute(params: SearchRestaurantsParams): Promise<RestaurantSearchResult> {
+  async execute(params: SearchRestaurantsParams): Promise<RestaurantSearchResult> {
+    if (params.page * params.limit > MAX_RESULT_WINDOW) {
+      throw new BadRequestException(
+        `page ${params.page} at limit ${params.limit} exceeds the ${MAX_RESULT_WINDOW}-result window`,
+      );
+    }
     const tenantId = this.tenantContext.getTenantIdOrThrow();
     return this.repository.search({ tenantId, ...params });
   }
