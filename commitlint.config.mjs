@@ -28,6 +28,7 @@ export default {
         'shared-locking',
         'shared-audit',
         'shared-messaging',
+        'shared-config-client',
         'shared-contracts',
         'shared-errors',
         'shared-testing',

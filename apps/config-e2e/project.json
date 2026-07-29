@@ -1,0 +1,20 @@
+{
+  "name": "config-e2e",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "implicitDependencies": ["config"],
+  "tags": ["scope:config", "type:e2e"],
+  "targets": {
+    "test": {
+      "executor": "nx:noop"
+    },
+    "e2e": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/apps/config-e2e"],
+      "options": {
+        "jestConfig": "apps/config-e2e/jest.config.cts",
+        "passWithNoTests": true
+      }
+    }
+  }
+}
