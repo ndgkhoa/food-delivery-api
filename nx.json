@@ -35,6 +35,27 @@
   "targetDefaults": {
     "e2e": {
       "dependsOn": ["^build"]
+    },
+    "migration-run": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "pnpm typeorm migration:run -d {projectRoot}/src/infrastructure/persistence/data-source.ts"
+      }
+    },
+    "migration-generate": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "pnpm typeorm migration:generate -d {projectRoot}/src/infrastructure/persistence/data-source.ts"
+      }
+    },
+    "migration-revert": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "pnpm typeorm migration:revert -d {projectRoot}/src/infrastructure/persistence/data-source.ts"
+      }
     }
   }
 }

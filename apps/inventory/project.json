@@ -9,12 +9,16 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "webpack-cli build",
-        "env": { "NODE_ENV": "production" },
+        "env": {
+          "NODE_ENV": "production"
+        },
         "cwd": "apps/inventory"
       },
       "configurations": {
         "development": {
-          "env": { "NODE_ENV": "development" }
+          "env": {
+            "NODE_ENV": "development"
+          }
         }
       }
     },
@@ -28,12 +32,21 @@
         "runBuildTargetDependencies": false
       },
       "configurations": {
-        "development": { "buildTarget": "inventory:build:development" },
-        "production": { "buildTarget": "inventory:build:production" }
+        "development": {
+          "buildTarget": "inventory:build:development"
+        },
+        "production": {
+          "buildTarget": "inventory:build:production"
+        }
       }
     },
     "test": {
-      "options": { "passWithNoTests": true }
-    }
+      "options": {
+        "passWithNoTests": true
+      }
+    },
+    "migration-run": {},
+    "migration-generate": {},
+    "migration-revert": {}
   }
 }
