@@ -44,6 +44,7 @@ export class SearchProxyController {
     return this.forwarder.forward(req, res, {
       gatewayPrefix: GATEWAY_SEARCH_PREFIX,
       baseUrl: this.baseUrl,
+      serviceName: 'search',
     });
   }
 }

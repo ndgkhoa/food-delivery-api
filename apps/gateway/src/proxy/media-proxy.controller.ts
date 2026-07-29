@@ -45,6 +45,7 @@ export class MediaProxyController {
     return this.forwarder.forward(req, res, {
       gatewayPrefix: GATEWAY_MEDIA_PREFIX,
       baseUrl: this.baseUrl,
+      serviceName: 'media',
     });
   }
 }

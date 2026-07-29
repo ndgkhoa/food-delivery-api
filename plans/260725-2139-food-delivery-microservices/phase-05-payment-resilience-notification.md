@@ -4,7 +4,7 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 
 ## Overview
 - **Priority**: P1
-- **Status**: 🔄 In progress — **5a** [payment durable Temporal workflow](./phase-05a-payment-temporal-workflow.md) merged (#18); **5b** [notification service](./phase-05b-notification-service.md) verified live (email via Mailpit + sms/push stubs + DLQ), review→PR pending; **5c** gateway circuit breaker remaining. NOTE: MailHog replaced by its maintained successor **Mailpit** (same SMTP :1025 + UI/API :8025).
+- **Status**: 🔄 In progress — **5a** [payment durable Temporal workflow](./phase-05a-payment-temporal-workflow.md) merged (#18); **5b** [notification service](./phase-05b-notification-service.md) merged (#19); **5c** [gateway circuit breaker](./phase-05c-gateway-circuit-breaker.md) verified live + reviewed (fixed a body-stall hang), PR pending. NOTE: MailHog replaced by its maintained successor **Mailpit** (same SMTP :1025 + UI/API :8025).
 - **Brief**: Replace the P3 payment-stub with a durable Temporal workflow (retry, webhook reconciliation, DLQ, idempotency, Outbox). Add resilience: circuit breaker at gateway. Build `notification` (Kafka consumer + BullMQ, retry, DLQ, email via Mailpit / SMS+push via stub adapters).
 
 ## Key insights
@@ -43,8 +43,8 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 - [x] ChargeWorkflow + activities + retry + idempotency (REJECT_DUPLICATE) + webhook signal + Outbox
 - [x] Saga awaits durable payment reply (unchanged `payment.replies` contract)
 - [x] notification consumer + BullMQ per-channel + channel adapter interface (Mailpit + sms/push stubs) + DLQ
-- [ ] gateway circuit breaker + fallback (5c — remaining)
-- [~] E2E: charge success + decline (5a), notification success + idempotent + DLQ (5b); worker-restart resume (manual/UI) + circuit-breaker E2E (5c) outstanding
+- [x] gateway per-downstream circuit breaker (opossum) + 503/Retry-After fast-fail + per-service isolation (5c)
+- [x] E2E: charge success + decline (5a), notification success + idempotent + DLQ (5b), breaker fast-fail + isolation + recovery (5c); worker-restart resume remains manual/UI
 
 ## Success criteria
 - Charge succeeds → order CONFIRMED + email in MailHog. Duplicate charge command → single payment (idempotent).

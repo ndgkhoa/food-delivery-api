@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '@gateway/guards/jwt-auth.guard';
 import { HealthController } from '@gateway/health/health.controller';
 import { AuthProxyController } from '@gateway/proxy/auth-proxy.controller';
 import { CatalogProxyController } from '@gateway/proxy/catalog-proxy.controller';
+import { CircuitBreakerRegistry } from '@gateway/proxy/circuit-breaker.registry';
 import { DeliveryProxyController } from '@gateway/proxy/delivery-proxy.controller';
 import { HttpForwarder } from '@gateway/proxy/http-forwarder';
 import { MediaProxyController } from '@gateway/proxy/media-proxy.controller';
@@ -63,6 +64,7 @@ import { APP_GUARD } from '@nestjs/core';
     AuthProxyController,
   ],
   providers: [
+    CircuitBreakerRegistry,
     HttpForwarder,
     KeycloakOidcClient,
     // Global guard order is significant: JwtAuthGuard runs FIRST so the verified
