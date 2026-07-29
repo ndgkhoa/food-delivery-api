@@ -26,6 +26,14 @@ export interface ChargeWorkflowInput {
 export interface ProviderResult {
   ok: boolean;
   reason?: string;
+  /**
+   * Set by the charge activity when the provider settles ASYNCHRONOUSLY: `ok` is
+   * only provisional and a webhook will confirm/override it via the provider-result
+   * signal. The deterministic stub settles synchronously and leaves this unset, so
+   * the workflow emits its reply immediately (no reconcile wait). A real async PSP
+   * would set it true to make the workflow await the webhook. Never set on a signal.
+   */
+  pending?: boolean;
 }
 
 /** Argument to the charge activity (the only place the deterministic stub rule runs). */

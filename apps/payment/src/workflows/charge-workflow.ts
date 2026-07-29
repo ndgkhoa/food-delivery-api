@@ -7,11 +7,12 @@ import {
 } from './charge-workflow.types';
 
 /**
- * Bounded window the workflow waits for a webhook to reconcile the provider's
- * async result after the synchronous charge attempt. Kept short so the default
- * (no-webhook) path stays snappy while still demonstrating Signals + timers.
+ * Bounded window the workflow waits for a webhook to reconcile an ASYNC provider
+ * result. Only entered when the charge activity reports `pending` (a real async
+ * PSP) — the synchronous stub skips it entirely, so the common path pays no timer
+ * tax. Kept short to demonstrate Signals + timers without stalling a real charge.
  */
-const RECONCILE_WINDOW = '2 seconds';
+const RECONCILE_WINDOW = '30 seconds';
 
 /**
  * Retry the charge activity with bounded exponential backoff. Temporal owns the
@@ -34,11 +35,12 @@ export const providerResultSignal = defineSignal<[ProviderResult]>(PROVIDER_RESU
 /**
  * Durable charge orchestration. Idempotent by workflow id (`charge-{orderId}`),
  * so a redelivered `ChargePayment` command that starts the same id is a no-op.
- * Default path: run the charge activity for a decision. A webhook can then
- * signal an async provider result within a bounded window; if it arrives it
- * reconciles (overrides) the decision. Either way exactly one reply is emitted
- * through the payment outbox via the emit-reply activity (itself idempotent by
- * order id), so the order saga sees `PaymentSucceeded`/`PaymentFailed` once.
+ * Run the charge activity for a decision. If that decision is `pending` (a real
+ * async PSP), wait a bounded window for a webhook to signal the settled result,
+ * which reconciles (overrides) the provisional decision; a synchronous decision
+ * (the stub) emits immediately with no wait. Either way exactly one reply is
+ * emitted through the payment outbox via the emit-reply activity (itself
+ * idempotent by order id), so the order saga sees the reply once.
  */
 export async function chargeWorkflow(input: ChargeWorkflowInput): Promise<ProviderResult> {
   let reconciled: ProviderResult | undefined;
@@ -48,8 +50,11 @@ export async function chargeWorkflow(input: ChargeWorkflowInput): Promise<Provid
 
   const decided = await charge({ totalCents: input.totalCents });
 
-  // Give a just-behind webhook a bounded chance to reconcile the async result.
-  await condition(() => reconciled !== undefined, RECONCILE_WINDOW);
+  // Only an async (pending) provider result waits for the webhook; a settled
+  // decision skips the timer so the common path replies without latency.
+  if (decided.pending) {
+    await condition(() => reconciled !== undefined, RECONCILE_WINDOW);
+  }
   const outcome = reconciled ?? decided;
 
   await emitReply({

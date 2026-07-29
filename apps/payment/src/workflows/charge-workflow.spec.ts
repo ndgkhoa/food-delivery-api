@@ -78,11 +78,12 @@ gatedDescribe('chargeWorkflow (durable orchestration)', () => {
     expect(emitted[0]).toMatchObject({ ok: false, reason: 'declined' });
   });
 
-  it('reconciles the outcome from a webhook signal', async () => {
+  it('reconciles an async (pending) outcome from a webhook signal', async () => {
     const emitted: EmitReplyActivityInput[] = [];
     const result = await runWith(
       {
-        charge: async () => ({ ok: true }),
+        // pending → the workflow awaits the webhook rather than replying at once.
+        charge: async () => ({ ok: true, pending: true }),
         emitReply: async (input) => {
           emitted.push(input);
         },
@@ -91,5 +92,19 @@ gatedDescribe('chargeWorkflow (durable orchestration)', () => {
     );
     expect(result.ok).toBe(false);
     expect(emitted[0]).toMatchObject({ ok: false, reason: 'from-webhook' });
+  });
+
+  it('does not wait for a webhook when the decision is synchronous', async () => {
+    const emitted: EmitReplyActivityInput[] = [];
+    // charge settles synchronously (no pending) and NO signal is sent; the
+    // workflow must still complete promptly with the synchronous outcome.
+    const result = await runWith({
+      charge: async () => ({ ok: true }),
+      emitReply: async (input) => {
+        emitted.push(input);
+      },
+    });
+    expect(result.ok).toBe(true);
+    expect(emitted).toHaveLength(1);
   });
 });

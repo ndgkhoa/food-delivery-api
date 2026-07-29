@@ -41,4 +41,23 @@ describe('paymentEnvSchema', () => {
   it('rejects an empty webhook secret', () => {
     expect(() => paymentEnvSchema.parse({ ...MINIMAL, PAYMENT_WEBHOOK_SECRET: '' })).toThrow();
   });
+
+  it('rejects the public dev webhook secret in production', () => {
+    expect(() =>
+      paymentEnvSchema.parse({
+        ...MINIMAL,
+        NODE_ENV: 'production',
+        PAYMENT_WEBHOOK_SECRET: 'dev-payment-webhook-secret',
+      }),
+    ).toThrow(/production/);
+  });
+
+  it('accepts a real webhook secret in production', () => {
+    const env = paymentEnvSchema.parse({
+      ...MINIMAL,
+      NODE_ENV: 'production',
+      PAYMENT_WEBHOOK_SECRET: 'a-real-rotated-secret',
+    });
+    expect(env.PAYMENT_WEBHOOK_SECRET).toBe('a-real-rotated-secret');
+  });
 });

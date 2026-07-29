@@ -8,7 +8,11 @@ import {
   PROVIDER_RESULT_SIGNAL,
   type ProviderResult,
 } from '@payment/workflows/charge-workflow.types';
-import { WorkflowClient, WorkflowExecutionAlreadyStartedError } from '@temporalio/client';
+import {
+  WorkflowClient,
+  WorkflowExecutionAlreadyStartedError,
+  WorkflowNotFoundError,
+} from '@temporalio/client';
 
 /** Deterministic per-order workflow id → Temporal dedupes concurrent/redelivered starts. */
 function chargeWorkflowId(orderId: string): string {
@@ -17,9 +21,11 @@ function chargeWorkflowId(orderId: string): string {
 
 /**
  * Temporal-backed `WorkflowGatewayPort`. Starts the charge workflow keyed by
- * order id; a redelivered `ChargePayment` that targets an already-running (or
- * closed, within retention) id raises `WorkflowExecutionAlreadyStartedError`,
- * which is treated as an idempotent no-op — the workflow already owns the charge.
+ * order id. `REJECT_DUPLICATE` reuse means Temporal rejects a second start of the
+ * same id whether the first run is still OPEN or already CLOSED (within retention),
+ * so a `ChargePayment` redelivered after the workflow completes raises
+ * `WorkflowExecutionAlreadyStartedError` and is treated as an idempotent no-op —
+ * exactly one charge per order, never a second run re-executing the charge activity.
  * Signals route an async provider result from the webhook to the waiting workflow.
  */
 @Injectable()
@@ -38,6 +44,10 @@ export class TemporalWorkflowGatewayAdapter implements WorkflowGatewayPort {
     try {
       await this.client.start(CHARGE_WORKFLOW_TYPE, {
         workflowId: chargeWorkflowId(input.orderId),
+        // Reject a duplicate start whether the prior run is OPEN or CLOSED, so a
+        // command redelivered after the workflow completes can never spawn a new
+        // run that charges again — the id owns the charge for its whole retention.
+        workflowIdReusePolicy: 'REJECT_DUPLICATE',
         taskQueue: this.taskQueue,
         args: [input],
       });
@@ -53,7 +63,19 @@ export class TemporalWorkflowGatewayAdapter implements WorkflowGatewayPort {
 
   async signalProviderResult(orderId: string, result: ProviderResult): Promise<void> {
     const handle = this.client.getHandle(chargeWorkflowId(orderId));
-    await handle.signal(PROVIDER_RESULT_SIGNAL, result);
-    this.logger.log(`Signalled provider result for order ${orderId} (ok=${result.ok})`);
+    try {
+      await handle.signal(PROVIDER_RESULT_SIGNAL, result);
+      this.logger.log(`Signalled provider result for order ${orderId} (ok=${result.ok})`);
+    } catch (error) {
+      // A webhook that lands after the workflow already completed has nothing to
+      // reconcile — the reply was emitted from the synchronous decision. Swallow
+      // the "no such open workflow" so a late callback is an accepted no-op, not
+      // a 500 the provider keeps retrying.
+      if (error instanceof WorkflowNotFoundError) {
+        this.logger.log(`Charge workflow for order ${orderId} already closed — signal ignored`);
+        return;
+      }
+      throw error;
+    }
   }
 }
