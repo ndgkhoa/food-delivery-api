@@ -39,11 +39,11 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 5. E2E: index a restaurant via catalog update → searchable + autocomplete + synonym hit; driver location updates live over WS + nearby query; upload image → thumbnail + presigned GET works.
 
 ## Todo
-- [ ] ES index (analyzer/synonym/autocomplete/ranking) bootstrapped
-- [ ] search consumes catalog.events → ES; query + autocomplete endpoints
-- [ ] delivery WS + Redis GEO + gRPC assign/stream + order.events consume
-- [ ] media presigned URLs + thumbnail worker + metadata
-- [ ] E2E: search/autocomplete/synonym, live location+nearby, image upload+thumbnail
+- [x] ES index (analyzer/synonym/autocomplete/ranking) bootstrapped
+- [x] search consumes catalog.events → ES; query + autocomplete endpoints
+- [x] delivery WS + Redis GEO + gRPC assign/stream + order.events consume
+- [x] media presigned URLs + thumbnail worker + metadata
+- [x] E2E: search/autocomplete/synonym, live location+nearby, image upload+thumbnail
 
 ## Success criteria
 - Updating a restaurant name in catalog makes it findable in search within seconds; autocomplete returns prefixes; synonym query matches; higher-rated ranks first.
