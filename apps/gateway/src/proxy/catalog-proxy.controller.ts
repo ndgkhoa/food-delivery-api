@@ -39,6 +39,7 @@ export class CatalogProxyController {
     return this.forwarder.forward(req, res, {
       gatewayPrefix: GATEWAY_CATALOG_PREFIX,
       baseUrl: this.baseUrl,
+      serviceName: 'catalog',
     });
   }
 }

@@ -44,6 +44,7 @@ export class DeliveryProxyController {
     return this.forwarder.forward(req, res, {
       gatewayPrefix: GATEWAY_DELIVERY_PREFIX,
       baseUrl: this.baseUrl,
+      serviceName: 'delivery',
     });
   }
 }

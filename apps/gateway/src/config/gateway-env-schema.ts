@@ -55,4 +55,23 @@ export const gatewayEnvSchema = baseEnvSchema
     RATE_LIMIT_WINDOW_SEC: z.coerce.number().int().positive().default(60),
     /** Redis connection string for the rate-limit counter store. */
     REDIS_URL: z.string().url().default('redis://localhost:6379'),
+    /**
+     * Per-downstream circuit breaker guarding each proxy call. Disabled in test
+     * envs (pass-through) so container-less suites never fast-fail on a
+     * deliberately-down stub upstream; enabled in dev/prod. `enum().transform`
+     * instead of `coerce.boolean`, mirroring RATE_LIMIT_ENABLED, because coercion
+     * treats the string "false" as truthy.
+     */
+    CB_ENABLED: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((value) => value === 'true'),
+    /** Failure percentage (within the rolling window) at which the breaker opens. */
+    CB_ERROR_THRESHOLD_PERCENT: z.coerce.number().int().positive().default(50),
+    /** Delay after opening before a single half-open probe is allowed through. */
+    CB_RESET_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+    /** Duration of the statistical rolling window used to compute the error percentage. */
+    CB_ROLLING_WINDOW_MS: z.coerce.number().int().positive().default(10_000),
+    /** Minimum requests in the rolling window before the error percentage can open the breaker. */
+    CB_VOLUME_THRESHOLD: z.coerce.number().int().positive().default(5),
   });

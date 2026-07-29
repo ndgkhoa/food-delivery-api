@@ -31,6 +31,7 @@ export class AuthProxyController {
     return this.forwarder.forward(req, res, {
       gatewayPrefix: GATEWAY_AUTH_PREFIX,
       baseUrl: this.baseUrl,
+      serviceName: 'auth',
     });
   }
 }

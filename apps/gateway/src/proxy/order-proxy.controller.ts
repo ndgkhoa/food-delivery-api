@@ -51,6 +51,7 @@ export class OrderProxyController {
     return this.forwarder.forward(req, res, {
       gatewayPrefix: GATEWAY_ORDER_PREFIX,
       baseUrl: this.baseUrl,
+      serviceName: 'order',
     });
   }
 }
