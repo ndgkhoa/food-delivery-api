@@ -243,9 +243,72 @@ services:
       retries: 5
       start_period: 10s
 
+  # Durable execution engine for the payment ChargeWorkflow. Enable with the
+  # `workflow` profile alongside `core` + `messaging` (payment consumes
+  # payment.commands and replies via its outbox):
+  #   docker compose -f infra/docker-compose.yml --profile core --profile messaging --profile workflow up -d
+  # auto-setup provisions the Temporal schema on first boot against a DEDICATED
+  # Postgres (never the app Postgres). DEV ONLY — no TLS/auth. The payment worker
+  # (run on the host via `pnpm dev`) connects to the frontend gRPC on :7233.
+  temporal-postgresql:
+    image: postgres:16-alpine
+    container_name: food-delivery-temporal-postgres
+    profiles: [workflow]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${TEMPORAL_DB_USERNAME:-temporal}
+      POSTGRES_PASSWORD: ${TEMPORAL_DB_PASSWORD:-temporal}
+      POSTGRES_DB: temporal
+    volumes:
+      - temporal-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${TEMPORAL_DB_USERNAME:-temporal}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  temporal:
+    image: temporalio/auto-setup:1.29.7
+    container_name: food-delivery-temporal
+    profiles: [workflow]
+    restart: unless-stopped
+    depends_on:
+      temporal-postgresql:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: ${TEMPORAL_DB_USERNAME:-temporal}
+      POSTGRES_PWD: ${TEMPORAL_DB_PASSWORD:-temporal}
+      POSTGRES_SEEDS: temporal-postgresql
+    ports:
+      - '${TEMPORAL_PORT:-7233}:7233'
+    healthcheck:
+      test: ['CMD-SHELL', 'temporal operator cluster health --address temporal:7233 || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  temporal-ui:
+    image: temporalio/ui:2.52.1
+    container_name: food-delivery-temporal-ui
+    profiles: [workflow]
+    restart: unless-stopped
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:8233
+    ports:
+      - '${TEMPORAL_UI_PORT:-8233}:8080'
+
 volumes:
   postgres-data:
   redis-data:
   keycloak-postgres-data:
   elasticsearch-data:
   minio-data:
+  temporal-postgres-data:

@@ -4,7 +4,7 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 
 ## Overview
 - **Priority**: P1
-- **Status**: Not started
+- **Status**: ✅ Done — all three tracks merged: 4a #15 (Elasticsearch search consuming `catalog.events`) · 4b #16 (delivery WebSocket + Redis GEO + `order.events` assignment) · 4c #17 (MinIO presigned uploads + BullMQ/sharp thumbnails). Each proven live (search/delivery/media e2e green) + adversarially reviewed (double-booking, WS-auth race, upload-OOM Criticals fixed). gRPC delivery server + Kafka `media.uploaded` deferred until a consumer needs them.
 - **Brief**: Three user-facing capabilities on the P3 backbone: (1) `search` consumes `catalog.events` into Elasticsearch (analyzer/tokenizer/synonym/autocomplete/ranking); (2) `delivery` streams driver location via WebSocket + Redis GEO + gRPC; (3) `media` handles image upload to MinIO with thumbnails + presigned URLs.
 - Three independent tracks — can be built in parallel by different sessions (distinct files/services).
 
