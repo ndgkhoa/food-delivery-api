@@ -1,5 +1,7 @@
 export interface StoredObjectStat {
   sizeBytes: number;
+  /** The object's stored content type, if the store reports one. */
+  contentType: string | undefined;
 }
 
 /**
@@ -15,8 +17,13 @@ export interface ObjectStoragePort {
   presignGet(objectKey: string, ttlSeconds: number): Promise<string>;
   /** Metadata for an object, or `null` when it does not exist. */
   statObject(objectKey: string): Promise<StoredObjectStat | null>;
-  /** Downloads the full object into memory (thumbnail worker only). */
-  getObject(objectKey: string): Promise<Buffer>;
+  /** Deletes an object (used to clean up an upload that fails post-upload validation). */
+  removeObject(objectKey: string): Promise<void>;
+  /**
+   * Downloads the full object into memory (thumbnail worker only), aborting if it
+   * exceeds `maxBytes` so an oversized object can never OOM the worker.
+   */
+  getObject(objectKey: string, maxBytes: number): Promise<Buffer>;
   /** Uploads bytes server-side (thumbnail worker only). */
   putObject(objectKey: string, body: Buffer, contentType: string): Promise<void>;
 }

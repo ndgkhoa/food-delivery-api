@@ -13,10 +13,10 @@ export interface CompleteUploadResponse {
   status: MediaStatus;
 }
 
-/** Response to a get: status + presigned GET URLs (thumbnail present once READY). */
+/** Response to a get: status + presigned GET URLs (original absent while PENDING; thumbnail present once READY). */
 export interface MediaResponse {
   id: string;
   status: MediaStatus;
-  url: string;
+  url?: string;
   thumbnailUrl?: string;
 }

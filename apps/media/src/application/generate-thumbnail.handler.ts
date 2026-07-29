@@ -20,6 +20,7 @@ import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class GenerateThumbnailHandler {
   private readonly thumbnailWidth: number;
+  private readonly maxBytes: number;
 
   constructor(
     @Inject(MEDIA_OBJECT_REPOSITORY) private readonly repository: MediaObjectRepository,
@@ -28,6 +29,7 @@ export class GenerateThumbnailHandler {
     config: ConfigService,
   ) {
     this.thumbnailWidth = config.getOrThrow<number>('THUMBNAIL_WIDTH');
+    this.maxBytes = config.getOrThrow<number>('MAX_UPLOAD_BYTES');
   }
 
   async execute(mediaId: string): Promise<void> {
@@ -39,7 +41,7 @@ export class GenerateThumbnailHandler {
       return;
     }
 
-    const original = await this.storage.getObject(media.objectKey);
+    const original = await this.storage.getObject(media.objectKey, this.maxBytes);
     const thumbnail = await this.imageProcessor.resizeToWidth(original, this.thumbnailWidth);
     const thumbnailKey = buildThumbnailKey(media.tenantId, media.id);
     await this.storage.putObject(thumbnailKey, thumbnail, media.contentType);

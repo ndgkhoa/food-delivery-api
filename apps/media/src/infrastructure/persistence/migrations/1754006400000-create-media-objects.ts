@@ -19,7 +19,7 @@ export class CreateMediaObjects1754006400000 implements MigrationInterface {
         "object_key" varchar(512) NOT NULL,
         "content_type" varchar(255) NOT NULL,
         "size_bytes" bigint NOT NULL,
-        "status" varchar(20) NOT NULL,
+        "status" varchar(20) NOT NULL CHECK ("status" IN ('PENDING', 'UPLOADED', 'READY')),
         "thumbnail_key" varchar(512),
         "created_at" timestamptz NOT NULL DEFAULT now(),
         "updated_at" timestamptz NOT NULL DEFAULT now()

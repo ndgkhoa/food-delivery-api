@@ -43,7 +43,7 @@ describe('GenerateThumbnailHandler', () => {
       repository,
       storage,
       new HalvingImageProcessor(),
-      fakeConfig({ THUMBNAIL_WIDTH: 200 }),
+      fakeConfig({ THUMBNAIL_WIDTH: 200, MAX_UPLOAD_BYTES: 5_000_000 }),
     );
   });
 
@@ -60,7 +60,7 @@ describe('GenerateThumbnailHandler', () => {
     const original = storage.objects.get(buildObjectKey(tenantId, id));
     const thumbnail = storage.objects.get(thumbnailKey);
     expect(thumbnail).toBeDefined();
-    expect(thumbnail?.length).toBeLessThan(original?.length ?? 0);
+    expect(thumbnail?.body.length).toBeLessThan(original?.body.length ?? 0);
   });
 
   it('is idempotent: a READY row is left untouched (no false re-work)', async () => {

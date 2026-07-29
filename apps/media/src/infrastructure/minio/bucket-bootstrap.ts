@@ -26,10 +26,21 @@ export class BucketBootstrap implements OnApplicationBootstrap {
     if (!this.enabled) {
       return;
     }
-    const exists = await this.client.bucketExists(this.bucket);
-    if (!exists) {
+    if (await this.client.bucketExists(this.bucket)) {
+      return;
+    }
+    try {
       await this.client.makeBucket(this.bucket);
       this.logger.log(`Created MinIO bucket "${this.bucket}"`);
+    } catch (err) {
+      // Two instances booting a fresh MinIO race between exists() and
+      // makeBucket(); the loser gets already-owned/exists — a benign no-op.
+      const code = (err as { code?: string } | null)?.code;
+      if (code === 'BucketAlreadyOwnedByYou' || code === 'BucketAlreadyExists') {
+        this.logger.log(`MinIO bucket "${this.bucket}" already created concurrently`);
+        return;
+      }
+      throw err;
     }
   }
 }

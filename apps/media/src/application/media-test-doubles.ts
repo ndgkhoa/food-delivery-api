@@ -29,10 +29,12 @@ export class FakeMediaObjectRepository implements MediaObjectRepository {
  * object so `statObject` reports it present (simulating a completed client PUT).
  */
 export class FakeObjectStorage implements ObjectStoragePort {
-  readonly objects = new Map<string, Buffer>();
+  readonly objects = new Map<string, { body: Buffer; contentType: string }>();
+  readonly removed: string[] = [];
 
-  putBytes(objectKey: string, body: Buffer): void {
-    this.objects.set(objectKey, body);
+  /** Seeds an object as a completed client PUT — content type simulates what MinIO stat would report. */
+  putBytes(objectKey: string, body: Buffer, contentType = 'image/png'): void {
+    this.objects.set(objectKey, { body, contentType });
   }
 
   async presignPut(objectKey: string, ttlSeconds: number): Promise<string> {
@@ -44,20 +46,28 @@ export class FakeObjectStorage implements ObjectStoragePort {
   }
 
   async statObject(objectKey: string): Promise<StoredObjectStat | null> {
-    const bytes = this.objects.get(objectKey);
-    return bytes ? { sizeBytes: bytes.length } : null;
+    const object = this.objects.get(objectKey);
+    return object ? { sizeBytes: object.body.length, contentType: object.contentType } : null;
   }
 
-  async getObject(objectKey: string): Promise<Buffer> {
-    const bytes = this.objects.get(objectKey);
-    if (!bytes) {
+  async removeObject(objectKey: string): Promise<void> {
+    this.removed.push(objectKey);
+    this.objects.delete(objectKey);
+  }
+
+  async getObject(objectKey: string, maxBytes: number): Promise<Buffer> {
+    const object = this.objects.get(objectKey);
+    if (!object) {
       throw new Error(`object "${objectKey}" not found`);
     }
-    return bytes;
+    if (object.body.length > maxBytes) {
+      throw new Error(`object "${objectKey}" exceeds the ${maxBytes} byte cap`);
+    }
+    return object.body;
   }
 
-  async putObject(objectKey: string, body: Buffer): Promise<void> {
-    this.objects.set(objectKey, body);
+  async putObject(objectKey: string, body: Buffer, contentType: string): Promise<void> {
+    this.objects.set(objectKey, { body, contentType });
   }
 }
 

@@ -32,7 +32,7 @@ export class MinioObjectStorage implements ObjectStoragePort {
   async statObject(objectKey: string): Promise<StoredObjectStat | null> {
     try {
       const stat = await this.client.statObject(this.bucket, objectKey);
-      return { sizeBytes: stat.size };
+      return { sizeBytes: stat.size, contentType: stat.metaData?.['content-type'] };
     } catch (err) {
       if (isNotFound(err)) {
         return null;
@@ -41,10 +41,20 @@ export class MinioObjectStorage implements ObjectStoragePort {
     }
   }
 
-  async getObject(objectKey: string): Promise<Buffer> {
+  async removeObject(objectKey: string): Promise<void> {
+    await this.client.removeObject(this.bucket, objectKey);
+  }
+
+  async getObject(objectKey: string, maxBytes: number): Promise<Buffer> {
     const stream = await this.client.getObject(this.bucket, objectKey);
     const chunks: Buffer[] = [];
+    let total = 0;
     for await (const chunk of stream) {
+      total += (chunk as Buffer).length;
+      if (total > maxBytes) {
+        stream.destroy();
+        throw new Error(`Object ${objectKey} exceeds the ${maxBytes} byte download cap`);
+      }
       chunks.push(chunk as Buffer);
     }
     return Buffer.concat(chunks);

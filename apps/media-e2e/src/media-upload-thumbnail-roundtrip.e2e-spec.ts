@@ -1,5 +1,4 @@
 import 'reflect-metadata';
-import { randomUUID } from 'node:crypto';
 import { makePng } from './png-fixture';
 
 /**
