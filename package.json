@@ -9,7 +9,7 @@
   },
   "scripts": {
     "prepare": "lefthook install",
-    "dev": "nx run-many -t serve -p gateway catalog auth inventory order payment search delivery media notification",
+    "dev": "nx run-many -t serve",
     "build": "nx build catalog",
     "test": "nx run-many -t test",
     "test:e2e": "nx run-many -t e2e",
