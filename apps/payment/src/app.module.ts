@@ -9,14 +9,17 @@ import { TenancyModule } from '@food-delivery-api/shared-tenancy';
 import { Module } from '@nestjs/common';
 import { paymentEnvSchema } from '@payment/config/payment-env-schema';
 import { PersistenceModule } from '@payment/infrastructure/persistence/persistence.module';
+import { TemporalClientModule } from '@payment/infrastructure/temporal/temporal-client.module';
+import { PaymentWebhookController } from '@payment/interface/http/payment-webhook.controller';
 import { PaymentCommandConsumer } from '@payment/interface/messaging/payment-command.consumer';
 import { PaymentOutboxRelayProvider } from '@payment/interface/messaging/payment-outbox-relay.provider';
 
 /**
- * Composition root for the payment STUB — a Kafka-only worker (no HTTP/gRPC).
- * Wires config + persistence (outbox + dedupe ledger only), tenancy (for the
- * consume-time tenant scope), and the messaging edge: the command consumer that
- * applies the deterministic charge rule and the reply outbox relay.
+ * Composition root for payment: config + persistence (outbox + dedupe ledger),
+ * tenancy (consume-time tenant scope), the Kafka messaging edge (command consumer
+ * that starts the durable charge workflow + the reply outbox relay), the Temporal
+ * edge (`TemporalClientModule` — client, worker hosting the charge workflow +
+ * activities), and the HTTP webhook surface that signals the workflow.
  */
 @Module({
   imports: [
@@ -28,7 +31,9 @@ import { PaymentOutboxRelayProvider } from '@payment/interface/messaging/payment
       clientId: process.env.KAFKA_CLIENT_ID ?? 'payment',
       brokers: (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(','),
     }),
+    TemporalClientModule,
   ],
+  controllers: [PaymentWebhookController],
   providers: [
     KafkaConsumerSubscriber,
     KafkaTopicAdmin,

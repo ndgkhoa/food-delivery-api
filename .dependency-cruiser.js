@@ -58,6 +58,22 @@ module.exports = {
       from: { path: '^apps/[^/]+/src/interface/' },
       to: { path: '^apps/[^/]+/src/infrastructure/' },
     },
+    {
+      name: 'workflow-code-no-app-layers',
+      severity: 'error',
+      comment:
+        'Temporal workflow code runs in a sandboxed isolate: it must import only @temporalio/workflow and pure local types — never the domain/application/infrastructure/interface layers, whose IO/config would break deterministic replay.',
+      from: { path: '^apps/[^/]+/src/workflows/', pathNot: '\\.spec\\.ts$' },
+      to: { path: '^apps/[^/]+/src/(domain|application|infrastructure|interface|activities)/' },
+    },
+    {
+      name: 'workflow-code-only-temporal-npm',
+      severity: 'error',
+      comment:
+        'Temporal workflow code must not pull in any npm package other than @temporalio/workflow — Nest/TypeORM/config in the sandbox would make workflow execution non-deterministic.',
+      from: { path: '^apps/[^/]+/src/workflows/', pathNot: '\\.spec\\.ts$' },
+      to: { dependencyTypes: ['npm'], pathNot: 'node_modules/@temporalio/workflow/' },
+    },
   ],
   options: {
     doNotFollow: {

@@ -1,10 +1,7 @@
 import type { KafkaJS } from '@confluentinc/kafka-javascript';
 import {
   type EventEnvelopeHeaders,
-  IdempotentConsumer,
   KafkaConsumerSubscriber,
-  PROCESSED_EVENT_STORE,
-  type ProcessedEventStorePort,
 } from '@food-delivery-api/shared-messaging';
 import {
   Inject,
@@ -14,15 +11,11 @@ import {
   type OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { decideCharge } from '@payment/application/charge/charge-decision';
-import type { OutboxCommandEntry, OutboxWriter } from '@payment/domain/shared/outbox.port';
-import { OUTBOX_WRITER } from '@payment/domain/shared/outbox.port';
-import { TRANSACTION_PORT, type TransactionPort } from '@payment/domain/shared/transaction.port';
 import {
-  CHARGE_PAYMENT,
-  paymentFailedReply,
-  paymentSucceededReply,
-} from '@payment/interface/messaging/payment-reply-factory';
+  WORKFLOW_GATEWAY,
+  type WorkflowGatewayPort,
+} from '@payment/domain/shared/workflow-gateway.port';
+import { CHARGE_PAYMENT } from '@payment/interface/messaging/payment-reply-factory';
 
 const PAYMENT_COMMANDS_TOPIC = 'payment.commands';
 const CONSUMER_GROUP_ID = 'payment-commands';
@@ -33,27 +26,26 @@ interface ChargePaymentPayload {
 }
 
 /**
- * Consumes `payment.commands`, applies the deterministic stub charge rule, and
- * replies over the outbox. The decision is a pure function of the total, so a
- * re-delivered command reaches the same verdict; the reply is appended under a
- * `processed_events` dedupe keyed by the command event id, so it is emitted at
- * most once. Disabled under NODE_ENV=test (no broker).
+ * Consumes `payment.commands` and starts the durable charge workflow — it no
+ * longer decides or replies inline (the workflow's emit-reply activity owns the
+ * reply). Idempotency is by workflow id (`charge-{orderId}`): a redelivered
+ * `ChargePayment` re-targets the same id and the gateway treats the resulting
+ * "already started" as a no-op, so exactly one workflow (and one reply) exists
+ * per order. The handler runs in the tenant scope the envelope carries; that
+ * tenant + the saga correlation id are threaded into the workflow so the
+ * emit-reply activity can re-establish scope when writing the outbox. Disabled
+ * under NODE_ENV=test (no broker).
  */
 @Injectable()
 export class PaymentCommandConsumer implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(PaymentCommandConsumer.name);
-  private readonly failAtCents: number;
   private consumer?: KafkaJS.Consumer;
 
   constructor(
     private readonly subscriber: KafkaConsumerSubscriber,
-    @Inject(OUTBOX_WRITER) private readonly outbox: OutboxWriter,
-    @Inject(PROCESSED_EVENT_STORE) private readonly processedEvents: ProcessedEventStorePort,
-    @Inject(TRANSACTION_PORT) private readonly transaction: TransactionPort,
+    @Inject(WORKFLOW_GATEWAY) private readonly workflowGateway: WorkflowGatewayPort,
     private readonly config: ConfigService,
-  ) {
-    this.failAtCents = this.config.getOrThrow<number>('PAYMENT_STUB_FAIL_AT_CENTS');
-  }
+  ) {}
 
   async onApplicationBootstrap(): Promise<void> {
     if (this.config.get<string>('NODE_ENV') === 'test') {
@@ -80,18 +72,11 @@ export class PaymentCommandConsumer implements OnApplicationBootstrap, OnModuleD
       this.logger.warn(`Ignoring unknown payment command type "${envelope.eventType}"`);
       return;
     }
-    const reply = this.buildReply(payload, envelope.correlationId);
-    await this.transaction.runInTransaction(async () => {
-      await IdempotentConsumer.runOnce(this.processedEvents, envelope.eventId, undefined, () =>
-        this.outbox.append(reply),
-      );
+    await this.workflowGateway.startCharge({
+      orderId: payload.orderId,
+      totalCents: payload.totalCents,
+      correlationId: envelope.correlationId,
+      tenantId: envelope.tenantId,
     });
-  }
-
-  private buildReply(payload: ChargePaymentPayload, correlationId: string): OutboxCommandEntry {
-    const decision = decideCharge(payload.totalCents, this.failAtCents);
-    return decision.ok
-      ? paymentSucceededReply(payload.orderId, correlationId)
-      : paymentFailedReply(payload.orderId, decision.reason ?? 'payment declined', correlationId);
   }
 }

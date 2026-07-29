@@ -28,6 +28,7 @@
     "apps/media/src/infrastructure/persistence/migrations/*.ts",
     "apps/order/src/infrastructure/persistence/data-source.ts",
     "apps/payment/src/infrastructure/persistence/data-source.ts",
+    "apps/payment/src/workflows/index.ts",
     "apps/**/*.spec.ts",
     "apps/**/*.e2e-spec.ts",
     "apps/*/src/testing/**/*.ts",
