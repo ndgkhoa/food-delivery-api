@@ -9,12 +9,16 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "webpack-cli build",
-        "env": { "NODE_ENV": "production" },
+        "env": {
+          "NODE_ENV": "production"
+        },
         "cwd": "apps/auth"
       },
       "configurations": {
         "development": {
-          "env": { "NODE_ENV": "development" }
+          "env": {
+            "NODE_ENV": "development"
+          }
         }
       }
     },
@@ -28,12 +32,21 @@
         "runBuildTargetDependencies": false
       },
       "configurations": {
-        "development": { "buildTarget": "auth:build:development" },
-        "production": { "buildTarget": "auth:build:production" }
+        "development": {
+          "buildTarget": "auth:build:development"
+        },
+        "production": {
+          "buildTarget": "auth:build:production"
+        }
       }
     },
     "test": {
-      "options": { "passWithNoTests": true }
-    }
+      "options": {
+        "passWithNoTests": true
+      }
+    },
+    "migration-run": {},
+    "migration-generate": {},
+    "migration-revert": {}
   }
 }

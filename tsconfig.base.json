@@ -32,6 +32,7 @@
       "@gateway/*": ["apps/gateway/src/*"],
       "@inventory/*": ["apps/inventory/src/*"],
       "@media/*": ["apps/media/src/*"],
+      "@notification/*": ["apps/notification/src/*"],
       "@order/*": ["apps/order/src/*"],
       "@payment/*": ["apps/payment/src/*"],
       "@search/*": ["apps/search/src/*"]

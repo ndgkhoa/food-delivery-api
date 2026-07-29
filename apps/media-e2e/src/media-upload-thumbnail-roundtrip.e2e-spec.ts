@@ -8,7 +8,7 @@ import { makePng } from './png-fixture';
  * running. Run it against:
  *
  *   docker compose -f infra/docker-compose.yml --profile core --profile media up -d
- *   DB_NAME=media pnpm migration:media:run
+ *   nx run media:migration-run
  *   pnpm --filter media serve          # media on :3006 (HTTP + thumbnail worker)
  *   pnpm nx e2e media-e2e
  *

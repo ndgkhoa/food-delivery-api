@@ -305,6 +305,27 @@ services:
     ports:
       - '${TEMPORAL_UI_PORT:-8233}:8080'
 
+  # Dev SMTP catcher for the notification service's email channel. Enable with
+  # the `notification` profile alongside `core` + `messaging` (order.events
+  # consumer) — the notification worker (run on the host via `pnpm dev`)
+  # connects to SMTP on :1025; the captured messages + REST API used by the
+  # e2e are on the web UI port :8025. DEV ONLY — never reachable from Nginx.
+  mailpit:
+    image: axllent/mailpit:v1.30.6
+    container_name: food-delivery-mailpit
+    profiles: [notification]
+    restart: unless-stopped
+    ports:
+      - '${MAILPIT_SMTP_PORT:-1025}:1025'
+      - '${MAILPIT_UI_PORT:-8025}:8025'
+    healthcheck:
+      # The image is a minimal Go binary (no shell/wget) — use its own readyz subcommand.
+      test: ['CMD', '/mailpit', 'readyz']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
 volumes:
   postgres-data:
   redis-data:
