@@ -24,6 +24,8 @@ export const gatewayEnvSchema = baseEnvSchema
      * DIRECT to the delivery service (Nginx WS-upgrade is a later infra step).
      */
     DELIVERY_SERVICE_URL: z.string().url().default('http://localhost:3005'),
+    /** Base URL of the media service the gateway forwards `/api/v1/media/*` to. */
+    MEDIA_SERVICE_URL: z.string().url().default('http://localhost:3006'),
     /**
      * Keycloak base URL + realm. The issuer (`<url>/realms/<realm>`) and JWKS
      * endpoint are derived from these, so both stay in lockstep and only the
