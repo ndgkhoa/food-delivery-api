@@ -1,0 +1,20 @@
+{
+  "name": "media-e2e",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "implicitDependencies": ["media"],
+  "tags": ["scope:media", "type:e2e"],
+  "targets": {
+    "test": {
+      "executor": "nx:noop"
+    },
+    "e2e": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/apps/media-e2e"],
+      "options": {
+        "jestConfig": "apps/media-e2e/jest.config.cts",
+        "passWithNoTests": true
+      }
+    }
+  }
+}

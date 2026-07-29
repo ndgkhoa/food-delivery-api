@@ -8,6 +8,7 @@ import { AuthProxyController } from '@gateway/proxy/auth-proxy.controller';
 import { CatalogProxyController } from '@gateway/proxy/catalog-proxy.controller';
 import { DeliveryProxyController } from '@gateway/proxy/delivery-proxy.controller';
 import { HttpForwarder } from '@gateway/proxy/http-forwarder';
+import { MediaProxyController } from '@gateway/proxy/media-proxy.controller';
 import { OrderProxyController } from '@gateway/proxy/order-proxy.controller';
 import { SearchProxyController } from '@gateway/proxy/search-proxy.controller';
 import { RateLimitGuard } from '@gateway/rate-limit/rate-limit.guard';
@@ -58,6 +59,7 @@ import { APP_GUARD } from '@nestjs/core';
     OrderProxyController,
     SearchProxyController,
     DeliveryProxyController,
+    MediaProxyController,
     AuthProxyController,
   ],
   providers: [
