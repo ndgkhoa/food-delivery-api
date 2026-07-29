@@ -26,6 +26,8 @@ export const gatewayEnvSchema = baseEnvSchema
     DELIVERY_SERVICE_URL: z.string().url().default('http://localhost:3005'),
     /** Base URL of the media service the gateway forwards `/api/v1/media/*` to. */
     MEDIA_SERVICE_URL: z.string().url().default('http://localhost:3006'),
+    /** Base URL of the config service the gateway forwards `/api/v1/config/*` to. */
+    CONFIG_SERVICE_URL: z.string().url().default('http://localhost:3008'),
     /**
      * Keycloak base URL + realm. The issuer (`<url>/realms/<realm>`) and JWKS
      * endpoint are derived from these, so both stay in lockstep and only the

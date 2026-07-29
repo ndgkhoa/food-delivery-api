@@ -7,6 +7,7 @@ import { HealthController } from '@gateway/health/health.controller';
 import { AuthProxyController } from '@gateway/proxy/auth-proxy.controller';
 import { CatalogProxyController } from '@gateway/proxy/catalog-proxy.controller';
 import { CircuitBreakerRegistry } from '@gateway/proxy/circuit-breaker.registry';
+import { ConfigProxyController } from '@gateway/proxy/config-proxy.controller';
 import { DeliveryProxyController } from '@gateway/proxy/delivery-proxy.controller';
 import { HttpForwarder } from '@gateway/proxy/http-forwarder';
 import { MediaProxyController } from '@gateway/proxy/media-proxy.controller';
@@ -50,9 +51,10 @@ import { APP_GUARD } from '@nestjs/core';
   // must be matched before AuthProxyController's `@All('*path')` catch-all.
   // HealthController owns a distinct `/health` path so its order is immaterial.
   // CatalogProxyController/OrderProxyController/SearchProxyController/
-  // DeliveryProxyController own their own distinct prefixes
-  // (`catalog`/`orders`/`search`/`delivery`) but are still registered ahead of
-  // AuthProxyController's catch-all for consistency with that constraint.
+  // DeliveryProxyController/ConfigProxyController own their own distinct
+  // prefixes (`catalog`/`orders`/`search`/`delivery`/`config`) but are still
+  // registered ahead of AuthProxyController's catch-all for consistency with
+  // that constraint.
   controllers: [
     HealthController,
     KeycloakSessionController,
@@ -61,6 +63,7 @@ import { APP_GUARD } from '@nestjs/core';
     SearchProxyController,
     DeliveryProxyController,
     MediaProxyController,
+    ConfigProxyController,
     AuthProxyController,
   ],
   providers: [
