@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { bootOrderStack, type OrderStack, shutdownOrderStack } from './support/boot-order-stack';
 import { buildIdentityHeaders } from './support/build-identity-headers';
+import { DEFAULT_DELIVERY_FEE_CENTS, DEFAULT_VAT_RATE_BPS } from './support/saga-e2e-support';
 
 /**
  * Proves the ASYNC place-order contract against real Postgres (order +
@@ -71,7 +72,11 @@ describe('Order place (async saga contract) + cancel (e2e)', () => {
 
     expect(response.status).toBe(201);
     expect(response.body.status).toBe('PENDING');
-    expect(response.body.totalCents).toBe(2400);
+    // subtotal 2400 (2 x 1200) + the config-client's fallback defaults (no
+    // config service running in this in-process stack): fee + VAT, discount 0.
+    const subtotalCents = 2400;
+    const vatCents = Math.floor((subtotalCents * DEFAULT_VAT_RATE_BPS) / 10000);
+    expect(response.body.totalCents).toBe(subtotalCents + DEFAULT_DELIVERY_FEE_CENTS + vatCents);
 
     expect(await sagaState(response.body.id)).toBe('STARTED');
     const outbox = await outboxRows(response.body.id);

@@ -5,6 +5,7 @@ import {
   orderOutboxAttempts,
   placeOrder,
   pollOrderUntil,
+  priceForTotal,
   sagaState,
   seedMenuItem,
   seedStock,
@@ -37,7 +38,9 @@ describe('Order saga compensation + idempotency (e2e, compose)', () => {
     const tenantId = randomUUID();
     const userId = randomUUID();
     const itemId = randomUUID();
-    await seedMenuItem(tenantId, randomUUID(), itemId, FAIL_AT_CENTS);
+    // Price the item so the qty=1 order's TOTAL (subtotal + fee + VAT) — what the
+    // saga actually charges — lands exactly on the stub's decline threshold.
+    await seedMenuItem(tenantId, randomUUID(), itemId, priceForTotal(FAIL_AT_CENTS));
     await seedStock(tenantId, itemId, 5);
 
     const placed = await placeOrder(tenantId, userId, [{ itemId, qty: 1 }]);
@@ -128,9 +131,10 @@ describe('Order saga compensation + idempotency (e2e, compose)', () => {
     const tenantId = randomUUID();
     const itemOk = randomUUID();
     const itemDecline = randomUUID();
-    const okPrice = FAIL_AT_CENTS === 500 ? 400 : 500;
+    const declinePrice = priceForTotal(FAIL_AT_CENTS);
+    const okPrice = declinePrice === 500 ? 400 : 500;
     await seedMenuItem(tenantId, randomUUID(), itemOk, okPrice);
-    await seedMenuItem(tenantId, randomUUID(), itemDecline, FAIL_AT_CENTS);
+    await seedMenuItem(tenantId, randomUUID(), itemDecline, declinePrice);
     await seedStock(tenantId, itemOk, 10);
     await seedStock(tenantId, itemDecline, 10);
 

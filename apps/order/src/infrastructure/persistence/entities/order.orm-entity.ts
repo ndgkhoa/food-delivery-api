@@ -34,6 +34,18 @@ export class OrderOrmEntity {
   @Column({ type: 'varchar', length: 20 })
   status!: string;
 
+  @Column({ name: 'subtotal_cents', type: 'integer' })
+  subtotalCents!: number;
+
+  @Column({ name: 'delivery_fee_cents', type: 'integer' })
+  deliveryFeeCents!: number;
+
+  @Column({ name: 'vat_cents', type: 'integer' })
+  vatCents!: number;
+
+  @Column({ name: 'discount_cents', type: 'integer' })
+  discountCents!: number;
+
   @Column({ name: 'total_cents', type: 'integer' })
   totalCents!: number;
 

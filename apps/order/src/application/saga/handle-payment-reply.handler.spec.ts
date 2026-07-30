@@ -60,7 +60,8 @@ describe('HandlePaymentReplyHandler', () => {
     expect(outbox.entries[0]).toMatchObject({
       topic: 'order.events',
       eventType: 'OrderConfirmed',
-      payload: { orderId, userId: USER_ID, status: 'CONFIRMED', totalCents: 1000 },
+      // subtotal 1000 (2 x 500) + DEFAULT_PRICING (fee 1500, vat floor(1000*1000/10000)=100).
+      payload: { orderId, userId: USER_ID, status: 'CONFIRMED', totalCents: 2600 },
     });
     expect(outbox.entries[0].correlationId).toBe(DEFAULT_CORRELATION_ID);
   });

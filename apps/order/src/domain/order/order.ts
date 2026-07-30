@@ -23,6 +23,14 @@ export interface OrderProps {
   status: OrderStatus;
   items: OrderItem[];
   /** Integer cents — sum of every line item's `lineTotalCents`. */
+  subtotalCents: number;
+  /** Integer cents — the tenant's config-sourced delivery fee at placement time. */
+  deliveryFeeCents: number;
+  /** Integer cents — `floor(subtotalCents * vatRateBps / 10000)`. */
+  vatCents: number;
+  /** Integer cents — the tenant's config-sourced discount at placement time. */
+  discountCents: number;
+  /** Integer cents — `subtotalCents + deliveryFeeCents + vatCents - discountCents`, floored at 0. */
   totalCents: number;
   /** Optimistic-lock version. 0 for a brand-new, not-yet-persisted aggregate. */
   version: number;
@@ -30,11 +38,37 @@ export interface OrderProps {
   updatedAt: Date;
 }
 
+/** Config-sourced pricing tunables applied on top of the items subtotal. */
+export interface OrderPricingInput {
+  /** Integer cents, non-negative. */
+  deliveryFeeCents: number;
+  /** Basis points (1/100 of a percent), non-negative — e.g. 1000 = 10%. */
+  vatRateBps: number;
+  /** Integer cents, non-negative. */
+  discountCents: number;
+}
+
 export interface CreateOrderProps {
   id: string;
   tenantId: string;
   userId: string;
   items: OrderItem[];
+  pricing: OrderPricingInput;
+}
+
+function assertBoundedNonNegativeInteger(value: number, label: string): void {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new InvalidOrderRequestError(`${label} must be a non-negative integer`);
+  }
+  if (value > MAX_MONEY_CENTS) {
+    throw new InvalidOrderRequestError(`${label} exceeds the maximum allowed amount`);
+  }
+}
+
+function assertValidPricingInput(pricing: OrderPricingInput): void {
+  assertBoundedNonNegativeInteger(pricing.deliveryFeeCents, 'delivery fee');
+  assertBoundedNonNegativeInteger(pricing.vatRateBps, 'VAT rate');
+  assertBoundedNonNegativeInteger(pricing.discountCents, 'discount');
 }
 
 /**
@@ -44,6 +78,12 @@ export interface CreateOrderProps {
  * `Order` instance in the next state, or throw `IllegalOrderTransitionError`
  * when the transition is not in the allowed-transitions table — they never
  * mutate `this`.
+ *
+ * Pricing is a pure calculation over the constructor input, never IO: `create()`
+ * sums line items into `subtotalCents`, applies the caller-supplied
+ * `deliveryFeeCents`/`vatRateBps`/`discountCents` (sourced from config by the
+ * caller, e.g. `PlaceOrderHandler`), and derives `vatCents` + the final
+ * `totalCents`, floored at 0 so a discount can never push the charge negative.
  */
 export class Order {
   private constructor(private readonly props: OrderProps) {}
@@ -52,10 +92,27 @@ export class Order {
     if (props.items.length === 0) {
       throw new InvalidOrderRequestError('order must contain at least one item');
     }
-    const totalCents = props.items.reduce((sum, item) => sum + item.lineTotalCents, 0);
-    if (totalCents > MAX_MONEY_CENTS) {
-      throw new InvalidOrderRequestError('order total exceeds the maximum allowed amount');
+    assertValidPricingInput(props.pricing);
+
+    const subtotalCents = props.items.reduce((sum, item) => sum + item.lineTotalCents, 0);
+    const { deliveryFeeCents, vatRateBps, discountCents } = props.pricing;
+    const vatCents = Math.floor((subtotalCents * vatRateBps) / 10000);
+    const totalCents = Math.max(0, subtotalCents + deliveryFeeCents + vatCents - discountCents);
+    // Every one of these is persisted in its own bounded (int4) money column, so
+    // each must fit independently — guarding only the final total would let a
+    // large fee/discount that nets to an in-range total still overflow its
+    // column on insert (a raw DB error surfacing as a 500). Bound them all here
+    // so an out-of-range config value fails as a clean domain error instead.
+    for (const [amount, label] of [
+      [subtotalCents, 'order subtotal'],
+      [vatCents, 'order VAT'],
+      [totalCents, 'order total'],
+    ] as const) {
+      if (amount > MAX_MONEY_CENTS) {
+        throw new InvalidOrderRequestError(`${label} exceeds the maximum allowed amount`);
+      }
     }
+
     const now = new Date();
     return new Order({
       id: props.id,
@@ -63,6 +120,10 @@ export class Order {
       userId: props.userId,
       status: 'PENDING',
       items: props.items,
+      subtotalCents,
+      deliveryFeeCents,
+      vatCents,
+      discountCents,
       totalCents,
       version: 0,
       createdAt: now,
@@ -93,6 +154,22 @@ export class Order {
 
   get items(): OrderItem[] {
     return this.props.items;
+  }
+
+  get subtotalCents(): number {
+    return this.props.subtotalCents;
+  }
+
+  get deliveryFeeCents(): number {
+    return this.props.deliveryFeeCents;
+  }
+
+  get vatCents(): number {
+    return this.props.vatCents;
+  }
+
+  get discountCents(): number {
+    return this.props.discountCents;
   }
 
   get totalCents(): number {

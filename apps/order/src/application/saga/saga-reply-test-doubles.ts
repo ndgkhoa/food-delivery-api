@@ -19,10 +19,19 @@ export const TENANT_ID = '11111111-1111-4111-8111-111111111111';
 export const USER_ID = '22222222-2222-4222-8222-222222222222';
 const ITEM_ID = '33333333-3333-4333-8333-333333333333';
 
+/** Matches the config service's documented defaults so saga test totals stay predictable. */
+const DEFAULT_PRICING = { deliveryFeeCents: 1500, vatRateBps: 1000, discountCents: 0 };
+
 /** Builds an order advanced to the given status via its own state machine. */
 export function buildOrder(orderId: string, status: string): Order {
   const item = OrderItem.create({ itemId: ITEM_ID, qty: 2, unitPriceCents: 500 });
-  let order = Order.create({ id: orderId, tenantId: TENANT_ID, userId: USER_ID, items: [item] });
+  let order = Order.create({
+    id: orderId,
+    tenantId: TENANT_ID,
+    userId: USER_ID,
+    items: [item],
+    pricing: DEFAULT_PRICING,
+  });
   if (status === 'RESERVED' || status === 'CONFIRMED' || status === 'CANCELLED') {
     order = order.reserve();
   }
