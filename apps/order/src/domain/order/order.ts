@@ -20,6 +20,15 @@ export interface OrderProps {
   tenantId: string;
   /** Order owner — the verified token subject (`sub`) that placed it. */
   userId: string;
+  /**
+   * The single restaurant every line item belongs to (an order cannot span
+   * multiple restaurants — enforced by `PlaceOrderHandler`, not here). Always
+   * populated for an order placed after this field was introduced; a
+   * straggler order placed before it reconstitutes with `''` (see
+   * `OrderMapper.toDomain`) since it predates the invariant and is not
+   * reviewable.
+   */
+  restaurantId: string;
   status: OrderStatus;
   items: OrderItem[];
   /** Integer cents — sum of every line item's `lineTotalCents`. */
@@ -52,6 +61,8 @@ export interface CreateOrderProps {
   id: string;
   tenantId: string;
   userId: string;
+  /** The single restaurant every item belongs to — required for every new order. */
+  restaurantId: string;
   items: OrderItem[];
   pricing: OrderPricingInput;
 }
@@ -92,6 +103,9 @@ export class Order {
     if (props.items.length === 0) {
       throw new InvalidOrderRequestError('order must contain at least one item');
     }
+    if (!props.restaurantId) {
+      throw new InvalidOrderRequestError('restaurantId is required');
+    }
     assertValidPricingInput(props.pricing);
 
     const subtotalCents = props.items.reduce((sum, item) => sum + item.lineTotalCents, 0);
@@ -118,6 +132,7 @@ export class Order {
       id: props.id,
       tenantId: props.tenantId,
       userId: props.userId,
+      restaurantId: props.restaurantId,
       status: 'PENDING',
       items: props.items,
       subtotalCents,
@@ -146,6 +161,10 @@ export class Order {
 
   get userId(): string {
     return this.props.userId;
+  }
+
+  get restaurantId(): string {
+    return this.props.restaurantId;
   }
 
   get status(): OrderStatus {

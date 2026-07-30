@@ -9,6 +9,8 @@ export interface OrderResponse {
   id: string;
   tenantId: string;
   userId: string;
+  /** The restaurant this order was placed for. Empty for a straggler order placed before this field existed. */
+  restaurantId: string;
   status: string;
   items: OrderItemResponse[];
   /** Sum of every line item's `lineTotalCents`, before delivery fee/VAT/discount. */

@@ -107,6 +107,17 @@ async function placeOrder(
   return (await res.json()) as { id: string; status: string };
 }
 
+async function getOrder(
+  tenantId: string,
+  userId: string,
+  orderId: string,
+): Promise<{ status: string; restaurantId: string }> {
+  const res = await fetch(`${ORDER_BASE_URL}/orders/${orderId}`, {
+    headers: buildIdentityHeaders(tenantId, userId),
+  });
+  return (await res.json()) as { status: string; restaurantId: string };
+}
+
 async function pollStatus(
   tenantId: string,
   userId: string,
@@ -130,11 +141,14 @@ async function pollStatus(
 }
 
 describe('Order saga happy path (e2e, compose)', () => {
-  it('drives an order PENDING → CONFIRMED via reserve + charge, decrementing stock', async () => {
+  it('drives an order PENDING → CONFIRMED via reserve + charge, decrementing stock, carrying restaurantId', async () => {
     const tenantId = randomUUID();
     const userId = randomUUID();
     const itemId = randomUUID();
-    await seedMenuItem(tenantId, randomUUID(), itemId, 1200);
+    // Both order items resolve to this SAME restaurant, so the order carries
+    // exactly one restaurantId end to end (OrderConfirmed included).
+    const restaurantId = randomUUID();
+    await seedMenuItem(tenantId, restaurantId, itemId, 1200);
     await seedStock(tenantId, itemId, 5);
 
     const placed = await placeOrder(tenantId, userId, [{ itemId, qty: 2 }]);
@@ -144,6 +158,9 @@ describe('Order saga happy path (e2e, compose)', () => {
     expect(finalStatus).toBe('CONFIRMED');
     expect(await sagaState(placed.id)).toBe('COMPLETED');
     expect(await stockAvailable(tenantId, itemId)).toBe(3);
+
+    const confirmedOrder = await getOrder(tenantId, userId, placed.id);
+    expect(confirmedOrder.restaurantId).toBe(restaurantId);
   }, 60_000);
 
   it('100 concurrent orders on stock=10 → exactly 10 CONFIRMED, 90 CANCELLED, zero oversell', async () => {

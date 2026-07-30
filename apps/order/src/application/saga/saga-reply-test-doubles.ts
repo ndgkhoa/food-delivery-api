@@ -18,6 +18,7 @@ import type { TransactionPort } from '@order/domain/shared/transaction.port';
 export const TENANT_ID = '11111111-1111-4111-8111-111111111111';
 export const USER_ID = '22222222-2222-4222-8222-222222222222';
 const ITEM_ID = '33333333-3333-4333-8333-333333333333';
+export const RESTAURANT_ID = '77777777-7777-4777-8777-777777777778';
 
 /** Matches the config service's documented defaults so saga test totals stay predictable. */
 const DEFAULT_PRICING = { deliveryFeeCents: 1500, vatRateBps: 1000, discountCents: 0 };
@@ -29,6 +30,7 @@ export function buildOrder(orderId: string, status: string): Order {
     id: orderId,
     tenantId: TENANT_ID,
     userId: USER_ID,
+    restaurantId: RESTAURANT_ID,
     items: [item],
     pricing: DEFAULT_PRICING,
   });

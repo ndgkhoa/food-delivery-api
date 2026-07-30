@@ -7,6 +7,7 @@ export class OrderResponseMapper {
       id: order.id,
       tenantId: order.tenantId,
       userId: order.userId,
+      restaurantId: order.restaurantId,
       status: order.status,
       items: order.items.map((item) => ({
         itemId: item.itemId,

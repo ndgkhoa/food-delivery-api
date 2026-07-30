@@ -4,7 +4,7 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 
 ## Overview
 - **Priority**: P2
-- **Status**: Not started
+- **Status**: 🔄 In progress — **6a** [config service + client](./phase-06a-config-service-and-client.md) done (#21 config+client · #22 order consumes fee/VAT/discount); **6b** [review → rating → search](./phase-06b-review-rating-search.md) in progress; **6c** analytics remaining.
 - **Brief**: Three event-consuming services that complete the domain: `analytics` (Kafka→ClickHouse→dashboard), `review` (rating→Kafka→restaurant score→ES ranking), `config` (delivery fee/VAT/discount values + feature-flag toggles). All build on the P3 event backbone. Independent tracks — parallelizable.
 
 ## Key insights
