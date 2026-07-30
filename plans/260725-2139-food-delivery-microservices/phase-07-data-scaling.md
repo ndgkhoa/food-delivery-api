@@ -4,7 +4,7 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 
 ## Overview
 - **Priority**: P2
-- **Status**: 🔄 In progress — **7a** [partition `orders` by month](./phase-07a-orders-partitioning.md) in progress; **7b** read replica + router, **7c** cache strategies remaining.
+- **Status**: 🔄 In progress — **7a** [partition `orders` by month](./phase-07a-orders-partitioning.md) done (#26); **7b** [read replica + read/write routing](./phase-07b-read-replica-routing.md) in progress; **7c** cache strategies remaining.
 - **Brief**: Now that real order volume exists, learn data-tier scaling: partition `orders` by time, add a read replica + read/write routing, and apply deliberate cache strategies (cache-aside, write-through, TTL, invalidation). No new business features — pure performance/scale learning.
 
 ## Key insights

@@ -39,6 +39,12 @@ class FakeOrderRepository implements OrderRepository {
     const row = this.rows.get(id);
     return row && row.tenantId === t ? row : undefined;
   }
+
+  async findRecentByTenant(t: string, userIdFilter: string, limit: number): Promise<Order[]> {
+    return [...this.rows.values()]
+      .filter((row) => row.tenantId === t && row.userId === userIdFilter)
+      .slice(0, limit);
+  }
 }
 
 class FakeIdempotencyRepository implements IdempotencyRepository {

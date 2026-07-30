@@ -16,6 +16,13 @@ export interface OrderRepository {
   updateStatus(order: Order): Promise<Order>;
   /** Tenant-scoped lookup by id. `undefined` when no such order exists in the tenant. */
   findById(tenantId: string, id: string): Promise<Order | undefined>;
+  /**
+   * A user's most recent orders (order history), newest first, capped at
+   * `limit`. Lag-tolerant by design — this is never a read of a row its own
+   * caller just wrote — so implementations are free to serve it from a read
+   * replica.
+   */
+  findRecentByTenant(tenantId: string, userId: string, limit: number): Promise<Order[]>;
 }
 
 export const ORDER_REPOSITORY = Symbol('OrderRepository');

@@ -11,12 +11,15 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
 import { CancelOrderHandler } from '@order/application/order/commands/cancel-order.handler';
 import { ConfirmOrderHandler } from '@order/application/order/commands/confirm-order.handler';
 import { PlaceOrderHandler } from '@order/application/order/commands/place-order.handler';
 import { GetOrderHandler } from '@order/application/order/queries/get-order.handler';
+import { ListOrdersHandler } from '@order/application/order/queries/list-orders.handler';
+import { ListOrdersRequest } from '@order/interface/http/dto/list-orders.request';
 import type { OrderResponse } from '@order/interface/http/dto/order.response';
 import { PlaceOrderRequest } from '@order/interface/http/dto/place-order.request';
 import { OrderResponseMapper } from '@order/interface/http/mappers/order-response.mapper';
@@ -30,6 +33,7 @@ export class OrdersController {
     private readonly cancelOrder: CancelOrderHandler,
     private readonly confirmOrder: ConfirmOrderHandler,
     private readonly getOrder: GetOrderHandler,
+    private readonly listOrders: ListOrdersHandler,
     @Inject(TENANT_CONTEXT_PORT) private readonly tenantContext: TenantContextPort,
   ) {}
 
@@ -80,6 +84,24 @@ export class OrdersController {
       orderId: id,
     });
     return OrderResponseMapper.toResponse(order);
+  }
+
+  @Get()
+  @ApiOperation({
+    summary: "List the caller's order history",
+    description:
+      'Newest-first, capped at `limit` (default 20, max 100). Lag-tolerant — ' +
+      'unlike every other read on this controller, it may be served from a read ' +
+      'replica when one is configured, so a write made in the last few ' +
+      'milliseconds is not guaranteed to appear yet.',
+  })
+  async findAll(@Query() query: ListOrdersRequest): Promise<OrderResponse[]> {
+    const orders = await this.listOrders.execute({
+      tenantId: this.tenantContext.getTenantIdOrThrow(),
+      userId: this.tenantContext.getActor(),
+      limit: query.limit,
+    });
+    return orders.map(OrderResponseMapper.toResponse);
   }
 
   @Get(':id')

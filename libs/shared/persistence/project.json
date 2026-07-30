@@ -1,0 +1,7 @@
+{
+  "name": "shared-persistence",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/persistence/src",
+  "projectType": "library",
+  "tags": ["scope:shared", "type:util"]
+}
