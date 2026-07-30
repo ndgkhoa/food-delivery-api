@@ -9,6 +9,12 @@ export class OrderMapper {
       id: orm.id,
       tenantId: orm.tenantId,
       userId: orm.userId,
+      // A NULL column means this row predates the restaurantId invariant — the
+      // aggregate's field is a required `string`, so it reconstitutes as ''
+      // rather than null. Such a straggler order is never newly reviewable
+      // (review eligibility only starts from a post-migration OrderConfirmed
+      // event), so this placeholder never leaks into a real feature.
+      restaurantId: orm.restaurantId ?? '',
       status: orm.status as OrderStatus,
       items: itemRows.map((item) =>
         OrderItem.reconstitute({
@@ -39,6 +45,7 @@ export class OrderMapper {
     orm.id = order.id;
     orm.tenantId = order.tenantId;
     orm.userId = order.userId;
+    orm.restaurantId = order.restaurantId;
     orm.status = order.status;
     orm.subtotalCents = order.subtotalCents;
     orm.deliveryFeeCents = order.deliveryFeeCents;

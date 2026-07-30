@@ -14,6 +14,7 @@ import {
   FakeProcessedEventStore,
   FakeSagaRepository,
   FakeTransaction,
+  RESTAURANT_ID,
   TENANT_ID,
   USER_ID,
 } from './saga-reply-test-doubles';
@@ -61,7 +62,13 @@ describe('HandlePaymentReplyHandler', () => {
       topic: 'order.events',
       eventType: 'OrderConfirmed',
       // subtotal 1000 (2 x 500) + DEFAULT_PRICING (fee 1500, vat floor(1000*1000/10000)=100).
-      payload: { orderId, userId: USER_ID, status: 'CONFIRMED', totalCents: 2600 },
+      payload: {
+        orderId,
+        userId: USER_ID,
+        restaurantId: RESTAURANT_ID,
+        status: 'CONFIRMED',
+        totalCents: 2600,
+      },
     });
     expect(outbox.entries[0].correlationId).toBe(DEFAULT_CORRELATION_ID);
   });

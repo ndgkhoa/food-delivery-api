@@ -73,7 +73,13 @@ export class HandlePaymentReplyHandler {
         // Publish the order's lifecycle event atomically with the transition so
         // downstream contexts (delivery assignment) learn the order is CONFIRMED.
         await this.outbox.append(
-          orderConfirmedEvent(orderId, order.userId, order.totalCents, envelope.correlationId),
+          orderConfirmedEvent(
+            orderId,
+            order.userId,
+            order.restaurantId,
+            order.totalCents,
+            envelope.correlationId,
+          ),
         );
         return;
       }

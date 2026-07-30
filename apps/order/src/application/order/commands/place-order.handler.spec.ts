@@ -8,7 +8,7 @@ import type {
   CatalogGatewayPort,
   MenuItemSnapshot,
 } from '@order/domain/shared/catalog-gateway.port';
-import { MenuValidationError } from '@order/domain/shared/errors';
+import { InvalidOrderRequestError, MenuValidationError } from '@order/domain/shared/errors';
 import type { OutboxCommandEntry, OutboxWriter } from '@order/domain/shared/outbox.port';
 import type { TransactionPort } from '@order/domain/shared/transaction.port';
 import {
@@ -20,6 +20,7 @@ import {
 const tenantId = '11111111-1111-4111-8111-111111111111';
 const userId = '22222222-2222-4222-8222-222222222222';
 const itemId = '33333333-3333-4333-8333-333333333333';
+const otherItemId = '44444444-4444-4444-8444-444444444444';
 
 class FakeOrderRepository implements OrderRepository {
   readonly rows = new Map<string, Order>();
@@ -166,6 +167,7 @@ describe('PlaceOrderHandler (async saga)', () => {
     const order = await handler.execute(baseCommand());
 
     expect(order.status).toBe('PENDING');
+    expect(order.restaurantId).toBe('r-1');
     expect(order.subtotalCents).toBe(1000);
     // No config-client seed for this tenant — every key falls back to its
     // documented default: fee 1500, VAT floor(1000 * 1000 / 10000) = 100.
@@ -214,6 +216,50 @@ describe('PlaceOrderHandler (async saga)', () => {
     expect(order.vatCents).toBe(50); // floor(1000 * 500 / 10000)
     expect(order.discountCents).toBe(100);
     expect(order.totalCents).toBe(1000 + 2000 + 50 - 100);
+  });
+
+  it('rejects a cart mixing items from two different restaurants', async () => {
+    const { catalogGateway, handler } = buildHandler();
+    catalogGateway.seed({ itemId, restaurantId: 'r-1', priceCents: 500, isAvailable: true });
+    catalogGateway.seed({
+      itemId: otherItemId,
+      restaurantId: 'r-2',
+      priceCents: 700,
+      isAvailable: true,
+    });
+
+    await expect(
+      handler.execute(
+        baseCommand({
+          items: [
+            { itemId, qty: 1 },
+            { itemId: otherItemId, qty: 1 },
+          ],
+        }),
+      ),
+    ).rejects.toThrow(InvalidOrderRequestError);
+  });
+
+  it('passes the single shared restaurantId through when every item belongs to it', async () => {
+    const { catalogGateway, handler } = buildHandler();
+    catalogGateway.seed({ itemId, restaurantId: 'r-1', priceCents: 500, isAvailable: true });
+    catalogGateway.seed({
+      itemId: otherItemId,
+      restaurantId: 'r-1',
+      priceCents: 700,
+      isAvailable: true,
+    });
+
+    const order = await handler.execute(
+      baseCommand({
+        items: [
+          { itemId, qty: 1 },
+          { itemId: otherItemId, qty: 1 },
+        ],
+      }),
+    );
+
+    expect(order.restaurantId).toBe('r-1');
   });
 
   it('replays the same order on a duplicate key without re-validating or re-enqueuing', async () => {

@@ -31,6 +31,15 @@ export class OrderOrmEntity {
   @Column({ name: 'user_id', type: 'varchar', length: 255 })
   userId!: string;
 
+  /**
+   * Nullable in the DB: a straggler order placed before this column existed
+   * has no restaurant to report. A freshly-created order always sets it —
+   * `PlaceOrderHandler` derives it from the catalog-resolved items before
+   * `Order.create` (which requires a non-empty value).
+   */
+  @Column({ name: 'restaurant_id', type: 'uuid', nullable: true })
+  restaurantId!: string | null;
+
   @Column({ type: 'varchar', length: 20 })
   status!: string;
 

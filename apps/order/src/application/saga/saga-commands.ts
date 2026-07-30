@@ -83,6 +83,14 @@ interface OrderLifecyclePayload {
   userId: string;
   status: 'CONFIRMED' | 'CANCELLED';
   totalCents: number;
+  /**
+   * The restaurant the order was placed for — lets a downstream consumer
+   * (e.g. review eligibility) know WHICH restaurant a confirmed order was
+   * for. Absent only for a straggler order placed before the restaurantId
+   * invariant existed and confirmed after this deploy; every order placed
+   * since always carries one.
+   */
+  restaurantId?: string;
 }
 
 /**
@@ -90,11 +98,15 @@ interface OrderLifecyclePayload {
  * `correlationId` is threaded from the triggering PaymentSucceeded reply so the
  * emission stays on the saga's trace. Appended in the SAME transaction as the
  * order-status + saga transition, so an order can never appear CONFIRMED without
- * its event (and vice versa).
+ * its event (and vice versa). `restaurantId` is omitted from the payload
+ * (rather than emitted as `''`) for a straggler pre-invariant order, so a
+ * downstream consumer can tell "no restaurant to report" apart from an empty
+ * string.
  */
 export function orderConfirmedEvent(
   orderId: string,
   userId: string,
+  restaurantId: string,
   totalCents: number,
   correlationId: string,
 ): OutboxCommandEntry {
@@ -102,7 +114,13 @@ export function orderConfirmedEvent(
     aggregateId: orderId,
     topic: ORDER_EVENTS_TOPIC,
     eventType: ORDER_CONFIRMED,
-    payload: { orderId, userId, status: 'CONFIRMED', totalCents } satisfies OrderLifecyclePayload,
+    payload: {
+      orderId,
+      userId,
+      status: 'CONFIRMED',
+      totalCents,
+      ...(restaurantId ? { restaurantId } : {}),
+    } satisfies OrderLifecyclePayload,
     correlationId,
   };
 }

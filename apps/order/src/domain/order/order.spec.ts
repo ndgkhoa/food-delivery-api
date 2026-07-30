@@ -5,13 +5,21 @@ import { IllegalOrderTransitionError, InvalidOrderRequestError } from '@order/do
 const tenantId = '11111111-1111-4111-8111-111111111111';
 const userId = '22222222-2222-4222-8222-222222222222';
 const itemId = '33333333-3333-4333-8333-333333333333';
+const restaurantId = '44444444-4444-4444-8444-444444444444';
 
 /** Matches the config service's documented defaults (order.delivery_fee_cents / vat_rate_bps / discount_cents). */
 const defaultPricing = { deliveryFeeCents: 1500, vatRateBps: 1000, discountCents: 0 };
 
 function buildOrder(): Order {
   const item = OrderItem.create({ itemId, qty: 2, unitPriceCents: 1000 });
-  return Order.create({ id: 'order-1', tenantId, userId, items: [item], pricing: defaultPricing });
+  return Order.create({
+    id: 'order-1',
+    tenantId,
+    userId,
+    restaurantId,
+    items: [item],
+    pricing: defaultPricing,
+  });
 }
 
 describe('Order', () => {
@@ -25,11 +33,33 @@ describe('Order', () => {
       expect(order.discountCents).toBe(0);
       expect(order.totalCents).toBe(3700); // 2000 + 1500 + 200 - 0
       expect(order.version).toBe(0);
+      expect(order.restaurantId).toBe(restaurantId);
+    });
+
+    it('rejects a missing restaurantId', () => {
+      const item = OrderItem.create({ itemId, qty: 1, unitPriceCents: 100 });
+      expect(() =>
+        Order.create({
+          id: 'order-1',
+          tenantId,
+          userId,
+          restaurantId: '',
+          items: [item],
+          pricing: defaultPricing,
+        }),
+      ).toThrow(InvalidOrderRequestError);
     });
 
     it('rejects an empty item list', () => {
       expect(() =>
-        Order.create({ id: 'order-1', tenantId, userId, items: [], pricing: defaultPricing }),
+        Order.create({
+          id: 'order-1',
+          tenantId,
+          userId,
+          restaurantId,
+          items: [],
+          pricing: defaultPricing,
+        }),
       ).toThrow(InvalidOrderRequestError);
     });
 
@@ -40,6 +70,7 @@ describe('Order', () => {
         id: 'order-1',
         tenantId,
         userId,
+        restaurantId,
         items: [itemA, itemB],
         pricing: defaultPricing,
       });
@@ -54,6 +85,7 @@ describe('Order', () => {
         id: 'order-1',
         tenantId,
         userId,
+        restaurantId,
         items: [item],
         pricing: { deliveryFeeCents: 0, vatRateBps: 1000, discountCents: 0 },
       });
@@ -68,6 +100,7 @@ describe('Order', () => {
         id: 'order-1',
         tenantId,
         userId,
+        restaurantId,
         items: [item],
         pricing: { deliveryFeeCents: 0, vatRateBps: 0, discountCents: 1_000_000 },
       });
@@ -82,6 +115,7 @@ describe('Order', () => {
           id: 'order-1',
           tenantId,
           userId,
+          restaurantId,
           items: [item],
           pricing: { deliveryFeeCents: -1, vatRateBps: 1000, discountCents: 0 },
         }),
@@ -95,6 +129,7 @@ describe('Order', () => {
           id: 'order-1',
           tenantId,
           userId,
+          restaurantId,
           items: [item],
           pricing: { deliveryFeeCents: 0, vatRateBps: -1, discountCents: 0 },
         }),
@@ -108,6 +143,7 @@ describe('Order', () => {
           id: 'order-1',
           tenantId,
           userId,
+          restaurantId,
           items: [item],
           pricing: { deliveryFeeCents: 0, vatRateBps: 0, discountCents: Number.NaN },
         }),
@@ -124,6 +160,7 @@ describe('Order', () => {
           id: 'order-1',
           tenantId,
           userId,
+          restaurantId,
           items: [item],
           pricing: {
             deliveryFeeCents: MAX_MONEY_CENTS + 1_000,
@@ -141,6 +178,7 @@ describe('Order', () => {
           id: 'order-1',
           tenantId,
           userId,
+          restaurantId,
           items: [item],
           pricing: { deliveryFeeCents: 1000, vatRateBps: 0, discountCents: 0 },
         }),

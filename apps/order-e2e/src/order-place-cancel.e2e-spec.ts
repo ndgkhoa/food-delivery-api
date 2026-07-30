@@ -53,11 +53,12 @@ describe('Order place (async saga contract) + cancel (e2e)', () => {
     const tenantId = randomUUID();
     const userId = randomUUID();
     const itemId = randomUUID();
+    const restaurantId = randomUUID();
     await seedStock(tenantId, itemId, 5);
     stack.catalogServer.seed(tenantId, {
       id: itemId,
       tenantId,
-      restaurantId: randomUUID(),
+      restaurantId,
       name: 'Pho Bo',
       description: '',
       priceCents: 1200,
@@ -72,6 +73,7 @@ describe('Order place (async saga contract) + cancel (e2e)', () => {
 
     expect(response.status).toBe(201);
     expect(response.body.status).toBe('PENDING');
+    expect(response.body.restaurantId).toBe(restaurantId);
     // subtotal 2400 (2 x 1200) + the config-client's fallback defaults (no
     // config service running in this in-process stack): fee + VAT, discount 0.
     const subtotalCents = 2400;
@@ -139,5 +141,45 @@ describe('Order place (async saga contract) + cancel (e2e)', () => {
       .send({ items: [{ itemId, qty: 1 }] });
 
     expect(response.status).toBe(422);
+  });
+
+  it('rejects placing an order whose items span two different restaurants', async () => {
+    const tenantId = randomUUID();
+    const userId = randomUUID();
+    const itemA = randomUUID();
+    const itemB = randomUUID();
+    await seedStock(tenantId, itemA, 5);
+    await seedStock(tenantId, itemB, 5);
+    stack.catalogServer.seed(tenantId, {
+      id: itemA,
+      tenantId,
+      restaurantId: randomUUID(),
+      name: 'Pho Bo',
+      description: '',
+      priceCents: 1200,
+      isAvailable: true,
+    });
+    stack.catalogServer.seed(tenantId, {
+      id: itemB,
+      tenantId,
+      restaurantId: randomUUID(),
+      name: 'Sushi Roll',
+      description: '',
+      priceCents: 900,
+      isAvailable: true,
+    });
+
+    const response = await request(stack.orderApp.getHttpServer())
+      .post('/api/v1/orders')
+      .set(buildIdentityHeaders(tenantId, userId))
+      .set('Idempotency-Key', randomUUID())
+      .send({
+        items: [
+          { itemId: itemA, qty: 1 },
+          { itemId: itemB, qty: 1 },
+        ],
+      });
+
+    expect(response.status).toBe(400);
   });
 });

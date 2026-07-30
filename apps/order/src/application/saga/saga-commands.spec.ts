@@ -44,9 +44,21 @@ describe('saga command factories', () => {
     });
   });
 
-  it('orderConfirmedEvent targets order.events with the CONFIRMED lifecycle payload', () => {
+  it('orderConfirmedEvent targets order.events with the CONFIRMED lifecycle payload, including restaurantId', () => {
     const userId = '77777777-7777-4777-8777-777777777777';
-    expect(orderConfirmedEvent(orderId, userId, 1000, correlationId)).toEqual({
+    const restaurantId = '88888888-8888-4888-8888-888888888888';
+    expect(orderConfirmedEvent(orderId, userId, restaurantId, 1000, correlationId)).toEqual({
+      aggregateId: orderId,
+      topic: ORDER_EVENTS_TOPIC,
+      eventType: 'OrderConfirmed',
+      payload: { orderId, userId, restaurantId, status: 'CONFIRMED', totalCents: 1000 },
+      correlationId,
+    });
+  });
+
+  it('orderConfirmedEvent omits restaurantId (rather than emitting an empty string) for a straggler order that has none', () => {
+    const userId = '77777777-7777-4777-8777-777777777777';
+    expect(orderConfirmedEvent(orderId, userId, '', 1000, correlationId)).toEqual({
       aggregateId: orderId,
       topic: ORDER_EVENTS_TOPIC,
       eventType: 'OrderConfirmed',

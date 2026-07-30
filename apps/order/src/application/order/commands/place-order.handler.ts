@@ -112,7 +112,7 @@ export class PlaceOrderHandler {
     }
 
     // 2. Validate menu against the catalog — price/availability are never trusted from the client.
-    const orderItems = await this.buildOrderItems(command);
+    const { items: orderItems, restaurantId } = await this.buildOrderItems(command);
     // config-client never throws (cold miss / config service down falls back to
     // the default here, WARN-logged) — placing an order never blocks on config.
     const pricing = await this.resolvePricing(command.tenantId);
@@ -125,6 +125,7 @@ export class PlaceOrderHandler {
       id: orderId,
       tenantId: command.tenantId,
       userId: command.userId,
+      restaurantId,
       items: orderItems,
       pricing,
     });
@@ -222,12 +223,21 @@ export class PlaceOrderHandler {
     return { deliveryFeeCents, vatRateBps, discountCents };
   }
 
-  private async buildOrderItems(command: PlaceOrderCommand): Promise<OrderItem[]> {
+  /**
+   * Resolves every requested item against the catalog (never trusting a
+   * client-submitted price or restaurant) and derives the order's single
+   * restaurant from the resolved items. A cart mixing items from more than
+   * one restaurant is rejected — an order is always placed for exactly one
+   * restaurant, which downstream review eligibility relies on.
+   */
+  private async buildOrderItems(
+    command: PlaceOrderCommand,
+  ): Promise<{ items: OrderItem[]; restaurantId: string }> {
     const distinctItemIds = [...new Set(command.items.map((item) => item.itemId))];
     const menuItems = await this.catalogGateway.validateItems(command.tenantId, distinctItemIds);
     const menuByItemId = new Map(menuItems.map((item) => [item.itemId, item]));
 
-    return command.items.map((item) => {
+    const resolved = command.items.map((item) => {
       const menuItem = menuByItemId.get(item.itemId);
       if (!menuItem) {
         throw new MenuValidationError(`menu item "${item.itemId}" not found for this tenant`);
@@ -235,11 +245,27 @@ export class PlaceOrderHandler {
       if (!menuItem.isAvailable) {
         throw new MenuValidationError(`menu item "${item.itemId}" is not available`);
       }
-      return OrderItem.create({
-        itemId: item.itemId,
-        qty: item.qty,
-        unitPriceCents: menuItem.priceCents,
-      });
+      return {
+        restaurantId: menuItem.restaurantId,
+        orderItem: OrderItem.create({
+          itemId: item.itemId,
+          qty: item.qty,
+          unitPriceCents: menuItem.priceCents,
+        }),
+      };
     });
+
+    // `command.items` is non-empty (assertValidCommand) and every entry above
+    // either resolved or threw, so `resolved` — and this array — always has
+    // at least one distinct restaurant id.
+    const distinctRestaurantIds = [...new Set(resolved.map((entry) => entry.restaurantId))];
+    if (distinctRestaurantIds.length > 1) {
+      throw new InvalidOrderRequestError('an order cannot span multiple restaurants');
+    }
+
+    return {
+      items: resolved.map((entry) => entry.orderItem),
+      restaurantId: distinctRestaurantIds[0],
+    };
   }
 }
