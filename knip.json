@@ -2,6 +2,7 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignore": ["**/jest.config.{ts,cts}", "**/jest.preset.js", "**/webpack.config.js"],
   "paths": {
+    "@analytics/*": ["apps/analytics/src/*"],
     "@auth/*": ["apps/auth/src/*"],
     "@catalog/*": ["apps/catalog/src/*"],
     "@config/*": ["apps/config/src/*"],

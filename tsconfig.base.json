@@ -27,6 +27,7 @@
       "@food-delivery-api/shared-locking": ["libs/shared/locking/src/index.ts"],
       "@food-delivery-api/shared-messaging": ["libs/shared/messaging/src/index.ts"],
       "@food-delivery-api/shared-config-client": ["libs/shared/config-client/src/index.ts"],
+      "@analytics/*": ["apps/analytics/src/*"],
       "@auth/*": ["apps/auth/src/*"],
       "@catalog/*": ["apps/catalog/src/*"],
       "@config/*": ["apps/config/src/*"],
