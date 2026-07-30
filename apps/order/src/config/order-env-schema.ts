@@ -23,4 +23,8 @@ export const orderEnvSchema = baseEnvSchema.extend({
   SAGA_REAPER_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
   /** How often (ms) the stranded-saga reaper sweep runs. */
   SAGA_REAPER_INTERVAL_MS: z.coerce.number().int().positive().default(30_000),
+  /** Base URL of the config service — PlaceOrderHandler reads the tenant's delivery-fee/VAT/discount tunables from it. */
+  CONFIG_SERVICE_URL: z.string().min(1).default('http://localhost:3008'),
+  /** config-client's read-through cache TTL (ms) — the self-healing backstop if a `config.events` invalidation is ever missed. */
+  CONFIG_CACHE_TTL_MS: z.coerce.number().int().positive().default(30_000),
 });

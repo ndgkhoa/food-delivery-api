@@ -1,6 +1,7 @@
 import { CreateOrderTables1753747400000 } from '@order/infrastructure/persistence/migrations/1753747400000-create-order-tables';
 import { CreateOrderSagaAndOutbox1753747500000 } from '@order/infrastructure/persistence/migrations/1753747500000-create-order-saga-and-outbox';
 import { AddOrderSagaReaperIndex1753747900000 } from '@order/infrastructure/persistence/migrations/1753747900000-add-order-saga-reaper-index';
+import { AddOrderPricingColumns1753748000000 } from '@order/infrastructure/persistence/migrations/1753748000000-add-order-pricing-columns';
 import { orderOrmEntities } from '@order/infrastructure/persistence/typeorm-options';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
@@ -31,6 +32,7 @@ export async function startOrderTestDatabase(): Promise<OrderTestDatabase> {
       CreateOrderTables1753747400000,
       CreateOrderSagaAndOutbox1753747500000,
       AddOrderSagaReaperIndex1753747900000,
+      AddOrderPricingColumns1753748000000,
     ],
     synchronize: false,
     logging: false,

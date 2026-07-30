@@ -11,7 +11,11 @@ import type {
 import { MenuValidationError } from '@order/domain/shared/errors';
 import type { OutboxCommandEntry, OutboxWriter } from '@order/domain/shared/outbox.port';
 import type { TransactionPort } from '@order/domain/shared/transaction.port';
-import { type PlaceOrderCommand, PlaceOrderHandler } from './place-order.handler';
+import {
+  type OrderPricingConfigClient,
+  type PlaceOrderCommand,
+  PlaceOrderHandler,
+} from './place-order.handler';
 
 const tenantId = '11111111-1111-4111-8111-111111111111';
 const userId = '22222222-2222-4222-8222-222222222222';
@@ -108,12 +112,30 @@ class FakeTransaction implements TransactionPort {
   }
 }
 
+/**
+ * Minimal stand-in for the config-client: `seed` sets a value for a key, an
+ * unseeded key returns the caller default — mirroring the real client's
+ * never-throws, default-on-cold-miss contract without any network/cache.
+ */
+class FakeConfigClient implements OrderPricingConfigClient {
+  private readonly values = new Map<string, number>();
+
+  seed(key: string, value: number): void {
+    this.values.set(key, value);
+  }
+
+  async getInt(key: string, _tenantId: string, defaultValue: number): Promise<number> {
+    return this.values.get(key) ?? defaultValue;
+  }
+}
+
 function buildHandler() {
   const orderRepo = new FakeOrderRepository();
   const idempotencyRepo = new FakeIdempotencyRepository();
   const sagaRepo = new FakeSagaRepository();
   const catalogGateway = new FakeCatalogGateway();
   const outbox = new FakeOutboxWriter();
+  const configClient = new FakeConfigClient();
   const handler = new PlaceOrderHandler(
     orderRepo,
     idempotencyRepo,
@@ -121,8 +143,9 @@ function buildHandler() {
     catalogGateway,
     outbox,
     new FakeTransaction(),
+    configClient,
   );
-  return { orderRepo, idempotencyRepo, sagaRepo, catalogGateway, outbox, handler };
+  return { orderRepo, idempotencyRepo, sagaRepo, catalogGateway, outbox, configClient, handler };
 }
 
 function baseCommand(overrides?: Partial<PlaceOrderCommand>): PlaceOrderCommand {
@@ -143,7 +166,13 @@ describe('PlaceOrderHandler (async saga)', () => {
     const order = await handler.execute(baseCommand());
 
     expect(order.status).toBe('PENDING');
-    expect(order.totalCents).toBe(1000);
+    expect(order.subtotalCents).toBe(1000);
+    // No config-client seed for this tenant — every key falls back to its
+    // documented default: fee 1500, VAT floor(1000 * 1000 / 10000) = 100.
+    expect(order.deliveryFeeCents).toBe(1500);
+    expect(order.vatCents).toBe(100);
+    expect(order.discountCents).toBe(0);
+    expect(order.totalCents).toBe(2600);
 
     const saga = sagaRepo.rows.get(order.id);
     expect(saga?.state).toBe('STARTED');
@@ -169,6 +198,22 @@ describe('PlaceOrderHandler (async saga)', () => {
     const { catalogGateway, handler } = buildHandler();
     catalogGateway.seed({ itemId, restaurantId: 'r-1', priceCents: 500, isAvailable: false });
     await expect(handler.execute(baseCommand())).rejects.toThrow(MenuValidationError);
+  });
+
+  it("reads the tenant's delivery-fee/VAT/discount config and applies it to the order total", async () => {
+    const { catalogGateway, configClient, handler } = buildHandler();
+    catalogGateway.seed({ itemId, restaurantId: 'r-1', priceCents: 500, isAvailable: true });
+    configClient.seed('order.delivery_fee_cents', 2000);
+    configClient.seed('order.vat_rate_bps', 500); // 5%
+    configClient.seed('order.discount_cents', 100);
+
+    const order = await handler.execute(baseCommand());
+
+    expect(order.subtotalCents).toBe(1000);
+    expect(order.deliveryFeeCents).toBe(2000);
+    expect(order.vatCents).toBe(50); // floor(1000 * 500 / 10000)
+    expect(order.discountCents).toBe(100);
+    expect(order.totalCents).toBe(1000 + 2000 + 50 - 100);
   });
 
   it('replays the same order on a duplicate key without re-validating or re-enqueuing', async () => {

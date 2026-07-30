@@ -20,9 +20,18 @@ const ownerId = '22222222-2222-4222-8222-222222222222';
 const otherUserId = '99999999-9999-4999-8999-999999999999';
 const itemId = '33333333-3333-4333-8333-333333333333';
 
+/** Matches the config service's documented defaults so this suite's totals stay predictable. */
+const defaultPricing = { deliveryFeeCents: 1500, vatRateBps: 1000, discountCents: 0 };
+
 function buildReservedOrder(): Order {
   const item = OrderItem.create({ itemId, qty: 1, unitPriceCents: 500 });
-  return Order.create({ id: 'order-1', tenantId, userId: ownerId, items: [item] }).reserve();
+  return Order.create({
+    id: 'order-1',
+    tenantId,
+    userId: ownerId,
+    items: [item],
+    pricing: defaultPricing,
+  }).reserve();
 }
 
 class FakeOrderRepository implements OrderRepository {

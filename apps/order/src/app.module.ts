@@ -1,4 +1,5 @@
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
+import { ConfigClientModule } from '@food-delivery-api/shared-config-client';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import {
   KafkaConsumerSubscriber,
@@ -47,6 +48,14 @@ import { SagaReaperProvider } from '@order/interface/messaging/saga-reaper.provi
     MessagingModule.forRoot({
       clientId: process.env.KAFKA_CLIENT_ID ?? 'order',
       brokers: (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(','),
+    }),
+    // Read-through client for the tenant's delivery-fee/VAT/discount tunables
+    // (PlaceOrderHandler). Never a hard dependency — a cold miss with the
+    // config service unreachable falls back to the caller-supplied default.
+    ConfigClientModule.forRoot({
+      configServiceUrl: process.env.CONFIG_SERVICE_URL ?? 'http://localhost:3008',
+      ttlMs: Number(process.env.CONFIG_CACHE_TTL_MS ?? 30_000),
+      kafkaBrokers: (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(','),
     }),
   ],
   controllers: [OrdersController],

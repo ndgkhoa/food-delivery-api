@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { CONFIG_CLIENT, type ConfigClient } from '@food-delivery-api/shared-config-client';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { reserveStockCommand } from '@order/application/saga/saga-commands';
 import {
   IDEMPOTENCY_REPOSITORY,
   type IdempotencyRepository,
 } from '@order/domain/idempotency/idempotency.repository';
-import { Order } from '@order/domain/order/order';
+import { Order, type OrderPricingInput } from '@order/domain/order/order';
 import { ORDER_REPOSITORY, type OrderRepository } from '@order/domain/order/order.repository';
 import { OrderItem } from '@order/domain/order/order-item';
 import { OrderSaga } from '@order/domain/saga/order-saga';
@@ -36,6 +37,18 @@ export interface PlaceOrderCommand {
   idempotencyKey: string;
   items: PlaceOrderItemInput[];
 }
+
+/** The only method this handler needs from `ConfigClient` — narrows the DI type so tests need a minimal fake. */
+export type OrderPricingConfigClient = Pick<ConfigClient, 'getInt'>;
+
+/** Config keys the order's tenant may override; the second argument to each `getInt` call is the fallback. */
+const DELIVERY_FEE_CONFIG_KEY = 'order.delivery_fee_cents';
+const VAT_RATE_CONFIG_KEY = 'order.vat_rate_bps';
+const DISCOUNT_CONFIG_KEY = 'order.discount_cents';
+
+const DEFAULT_DELIVERY_FEE_CENTS = 1500;
+const DEFAULT_VAT_RATE_BPS = 1000;
+const DEFAULT_DISCOUNT_CENTS = 0;
 
 /** Postgres SQLSTATE for unique_violation — a concurrent duplicate idempotency key. */
 const PG_UNIQUE_VIOLATION = '23505';
@@ -79,7 +92,10 @@ export class PlaceOrderHandler {
     @Inject(CATALOG_GATEWAY_PORT) private readonly catalogGateway: CatalogGatewayPort,
     @Inject(OUTBOX_WRITER) private readonly outbox: OutboxWriter,
     @Inject(TRANSACTION_PORT) private readonly transaction: TransactionPort,
+    @Inject(CONFIG_CLIENT) private readonly configClient: OrderPricingConfigClient,
   ) {}
+
+  private readonly logger = new Logger(PlaceOrderHandler.name);
 
   async execute(command: PlaceOrderCommand): Promise<Order> {
     assertValidCommand(command);
@@ -97,6 +113,9 @@ export class PlaceOrderHandler {
 
     // 2. Validate menu against the catalog — price/availability are never trusted from the client.
     const orderItems = await this.buildOrderItems(command);
+    // config-client never throws (cold miss / config service down falls back to
+    // the default here, WARN-logged) — placing an order never blocks on config.
+    const pricing = await this.resolvePricing(command.tenantId);
     const orderId = randomUUID();
     // Root trace id for the whole saga: it rides the first ReserveStock command
     // and is carried through every reply + follow-on command so the saga's
@@ -107,7 +126,18 @@ export class PlaceOrderHandler {
       tenantId: command.tenantId,
       userId: command.userId,
       items: orderItems,
+      pricing,
     });
+
+    // A discount that meets or exceeds subtotal+fee+VAT floors the charge to 0
+    // (allowed — a full-value promo is legitimate), but a 0-total order is worth
+    // an ops signal so a mis-set discount isn't mistaken for normal free orders.
+    if (pendingOrder.totalCents === 0) {
+      this.logger.warn(
+        `order ${orderId} totals 0 after a ${pricing.discountCents}-cent discount on ` +
+          `subtotal ${pendingOrder.subtotalCents} — charging nothing`,
+      );
+    }
 
     // 3. Durably record intent + start the saga atomically: claim the key, insert
     //    the PENDING order, open the STARTED saga, and enqueue the ReserveStock
@@ -180,6 +210,16 @@ export class PlaceOrderHandler {
     throw new IdempotencyConflictError(
       `order for key "${idempotencyKey}" is being created — retry shortly`,
     );
+  }
+
+  /** Reads the tenant's delivery-fee/VAT/discount tunables from config, each falling back to its documented default. */
+  private async resolvePricing(tenantId: string): Promise<OrderPricingInput> {
+    const [deliveryFeeCents, vatRateBps, discountCents] = await Promise.all([
+      this.configClient.getInt(DELIVERY_FEE_CONFIG_KEY, tenantId, DEFAULT_DELIVERY_FEE_CENTS),
+      this.configClient.getInt(VAT_RATE_CONFIG_KEY, tenantId, DEFAULT_VAT_RATE_BPS),
+      this.configClient.getInt(DISCOUNT_CONFIG_KEY, tenantId, DEFAULT_DISCOUNT_CENTS),
+    ]);
+    return { deliveryFeeCents, vatRateBps, discountCents };
   }
 
   private async buildOrderItems(command: PlaceOrderCommand): Promise<OrderItem[]> {

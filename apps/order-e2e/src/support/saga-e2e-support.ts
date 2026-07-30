@@ -22,6 +22,33 @@ const DB = {
 /** Order total (cents) the deterministic payment stub DECLINES — must match the running stub. */
 export const FAIL_AT_CENTS = Number(process.env.PAYMENT_STUB_FAIL_AT_CENTS ?? 66600);
 
+/** The order pricing model's documented config defaults, assumed un-overridden for these tenants. */
+export const DEFAULT_DELIVERY_FEE_CENTS = 1500;
+export const DEFAULT_VAT_RATE_BPS = 1000;
+
+/**
+ * Inverts the order pricing formula (`subtotal + fee + floor(subtotal * vatRateBps /
+ * 10000)`) to find the qty=1 item price whose resulting order total exactly
+ * equals `targetTotalCents` under the given fee/VAT (the config defaults
+ * unless overridden). Lets a spec target a specific ORDER TOTAL — e.g. the
+ * payment stub's decline threshold — without hand-computing subtotal math.
+ */
+export function priceForTotal(
+  targetTotalCents: number,
+  feeCents = DEFAULT_DELIVERY_FEE_CENTS,
+  vatRateBps = DEFAULT_VAT_RATE_BPS,
+): number {
+  const remaining = targetTotalCents - feeCents;
+  const estimate = Math.floor((remaining * 10000) / (10000 + vatRateBps));
+  for (let subtotal = Math.max(0, estimate - 2); subtotal <= estimate + 2; subtotal++) {
+    const vat = Math.floor((subtotal * vatRateBps) / 10000);
+    if (subtotal + feeCents + vat === targetTotalCents) {
+      return subtotal;
+    }
+  }
+  throw new Error(`priceForTotal: no integer subtotal produces total ${targetTotalCents}`);
+}
+
 /** Kafka brokers the injection helpers connect to (duplicate/DLQ). */
 export const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(',');
 

@@ -56,7 +56,8 @@ describe('HandleInventoryReplyHandler', () => {
     expect(outbox.entries[0]).toMatchObject({
       topic: 'payment.commands',
       eventType: 'ChargePayment',
-      payload: { orderId, totalCents: 1000 },
+      // subtotal 1000 (2 x 500) + DEFAULT_PRICING (fee 1500, vat floor(1000*1000/10000)=100).
+      payload: { orderId, totalCents: 2600 },
     });
   });
 
@@ -89,7 +90,7 @@ describe('HandleInventoryReplyHandler', () => {
     expect(outbox.entries[0]).toMatchObject({
       topic: 'order.events',
       eventType: 'OrderCancelled',
-      payload: { orderId, userId: USER_ID, status: 'CANCELLED', totalCents: 1000 },
+      payload: { orderId, userId: USER_ID, status: 'CANCELLED', totalCents: 2600 },
     });
   });
 

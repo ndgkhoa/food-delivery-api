@@ -18,6 +18,10 @@ export class OrderMapper {
           lineTotalCents: item.lineTotalCents,
         }),
       ),
+      subtotalCents: orm.subtotalCents,
+      deliveryFeeCents: orm.deliveryFeeCents,
+      vatCents: orm.vatCents,
+      discountCents: orm.discountCents,
       totalCents: orm.totalCents,
       version: orm.version,
       createdAt: orm.createdAt,
@@ -36,6 +40,10 @@ export class OrderMapper {
     orm.tenantId = order.tenantId;
     orm.userId = order.userId;
     orm.status = order.status;
+    orm.subtotalCents = order.subtotalCents;
+    orm.deliveryFeeCents = order.deliveryFeeCents;
+    orm.vatCents = order.vatCents;
+    orm.discountCents = order.discountCents;
     orm.totalCents = order.totalCents;
     return orm;
   }
