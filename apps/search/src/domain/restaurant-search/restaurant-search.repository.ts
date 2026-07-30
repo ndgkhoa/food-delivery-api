@@ -17,6 +17,16 @@ export interface RestaurantSearchRepository {
   remove(id: string, tenantId: string, version: number): Promise<void>;
   search(query: RestaurantSearchQuery): Promise<RestaurantSearchResult>;
   autocomplete(query: RestaurantAutocompleteQuery): Promise<RestaurantAutocompleteSuggestion[]>;
+  /**
+   * Partial update of just the `rating` field, driven by the review service's
+   * `RestaurantRatingChanged`. Deliberately NOT `upsert` — that would require
+   * the full document (name/description/...) which the rating event never
+   * carries. A restaurant not yet indexed (rare race with the catalog
+   * projection) is a safe no-op: the initial `catalog.events` upsert seeds
+   * `rating: 0` and, since this is a real event delivered after that write in
+   * practice, the common case always finds the doc.
+   */
+  updateRating(id: string, tenantId: string, rating: number): Promise<void>;
 }
 
 export const RESTAURANT_SEARCH_REPOSITORY = Symbol('RestaurantSearchRepository');

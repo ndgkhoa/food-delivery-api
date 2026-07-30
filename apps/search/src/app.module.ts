@@ -18,6 +18,7 @@ import { ElasticsearchRestaurantSearchRepository } from '@search/infrastructure/
 import { RestaurantIndexBootstrap } from '@search/infrastructure/elasticsearch/restaurant-index-bootstrap';
 import { SearchController } from '@search/interface/http/search.controller';
 import { CatalogProjectionConsumer } from '@search/interface/messaging/catalog-projection.consumer';
+import { ReviewProjectionConsumer } from '@search/interface/messaging/review-projection.consumer';
 
 /**
  * Composition root: wires the domain search port to its Elasticsearch adapter,
@@ -58,6 +59,9 @@ import { CatalogProjectionConsumer } from '@search/interface/messaging/catalog-p
     },
     KafkaConsumerSubscriber,
     CatalogProjectionConsumer,
+    // Second consumer on the same shared Kafka client: tails `review.events`
+    // (its own consumer group) to keep the ES `rating` field current.
+    ReviewProjectionConsumer,
     // Every route is tenant-scoped by default — the tenant comes from the verified
     // identity the gateway propagates (shared-tenancy), never a raw client header.
     { provide: APP_INTERCEPTOR, useClass: TrustedIdentityInterceptor },

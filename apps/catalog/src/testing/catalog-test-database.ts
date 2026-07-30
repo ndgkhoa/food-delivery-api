@@ -1,5 +1,6 @@
 import { CreateCatalogTables1753574400000 } from '@catalog/infrastructure/persistence/migrations/1753574400000-create-catalog-tables';
 import { CreateCatalogOutboxAndReadModel1753660800000 } from '@catalog/infrastructure/persistence/migrations/1753660800000-create-catalog-outbox-and-read-model';
+import { AddRestaurantRating1754150000000 } from '@catalog/infrastructure/persistence/migrations/1754150000000-add-restaurant-rating';
 import { catalogOrmEntities } from '@catalog/infrastructure/persistence/typeorm-options';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
@@ -26,7 +27,11 @@ export async function startCatalogTestDatabase(): Promise<CatalogTestDatabase> {
     password: container.getPassword(),
     database: container.getDatabase(),
     entities: catalogOrmEntities,
-    migrations: [CreateCatalogTables1753574400000, CreateCatalogOutboxAndReadModel1753660800000],
+    migrations: [
+      CreateCatalogTables1753574400000,
+      CreateCatalogOutboxAndReadModel1753660800000,
+      AddRestaurantRating1754150000000,
+    ],
     synchronize: false,
     logging: false,
   });

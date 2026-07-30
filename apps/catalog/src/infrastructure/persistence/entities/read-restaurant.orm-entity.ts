@@ -24,6 +24,17 @@ export class ReadRestaurantOrmEntity {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive!: boolean;
 
+  /**
+   * Aggregate rating fed by the review service's `RestaurantRatingChanged`
+   * events — never written by the `catalog.events` projection (see the
+   * repository adapter's `updateRating`, kept separate from `upsert`).
+   */
+  @Column({ type: 'real', default: 0 })
+  rating!: number;
+
+  @Column({ name: 'review_count', type: 'integer', default: 0 })
+  reviewCount!: number;
+
   @Column({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

@@ -14,9 +14,12 @@ export class ReadRestaurantMapper {
       createdAt: orm.createdAt,
       updatedAt: orm.updatedAt,
       deletedAt: null,
+      rating: orm.rating,
+      reviewCount: orm.reviewCount,
     });
   }
 
+  /** Used only for the `catalog.events`-driven columns — rating/reviewCount are deliberately never set here (see `updateRating`). */
   static toOrm(row: ReadRestaurantRow): ReadRestaurantOrmEntity {
     const orm = new ReadRestaurantOrmEntity();
     orm.id = row.id;

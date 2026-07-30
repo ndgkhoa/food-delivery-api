@@ -62,6 +62,8 @@ class FakeRestaurantRepository implements RestaurantRepository, ReadRestaurantRe
       this.rows.delete(id);
     }
   }
+
+  async updateRating(): Promise<void> {}
 }
 
 /** Records emitted outbox entries so tests can assert an event was appended per write. */

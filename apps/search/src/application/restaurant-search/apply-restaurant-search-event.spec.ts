@@ -28,6 +28,7 @@ class RecordingRepository implements RestaurantSearchRepository {
   ): Promise<RestaurantAutocompleteSuggestion[]> {
     throw new Error('not used');
   }
+  async updateRating(): Promise<void> {}
 }
 
 const OCCURRED_AT = '2026-07-28T10:00:00.000Z';
