@@ -19,6 +19,7 @@ import { EntityNotFoundFilter } from '@catalog/interface/http/filters/entity-not
 import { MenuItemsController } from '@catalog/interface/http/menu-items.controller';
 import { RestaurantsController } from '@catalog/interface/http/restaurants.controller';
 import { CatalogProjectionConsumer } from '@catalog/interface/messaging/catalog-projection.consumer';
+import { ReviewProjectionConsumer } from '@catalog/interface/messaging/review-projection.consumer';
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import {
@@ -80,6 +81,9 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
     },
     KafkaConsumerSubscriber,
     CatalogProjectionConsumer,
+    // Second consumer on the same shared Kafka client: tails `review.events`
+    // (its own consumer group) to fold rating recomputes into the same read model.
+    ReviewProjectionConsumer,
     // Establishes tenant scope for gRPC calls from their metadata (per-controller
     // interceptor on the gRPC controller — not global, so HTTP is untouched).
     GrpcTenantContextInterceptor,

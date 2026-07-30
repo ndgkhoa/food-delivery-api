@@ -24,6 +24,7 @@ class FakeReadRestaurantRepository implements ReadRestaurantRepository {
   async remove(id: string, tenantId: string) {
     this.removed.push({ id, tenantId });
   }
+  async updateRating() {}
 }
 
 class FakeReadMenuItemRepository implements ReadMenuItemRepository {

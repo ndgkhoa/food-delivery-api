@@ -37,6 +37,7 @@
       "@notification/*": ["apps/notification/src/*"],
       "@order/*": ["apps/order/src/*"],
       "@payment/*": ["apps/payment/src/*"],
+      "@review/*": ["apps/review/src/*"],
       "@search/*": ["apps/search/src/*"]
     }
   },

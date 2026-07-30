@@ -50,28 +50,57 @@ const HTTP_NOT_FOUND = 404;
 export class ElasticsearchRestaurantSearchRepository implements RestaurantSearchRepository {
   constructor(@Inject(ELASTICSEARCH_CLIENT) private readonly client: Client) {}
 
+  /**
+   * Projects a `catalog.events` restaurant create/update. catalog.events owns
+   * every field EXCEPT `rating`, which is owned by `review.events` (see
+   * `updateRating`). A full `index` would REPLACE the whole document and wipe a
+   * review-sourced rating on an ordinary edit (name/description change), so this
+   * is a partial update: `doc` (no `rating`) merges into an existing document —
+   * preserving its rating — while `upsert` seeds a brand-new document with
+   * `rating: 0`. The Update API has no external-version support, so this path
+   * drops the `external_gte` guard and relies on per-restaurant Kafka ordering
+   * (key = restaurant id → one partition), the same primary guard `updateRating`
+   * already relies on; `retry_on_conflict` covers the rare internal-version race.
+   */
   async upsert(document: RestaurantSearchDocument): Promise<void> {
-    const source: RestaurantIndexSource = {
+    const details = {
       tenantId: document.tenantId,
       name: document.name,
       description: document.description,
       isActive: document.isActive,
-      rating: document.rating,
       createdAt: document.createdAt,
       updatedAt: document.updatedAt,
     };
+    await this.client.update({
+      index: RESTAURANTS_INDEX,
+      id: document.id,
+      retry_on_conflict: 3,
+      doc: details,
+      upsert: { ...details, rating: 0 } satisfies RestaurantIndexSource,
+    });
+  }
+
+  /**
+   * Partial update of the `rating` field only (see the port doc). Uses the ES
+   * `update` API (`doc` merge), not `index` + external versioning like
+   * `upsert`/`remove` — the Update API has no external-version support, and
+   * this event's payload never carries the full document anyway. Recompute-
+   * from-source on the publisher side plus this being an unconditional
+   * last-write-wins overwrite make a redelivered or slightly out-of-order
+   * event a safe (if occasionally stale-for-a-moment) no-op — an accepted,
+   * documented eventual-consistency trade-off.
+   */
+  async updateRating(id: string, _tenantId: string, rating: number): Promise<void> {
     try {
-      await this.client.index({
+      await this.client.update({
         index: RESTAURANTS_INDEX,
-        id: document.id,
-        document: source,
-        version: document.version,
-        version_type: 'external_gte',
+        id,
+        doc: { rating } satisfies Partial<RestaurantIndexSource>,
       });
     } catch (error) {
-      // A version conflict means a strictly newer state already applied — the
-      // stale event is a safe no-op, not a failure.
-      if (this.isStatus(error, HTTP_CONFLICT)) {
+      // Restaurant not yet indexed (race with the catalog projection): no
+      // permanent effect to apply — this is a genuine no-op, not a failure.
+      if (this.isStatus(error, HTTP_NOT_FOUND)) {
         return;
       }
       throw error;

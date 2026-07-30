@@ -7,6 +7,14 @@ export interface RestaurantProps {
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+  /**
+   * Denormalized aggregate rating fed by the review service's recompute events.
+   * Read-model only — the write model (this class doubles as both) never sets
+   * these on `create`/`update`, so they stay `undefined` there and the getters
+   * default to 0; `reconstitute` from a read row supplies the real values.
+   */
+  rating?: number;
+  reviewCount?: number;
 }
 
 export interface CreateRestaurantProps {
@@ -93,6 +101,15 @@ export class Restaurant {
 
   get deletedAt(): Date | null {
     return this.props.deletedAt;
+  }
+
+  /** 0 on the write model (no reviews concept there); the real aggregate on a read-model reconstitution. */
+  get rating(): number {
+    return this.props.rating ?? 0;
+  }
+
+  get reviewCount(): number {
+    return this.props.reviewCount ?? 0;
   }
 
   /** Returns a new `Restaurant` instance with the changes applied (immutable update). */

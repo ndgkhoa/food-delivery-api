@@ -22,6 +22,14 @@ export interface ReadRestaurantRepository {
   findAndCount(tenantId: string, pagination: Pagination): Promise<PageResult<Restaurant>>;
   upsert(row: ReadRestaurantRow): Promise<void>;
   remove(id: string, tenantId: string): Promise<void>;
+  /**
+   * Applies a `RestaurantRatingChanged` recompute from the review service.
+   * Deliberately separate from `upsert` — `upsert` is driven by `catalog.events`
+   * (which never carries a rating) and must never clobber a rating this method
+   * set. Idempotent last-write-wins: the caller always passes the freshly
+   * recomputed aggregate, never a delta.
+   */
+  updateRating(id: string, tenantId: string, rating: number, reviewCount: number): Promise<void>;
 }
 
 export const READ_RESTAURANT_REPOSITORY = Symbol('ReadRestaurantRepository');
