@@ -25,8 +25,8 @@ See [architecture.md](./architecture.md) for the layering diagram, 13-service ma
 | 3 | [Event-driven backbone](./phase-03-event-driven-backbone.md) | Order Saga via Kafka + Outbox + CDC; catalog CQRS read model | ✅ Done (3a #10 · 3b #11 · 3c #12 · 3d) |
 | 4 | [Search & Real-time & Media](./phase-04-search-realtime-media.md) | Search restaurants (ES), live driver location (WS), image upload (MinIO) | ✅ Done (4a #15 · 4b #16 · 4c #17) |
 | 5 | [Payment workflow & resilience](./phase-05-payment-resilience-notification.md) | Pay order (Temporal) → notification (email/SMS) → gateway circuit breaker | ✅ Done (5a #18 · 5b #19 · 5c #20) |
-| 6 | [Analytics, Review, Config](./phase-06-analytics-review-config.md) | Rating → restaurant score; revenue dashboard; dynamic fees | 🔄 In progress (6a #21/#22 · 6b #23/#24 · 6c analytics) |
-| 7 | [Data scaling](./phase-07-data-scaling.md) | Partitioned orders, read replica, cache strategies | Not started |
+| 6 | [Analytics, Review, Config](./phase-06-analytics-review-config.md) | Rating → restaurant score; revenue dashboard; dynamic fees | ✅ Done (6a #21/#22 · 6b #23/#24 · 6c #25) |
+| 7 | [Data scaling](./phase-07-data-scaling.md) | Partitioned orders, read replica, cache strategies | 🔄 In progress (7a orders partitioning) |
 | 8 | [Ops & Observability](./phase-08-ops-observability.md) | K8s deploy + tracing/metrics/logs across a request | Not started |
 
 ## Key dependencies

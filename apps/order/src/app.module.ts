@@ -9,6 +9,7 @@ import {
 import { TenancyModule, TrustedIdentityInterceptor } from '@food-delivery-api/shared-tenancy';
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { CancelOrderHandler } from '@order/application/order/commands/cancel-order.handler';
 import { ConfirmOrderHandler } from '@order/application/order/commands/confirm-order.handler';
 import { PlaceOrderHandler } from '@order/application/order/commands/place-order.handler';
@@ -21,6 +22,7 @@ import { INVENTORY_GATEWAY_PORT } from '@order/domain/shared/inventory-gateway.p
 import { CatalogGrpcAdapter } from '@order/infrastructure/grpc/catalog-grpc.adapter';
 import { GrpcClientsModule } from '@order/infrastructure/grpc/grpc-clients.module';
 import { InventoryGrpcAdapter } from '@order/infrastructure/grpc/inventory-grpc.adapter';
+import { OrdersPartitionMaintenanceService } from '@order/infrastructure/persistence/partitioning/orders-partition-maintenance';
 import { PersistenceModule } from '@order/infrastructure/persistence/persistence.module';
 import { OrderDomainErrorFilter } from '@order/interface/http/filters/order-domain-error.filter';
 import { OrdersController } from '@order/interface/http/orders.controller';
@@ -45,6 +47,8 @@ import { SagaReaperProvider } from '@order/interface/messaging/saga-reaper.provi
     PersistenceModule,
     TenancyModule,
     GrpcClientsModule,
+    // Backs the `orders` partition-maintenance job's @Cron trigger.
+    ScheduleModule.forRoot(),
     MessagingModule.forRoot({
       clientId: process.env.KAFKA_CLIENT_ID ?? 'order',
       brokers: (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(','),
@@ -76,6 +80,8 @@ import { SagaReaperProvider } from '@order/interface/messaging/saga-reaper.provi
     OrderOutboxRelayProvider,
     // Periodic sweep that discovers + reports stranded (stuck non-terminal) sagas.
     SagaReaperProvider,
+    // Pre-creates next month's `orders` partition on boot + monthly cron.
+    OrdersPartitionMaintenanceService,
     // East-west gateways over gRPC (catalog validate; inventory release on cancel)
     { provide: CATALOG_GATEWAY_PORT, useClass: CatalogGrpcAdapter },
     { provide: INVENTORY_GATEWAY_PORT, useClass: InventoryGrpcAdapter },

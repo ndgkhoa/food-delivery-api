@@ -4,7 +4,7 @@ Context: [phase-06.md](./phase-06-analytics-review-config.md) · [phase-02.md](.
 
 ## Overview
 - **Priority**: P2 — first P6 slice (foundational; review 6b + analytics 6c build later).
-- **Status**: ✅ PR-A verified live (adversarial review in progress) on `feat/config-service`. config-e2e **6/6** GREEN against real Postgres + Kafka: value CRUD, tenant override beats global, flag toggle, non-admin write → 403, and cache-miss-fetch → `config.events` change → client evict → refetch-new-value. Migration ran via the new `nx run config:migration-run` target (confirms the DRY migration refactor for a fresh service). Offline: config **22** unit + shared-config-client **13** + gateway **30** (unaffected) + tsc/biome/depcruise/knip/webpack. **Fix during live verify**: the config-events consumer used a fresh random group at `latest` → missed a change produced during the Kafka assignment window → set `fromBeginning: true` (per the repo's e2e-consumer pattern; replay is a no-op for eviction, so a change is never missed).
+- **Status**: ✅ Done — PR-A (config service + client) #21 · PR-B (order consumes config pricing) #22. Both built → verified live → adversarially reviewed (fixes applied) → merged. config-e2e **6/6** GREEN against real Postgres + Kafka: value CRUD, tenant override beats global, flag toggle, non-admin write → 403, and cache-miss-fetch → `config.events` change → client evict → refetch-new-value. Migration ran via the new `nx run config:migration-run` target (confirms the DRY migration refactor for a fresh service). Offline: config **22** unit + shared-config-client **13** + gateway **30** (unaffected) + tsc/biome/depcruise/knip/webpack. **Fix during live verify**: the config-events consumer used a fresh random group at `latest` → missed a change produced during the Kafka assignment window → set `fromBeginning: true` (per the repo's e2e-consumer pattern; replay is a no-op for eviction, so a change is never missed).
 - **Adversarial review + fixes applied** (report `reports/code-reviewer-260729-2237-slice-6a-config-service-red-team-review-report.md`; NO Critical — partial-unique indexes, falsy-value resolution (`0`/`false` win), tenant-from-verified-identity (no spoof), cross-tenant cache isolation, payload-based eviction all confirmed SOLID):
   - **H1 (High)** — config-client's 3s timeout cleared when headers arrived, so a stalled response BODY hung `getInt`/`isEnabled` → blocked the order path (breaks the never-hard-dependency guarantee; same class as 5c's H1). **Fixed**: fetch + `res.json()` read under one AbortController.
   - **M1** — a corrupt 200 body (non-numeric value / non-boolean flag) was cached + served for the TTL. **Fixed**: validate finite number / boolean → else WARN + caller default, never cached (unit-tested).
@@ -89,10 +89,10 @@ order place-order ─▶ configClient.getInt('order.delivery_fee_cents', tenantI
 - [x] biome/cruiser/knip/tsc + unit tests; plan updated before push
 
 ## Todo (PR-B)
-- [ ] order pricing model (subtotal/fee/vat/discount/total) + migration (+ backfill)
-- [ ] place-order reads config-client (fee/vat/discount) for the tenant
-- [ ] order-e2e: change fee in config → next order total reflects it
-- [ ] gates + plan update; PR-B
+- [x] order pricing model (subtotal/fee/vat/discount/total) + migration (+ backfill)
+- [x] place-order reads config-client (fee/vat/discount) for the tenant
+- [x] order-e2e: change fee in config → next order total reflects it
+- [x] gates + plan update; PR-B
 
 ## Success criteria
 - Admin sets `order.delivery_fee_cents` (global or per-tenant); a NEW order's total = subtotal + fee + VAT − discount and changes when the config changes — no redeploy.
