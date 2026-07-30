@@ -116,6 +116,12 @@ export class FakeOrderRepository implements OrderRepository {
     const row = this.rows.get(id);
     return row && row.tenantId === tenantId ? row : undefined;
   }
+
+  async findRecentByTenant(tenantId: string, userId: string, limit: number): Promise<Order[]> {
+    return [...this.rows.values()]
+      .filter((row) => row.tenantId === tenantId && row.userId === userId)
+      .slice(0, limit);
+  }
 }
 
 export class FakeOutboxWriter implements OutboxWriter {

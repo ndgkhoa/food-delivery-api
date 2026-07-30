@@ -9,6 +9,11 @@ import { DataSource } from 'typeorm';
  * CLI runs outside Nest's DI container. Uses the shared core Postgres (host
  * port 5432) under its own `order` database — override DB_NAME when the
  * shared `.env` points DB_* at another service.
+ *
+ * DB_REPLICA_* is accepted only so this DataSource matches the runtime's
+ * shape; TypeORM always runs schema-changing operations (migrations) against
+ * the `replication.master` connection, NEVER a replica, regardless of these
+ * values.
  */
 const orderDataSource = new DataSource(
   buildDataSourceOptions({
@@ -17,6 +22,8 @@ const orderDataSource = new DataSource(
     DB_USERNAME: process.env.DB_USERNAME ?? 'postgres',
     DB_PASSWORD: process.env.DB_PASSWORD ?? 'postgres',
     DB_NAME: process.env.DB_NAME ?? 'order',
+    DB_REPLICA_HOST: process.env.DB_REPLICA_HOST,
+    DB_REPLICA_PORT: process.env.DB_REPLICA_PORT ? Number(process.env.DB_REPLICA_PORT) : undefined,
   }),
 );
 

@@ -37,6 +37,10 @@ import { buildDataSourceOptions } from '@order/infrastructure/persistence/typeor
           DB_USERNAME: config.getOrThrow<string>('DB_USERNAME'),
           DB_PASSWORD: config.getOrThrow<string>('DB_PASSWORD'),
           DB_NAME: config.getOrThrow<string>('DB_NAME'),
+          // Optional: absent in single-node dev/e2e, where the env schema
+          // leaves it unset and the data source's slave pool falls back to master.
+          DB_REPLICA_HOST: config.get<string>('DB_REPLICA_HOST'),
+          DB_REPLICA_PORT: config.get<number>('DB_REPLICA_PORT'),
         }),
     }),
     TypeOrmModule.forFeature([

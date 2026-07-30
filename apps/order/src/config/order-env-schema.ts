@@ -10,6 +10,20 @@ import { z } from 'zod';
  */
 export const orderEnvSchema = baseEnvSchema.extend({
   DB_NAME: z.string().min(1).default('order'),
+  /**
+   * Streaming read-replica host for the order data source. Unset (the
+   * single-node dev default) means no replica is configured — TypeORM's
+   * "slave" pool falls back to the master connection, so every read still
+   * lands on the one real database and behaviour is unchanged.
+   */
+  DB_REPLICA_HOST: z.string().min(1).optional(),
+  /**
+   * Streaming read-replica port. Only consulted when `DB_REPLICA_HOST` is set.
+   * Defaults to 5433 — the host port compose maps `postgres-replica` to — so a
+   * dev who sets only `DB_REPLICA_HOST=localhost` reaches the replica, not the
+   * primary (5432); reads silently hitting the primary would defeat the split.
+   */
+  DB_REPLICA_PORT: z.coerce.number().int().positive().default(5433),
   PORT: z.coerce.number().int().positive().default(3003),
   /** gRPC endpoint of the catalog service (internal only — never exposed via Nginx). */
   CATALOG_GRPC_URL: z.string().min(1).default('0.0.0.0:50051'),

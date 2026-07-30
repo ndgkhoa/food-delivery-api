@@ -14,6 +14,7 @@ import { CancelOrderHandler } from '@order/application/order/commands/cancel-ord
 import { ConfirmOrderHandler } from '@order/application/order/commands/confirm-order.handler';
 import { PlaceOrderHandler } from '@order/application/order/commands/place-order.handler';
 import { GetOrderHandler } from '@order/application/order/queries/get-order.handler';
+import { ListOrdersHandler } from '@order/application/order/queries/list-orders.handler';
 import { HandleInventoryReplyHandler } from '@order/application/saga/handle-inventory-reply.handler';
 import { HandlePaymentReplyHandler } from '@order/application/saga/handle-payment-reply.handler';
 import { orderEnvSchema } from '@order/config/order-env-schema';
@@ -69,6 +70,7 @@ import { SagaReaperProvider } from '@order/interface/messaging/saga-reaper.provi
     CancelOrderHandler,
     ConfirmOrderHandler,
     GetOrderHandler,
+    ListOrdersHandler,
     // Saga transition handlers (driven by the reply consumers)
     HandleInventoryReplyHandler,
     HandlePaymentReplyHandler,

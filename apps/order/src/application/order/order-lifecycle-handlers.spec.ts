@@ -62,6 +62,12 @@ class FakeOrderRepository implements OrderRepository {
     this.rows.set(order.id, order);
     return order;
   }
+
+  async findRecentByTenant(t: string, userId: string, limit: number): Promise<Order[]> {
+    return [...this.rows.values()]
+      .filter((row) => row.tenantId === t && row.userId === userId)
+      .slice(0, limit);
+  }
 }
 
 class FakeInventoryGateway implements InventoryGatewayPort {

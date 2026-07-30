@@ -26,6 +26,10 @@ services:
       POSTGRES_USER: ${DB_USERNAME:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_DB: ${DB_NAME:-catalog}
+      # Consumed by infra/postgres/init/02-create-replication-role.sh to create
+      # the least-privilege standby role and open pg_hba for it. Dev creds only.
+      REPLICATION_USERNAME: ${REPLICATION_USERNAME:-replicator}
+      REPLICATION_PASSWORD: ${REPLICATION_PASSWORD:-replicator}
     ports:
       - '${DB_PORT:-5432}:5432'
     volumes:
@@ -40,6 +44,50 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  # Streaming physical standby of `postgres`, read-only, for the order service's
+  # replicated data source (writes/read-your-writes → primary, lag-tolerant
+  # list/history reads → this replica). NOT in the `core` profile — the daily
+  # single-node dev loop never needs a second Postgres container; opt in with
+  # BOTH profiles: `docker compose --env-file .env -f infra/docker-compose.yml
+  # --profile core --profile replica up -d`. On a first (empty) data volume,
+  # replica-entrypoint.sh clones the primary via `pg_basebackup -R` (which
+  # writes standby.signal + primary_conninfo) before handing off to the normal
+  # postgres entrypoint; on every later restart the data dir is already a
+  # standby, so it just resumes streaming. Requires the primary's replication
+  # role (created by 02-create-replication-role.sh) to already exist, hence
+  # `depends_on: service_healthy` — the role/pg_hba change is only picked up
+  # once the primary has restarted into its post-init serving state, which
+  # `pg_isready` passing implies.
+  postgres-replica:
+    image: postgres:18.4
+    container_name: food-delivery-postgres-replica
+    profiles: [replica]
+    restart: unless-stopped
+    entrypoint: ['/replica-entrypoint.sh']
+    environment:
+      PRIMARY_HOST: postgres
+      PRIMARY_PORT: '5432'
+      REPLICATION_USERNAME: ${REPLICATION_USERNAME:-replicator}
+      REPLICATION_PASSWORD: ${REPLICATION_PASSWORD:-replicator}
+      # Unused by the standby (pg_basebackup clones the primary's cluster, so
+      # initdb never runs here) — set anyway because the stock postgres image
+      # entrypoint requires SOME auth var to be present before it will start.
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - '${DB_REPLICA_PORT:-5433}:5432'
+    volumes:
+      - postgres-replica-data:/var/lib/postgresql
+      - ./postgres/replica-entrypoint.sh:/replica-entrypoint.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_NAME:-catalog}']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
 
   redis:
     image: redis:8.8.0-alpine
@@ -367,6 +415,7 @@ services:
 
 volumes:
   postgres-data:
+  postgres-replica-data:
   redis-data:
   keycloak-postgres-data:
   elasticsearch-data:
