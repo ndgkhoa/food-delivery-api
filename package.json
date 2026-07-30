@@ -23,6 +23,7 @@
     "docker:core:down": "docker compose --env-file .env -f infra/docker-compose.yml --profile core down"
   },
   "dependencies": {
+    "@clickhouse/client": "1.23.1",
     "@confluentinc/kafka-javascript": "1.10.0",
     "@elastic/elasticsearch": "9.4.2",
     "@grpc/grpc-js": "^1.14.4",

@@ -30,6 +30,8 @@ export const gatewayEnvSchema = baseEnvSchema
     CONFIG_SERVICE_URL: z.string().url().default('http://localhost:3008'),
     /** Base URL of the review service the gateway forwards `/api/v1/reviews/*` to. */
     REVIEW_SERVICE_URL: z.string().url().default('http://localhost:3009'),
+    /** Base URL of the analytics service the gateway forwards `/api/v1/analytics/*` to. */
+    ANALYTICS_SERVICE_URL: z.string().url().default('http://localhost:3010'),
     /**
      * Keycloak base URL + realm. The issuer (`<url>/realms/<realm>`) and JWKS
      * endpoint are derived from these, so both stay in lockstep and only the
