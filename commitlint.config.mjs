@@ -29,6 +29,7 @@ export default {
         'shared-cache',
         'shared-audit',
         'shared-messaging',
+        'shared-observability',
         'shared-config-client',
         'shared-contracts',
         'shared-errors',

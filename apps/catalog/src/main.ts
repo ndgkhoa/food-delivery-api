@@ -1,3 +1,4 @@
+import '@catalog/instrumentation';
 import 'reflect-metadata';
 import { AppModule } from '@catalog/app.module';
 import { setupOpenApi } from '@catalog/interface/http/setup-openapi';

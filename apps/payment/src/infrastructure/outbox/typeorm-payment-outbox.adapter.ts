@@ -4,6 +4,7 @@ import {
   type OutboxPort,
   type OutboxRecord,
 } from '@food-delivery-api/shared-messaging';
+import { captureActiveTraceContext } from '@food-delivery-api/shared-observability';
 import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
@@ -21,6 +22,7 @@ interface UnpublishedRow {
   tenant_id: string;
   correlation_id: string;
   created_at: Date;
+  trace_parent: string | null;
 }
 
 /**
@@ -58,6 +60,7 @@ export class TypeOrmPaymentOutboxAdapter implements OutboxWriter, OutboxPort {
       tenantId,
       correlationId: entry.correlationId ?? randomUUID(),
       publishedAt: null,
+      traceParent: captureActiveTraceContext().traceparent ?? null,
     });
     await this.repository.save(row);
   }
@@ -84,6 +87,7 @@ export class TypeOrmPaymentOutboxAdapter implements OutboxWriter, OutboxPort {
           'outbox.tenant_id AS tenant_id',
           'outbox.correlation_id AS correlation_id',
           'outbox.created_at AS created_at',
+          'outbox.trace_parent AS trace_parent',
         ])
         .where('outbox.published_at IS NULL')
         .orderBy('outbox.created_at', 'ASC')
@@ -93,20 +97,29 @@ export class TypeOrmPaymentOutboxAdapter implements OutboxWriter, OutboxPort {
         .getRawMany<UnpublishedRow>(),
     );
 
-    return rows.map((row) => ({
-      id: row.id,
-      topic: row.topic,
-      key: row.aggregate_id,
-      headers: encodeHeaders({
+    return rows.map((row) => {
+      const headers = encodeHeaders({
         eventId: row.id,
         eventType: row.event_type,
         aggregateId: row.aggregate_id,
         tenantId: row.tenant_id,
         correlationId: row.correlation_id,
         occurredAt: new Date(row.created_at).toISOString(),
-      }),
-      value: row.payload,
-    }));
+      });
+      // Forwards the ORIGINAL request's trace context captured at append time;
+      // the producer's `!headers.traceparent` guard only injects its own
+      // (disconnected) span when this is absent — see `kafka-producer.ts`.
+      if (row.trace_parent) {
+        headers.traceparent = row.trace_parent;
+      }
+      return {
+        id: row.id,
+        topic: row.topic,
+        key: row.aggregate_id,
+        headers,
+        value: row.payload,
+      };
+    });
   }
 
   async markPublished(ids: string[]): Promise<void> {

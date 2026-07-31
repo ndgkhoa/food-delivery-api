@@ -1,4 +1,5 @@
 import { CreatePaymentOutbox1753747700000 } from '@payment/infrastructure/persistence/migrations/1753747700000-create-payment-outbox';
+import { AddTraceParentToPaymentOutbox1753747800000 } from '@payment/infrastructure/persistence/migrations/1753747800000-add-trace-parent-to-payment-outbox';
 import { paymentOrmEntities } from '@payment/infrastructure/persistence/typeorm-options';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
@@ -25,7 +26,7 @@ export async function startPaymentTestDatabase(): Promise<PaymentTestDatabase> {
     password: container.getPassword(),
     database: container.getDatabase(),
     entities: paymentOrmEntities,
-    migrations: [CreatePaymentOutbox1753747700000],
+    migrations: [CreatePaymentOutbox1753747700000, AddTraceParentToPaymentOutbox1753747800000],
     synchronize: false,
     logging: false,
   });

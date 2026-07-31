@@ -1,3 +1,4 @@
+import '@analytics/instrumentation';
 import 'reflect-metadata';
 import { AppModule } from '@analytics/app.module';
 import { setupOpenApi } from '@analytics/interface/http/setup-openapi';

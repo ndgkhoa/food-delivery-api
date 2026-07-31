@@ -1,3 +1,4 @@
+import { captureActiveTraceContext } from '@food-delivery-api/shared-observability';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { WorkflowGatewayPort } from '@payment/domain/shared/workflow-gateway.port';
@@ -41,6 +42,11 @@ export class TemporalWorkflowGatewayAdapter implements WorkflowGatewayPort {
   }
 
   async startCharge(input: ChargeWorkflowInput): Promise<void> {
+    // Captured HERE, in the ChargePayment consumer's active span, because the
+    // workflow runs on a detached Temporal worker with no trace context — passing
+    // it as workflow input lets the reply activity re-activate the originating
+    // trace so the emitted reply stays under the saga's one trace id.
+    const traceParent = input.traceParent ?? captureActiveTraceContext().traceparent;
     try {
       await this.client.start(CHARGE_WORKFLOW_TYPE, {
         workflowId: chargeWorkflowId(input.orderId),
@@ -49,7 +55,7 @@ export class TemporalWorkflowGatewayAdapter implements WorkflowGatewayPort {
         // run that charges again — the id owns the charge for its whole retention.
         workflowIdReusePolicy: 'REJECT_DUPLICATE',
         taskQueue: this.taskQueue,
-        args: [input],
+        args: [{ ...input, traceParent }],
       });
       this.logger.log(`Started charge workflow for order ${input.orderId}`);
     } catch (error) {

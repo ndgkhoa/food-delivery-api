@@ -96,4 +96,19 @@ describe('createEmitReplyActivity', () => {
     await emitReply(input);
     expect(outbox.entries).toHaveLength(1);
   });
+
+  it('still emits the reply when a captured traceparent is threaded in', async () => {
+    // The traceparent is re-activated around the write (so the row inherits the
+    // saga trace id); the wrapper must not swallow or duplicate the append.
+    const { outbox, emitReply } = build();
+    await emitReply({
+      orderId: 'o4',
+      ok: true,
+      correlationId: 'c',
+      tenantId: 't',
+      traceParent: '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
+    });
+    expect(outbox.entries).toHaveLength(1);
+    expect(outbox.entries[0]).toMatchObject({ aggregateId: 'o4', eventType: 'PaymentSucceeded' });
+  });
 });

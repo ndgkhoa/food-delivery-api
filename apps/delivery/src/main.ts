@@ -1,3 +1,4 @@
+import '@delivery/instrumentation';
 import 'reflect-metadata';
 import { AppModule } from '@delivery/app.module';
 import { RedisIoAdapter } from '@delivery/infrastructure/ws/redis-io-adapter';

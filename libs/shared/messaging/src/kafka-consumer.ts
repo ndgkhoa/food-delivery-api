@@ -1,4 +1,5 @@
 import type { KafkaJS } from '@confluentinc/kafka-javascript';
+import { runWithExtractedContext } from '@food-delivery-api/shared-observability';
 import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
 import { buildDeadLetterMessage, deadLetterTopic, type RawInboundMessage } from './dead-letter';
@@ -171,20 +172,27 @@ export class KafkaConsumerSubscriber implements OnModuleDestroy {
             headers: message.headers as RawKafkaHeaders | undefined,
           },
         };
-        await consumeOneMessage(raw, {
-          handler: options.handler as KafkaMessageHandler,
-          tenantContext: this.tenantContext,
-          dropCounter: this.dropCounter,
-          deadLetter: (r, reason, failureReason) =>
-            this.publishDeadLetter(r, reason, failureReason),
-          commit: () =>
-            consumer.commitOffsets([
-              { topic, partition, offset: String(BigInt(message.offset) + 1n) },
-            ]),
-          maxAttempts,
-          retryDelayMs,
-          logger: this.logger,
-        });
+        // Extracts the producer's W3C trace context (if the message carries
+        // one) and runs the whole decode+retry+dead-letter+commit pipeline
+        // inside a CONSUMER span parented to it, so every handler's own
+        // spans (pg/redis/grpc/outbound produce) attach to the producing
+        // span's trace instead of starting a disconnected one.
+        await runWithExtractedContext(raw.message.headers, `${topic} process`, () =>
+          consumeOneMessage(raw, {
+            handler: options.handler as KafkaMessageHandler,
+            tenantContext: this.tenantContext,
+            dropCounter: this.dropCounter,
+            deadLetter: (r, reason, failureReason) =>
+              this.publishDeadLetter(r, reason, failureReason),
+            commit: () =>
+              consumer.commitOffsets([
+                { topic, partition, offset: String(BigInt(message.offset) + 1n) },
+              ]),
+            maxAttempts,
+            retryDelayMs,
+            logger: this.logger,
+          }),
+        );
       },
     });
     return consumer;

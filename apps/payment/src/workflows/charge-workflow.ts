@@ -63,6 +63,9 @@ export async function chargeWorkflow(input: ChargeWorkflowInput): Promise<Provid
     reason: outcome.reason,
     correlationId: input.correlationId,
     tenantId: input.tenantId,
+    // Forwarded verbatim (plain string) so the reply activity re-activates the
+    // originating trace when it writes the outbox row — one trace across Temporal.
+    traceParent: input.traceParent,
   });
 
   return outcome;

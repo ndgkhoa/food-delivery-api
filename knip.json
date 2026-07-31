@@ -23,7 +23,11 @@
     "@food-delivery-api/shared-cache": ["libs/shared/cache/src/index.ts"],
     "@food-delivery-api/shared-messaging": ["libs/shared/messaging/src/index.ts"],
     "@food-delivery-api/shared-config-client": ["libs/shared/config-client/src/index.ts"],
-    "@food-delivery-api/shared-persistence": ["libs/shared/persistence/src/index.ts"]
+    "@food-delivery-api/shared-persistence": ["libs/shared/persistence/src/index.ts"],
+    "@food-delivery-api/shared-observability": ["libs/shared/observability/src/index.ts"],
+    "@food-delivery-api/shared-observability/register": [
+      "libs/shared/observability/src/register.ts"
+    ]
   },
   "entry": [
     "apps/*/src/main.ts",

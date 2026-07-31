@@ -20,6 +20,14 @@ export interface ChargeWorkflowInput {
   correlationId: string;
   /** Tenant the emit-reply activity re-establishes scope under when writing the outbox. */
   tenantId: string;
+  /**
+   * W3C `traceparent` captured at the client start (inside the triggering
+   * Kafka-consumer span). Threaded through as plain data — Temporal detaches its
+   * own execution context, so the reply activity re-activates this to keep the
+   * emitted reply (and the whole downstream saga) under the originating trace id.
+   * Absent when telemetry is off. Kept a pure string so the sandbox stays clean.
+   */
+  traceParent?: string;
 }
 
 /** Outcome of a charge attempt — from the charge activity or a webhook signal. */
@@ -48,6 +56,8 @@ export interface EmitReplyActivityInput {
   reason?: string;
   correlationId: string;
   tenantId: string;
+  /** Originating W3C `traceparent`, re-activated so the outbox row inherits the saga's trace id. */
+  traceParent?: string;
 }
 
 /** Activity interface the workflow proxies — all IO/config lives behind these. */
