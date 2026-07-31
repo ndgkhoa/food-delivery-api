@@ -4,7 +4,7 @@ Context: [phase-07.md](./phase-07-data-scaling.md) · [phase-02.md](./phase-02-o
 
 ## Overview
 - **Priority**: P2 — first P7 slice (foundational data-tier scaling; read-replica 7b + cache 7c build later).
-- **Status**: ✅ Verified live (adversarial review in progress) — branch `feat/orders-partitioning`. Migration ran on the REAL order DB (**1334 rows**): count preserved 1334→1334, `orders` now RANGE-partitioned (relkind p) with `orders_p202607`/`orders_p202608`/`orders_default`, and **EXPLAIN pruning** confirmed (a July-bounded query scans ONLY `orders_p202607`). **down/up reversibility proven live**: `migration:revert` → 1334 rows + plain table + `order_items` FK restored; `migration:run` again → 1334 rows + partitioned — data-safe BOTH directions. In-process testcontainers e2e over the partitioned schema: partition-pruning **1/1**, place-cancel **4/4**, idempotency + no-oversell pass; order unit **79**. Maintenance job (idempotent, boot + monthly cron, test-guarded). `@nestjs/schedule@6.1.3`. Offline gates clean.
+- **Status**: ✅ Done (#26) — verified live (migration data-safe both directions, EXPLAIN pruning) + adversarially reviewed (maintenance current+next / UTC-pin fixes applied) → merged. Branch `feat/orders-partitioning`. Migration ran on the REAL order DB (**1334 rows**): count preserved 1334→1334, `orders` now RANGE-partitioned (relkind p) with `orders_p202607`/`orders_p202608`/`orders_default`, and **EXPLAIN pruning** confirmed (a July-bounded query scans ONLY `orders_p202607`). **down/up reversibility proven live**: `migration:revert` → 1334 rows + plain table + `order_items` FK restored; `migration:run` again → 1334 rows + partitioned — data-safe BOTH directions. In-process testcontainers e2e over the partitioned schema: partition-pruning **1/1**, place-cancel **4/4**, idempotency + no-oversell pass; order unit **79**. Maintenance job (idempotent, boot + monthly cron, test-guarded). `@nestjs/schedule@6.1.3`. Offline gates clean.
 - **Adversarial review + fixes applied** (report `reports/code-reviewer-260730-2316-slice-7a-orders-partitioning-red-team-review-report.md`; **NO Critical** — the migration is SOLID: all 13 columns + 5 CHECKs + both indexes + composite PK preserved on up, down() faithfully restores id-only PK + FK + CHECKs with a parity guard, FK-drop safe (grep confirms zero hard-DELETE of `orders`), composite-PK repo/optimistic-lock paths correct, atomic rollback). Both real gaps were in the maintenance job (DEFAULT-mitigated → no data loss, only silent pruning degradation), now fixed:
   - **M1** — the job ensured only NEXT month, so a >1-month outage (or booting into an un-created month) dropped rows to DEFAULT permanently (a later `CREATE PARTITION OF` overlaps DEFAULT's rows → fails). **Fixed**: `ensureUpcomingPartitions` now ensures the **CURRENT and NEXT** month on boot + cron, so whatever month the service starts in gets its partition before serving traffic (unit-tested).
   - **M2** — partition bounds weren't UTC-pinned (session-TZ-dependent → gap/overlap risk). **Fixed**: bounds pinned to explicit `+00` (unit-tested + live-confirmed the CREATE SQL is valid and coexists).
@@ -53,12 +53,12 @@ time-bounded query (WHERE created_at BETWEEN …) ─▶ planner prunes to the c
 5. Update plan before push; PR.
 
 ## Todo
-- [ ] `@nestjs/schedule` added; partitioned DDL designed (PK `(created_at,id)`, monthly + DEFAULT)
-- [ ] create-copy-swap migration (reversible, preserves rows) + order_items FK dropped + indexes recreated + registered in test DB
-- [ ] partition-maintenance job (next-month, idempotent, cron+boot, test-guarded) + ScheduleModule
-- [ ] all order unit + e2e green over the partitioned table (repository unchanged)
-- [ ] EXPLAIN shows partition pruning on a created_at-bounded query (verified)
-- [ ] biome/cruiser/knip/tsc; plan updated before push
+- [x] `@nestjs/schedule` added; partitioned DDL designed (PK `(created_at,id)`, monthly + DEFAULT)
+- [x] create-copy-swap migration (reversible, preserves rows) + order_items FK dropped + indexes recreated + registered in test DB
+- [x] partition-maintenance job (next-month, idempotent, cron+boot, test-guarded) + ScheduleModule
+- [x] all order unit + e2e green over the partitioned table (repository unchanged)
+- [x] EXPLAIN shows partition pruning on a created_at-bounded query (verified)
+- [x] biome/cruiser/knip/tsc; plan updated before push
 
 ## Success criteria
 - The migration runs on the live order DB, preserves every existing order row, and `orders` is a monthly-range-partitioned table; a rollback (`down()`) restores the plain table + FK with no data loss.

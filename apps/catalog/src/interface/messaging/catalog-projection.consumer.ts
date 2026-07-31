@@ -7,8 +7,10 @@ import {
   type ReadRestaurantRepository,
 } from '@catalog/domain/read-model/read-restaurant.repository';
 import { TRANSACTION_PORT, type TransactionPort } from '@catalog/domain/shared/transaction.port';
+import { syncRestaurantCache } from '@catalog/interface/messaging/catalog-cache-sync';
 import { applyCatalogEvent } from '@catalog/interface/messaging/catalog-read-model-projector';
 import type { KafkaJS } from '@confluentinc/kafka-javascript';
+import { REDIS_CACHE, type RedisCache } from '@food-delivery-api/shared-cache';
 import {
   IdempotentConsumer,
   KafkaConsumerSubscriber,
@@ -46,6 +48,7 @@ export class CatalogProjectionConsumer implements OnApplicationBootstrap, OnModu
     @Inject(READ_RESTAURANT_REPOSITORY)
     private readonly readRestaurants: ReadRestaurantRepository,
     @Inject(READ_MENU_ITEM_REPOSITORY) private readonly readMenuItems: ReadMenuItemRepository,
+    @Inject(REDIS_CACHE) private readonly cache: RedisCache,
     private readonly config: ConfigService,
   ) {}
 
@@ -72,6 +75,16 @@ export class CatalogProjectionConsumer implements OnApplicationBootstrap, OnModu
             }),
           );
         });
+        // Write-through/evict AFTER the commit — Redis has no transactional tie
+        // to Postgres, so syncing before commit could warm the cache with a
+        // value a rollback then makes wrong.
+        await syncRestaurantCache(
+          envelope.eventType,
+          envelope.aggregateId,
+          envelope.tenantId,
+          this.cache,
+          this.readRestaurants,
+        );
       },
     });
     this.logger.log(`Projecting ${CATALOG_EVENTS_TOPIC} into the catalog read model`);
