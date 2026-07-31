@@ -14,4 +14,8 @@ export const catalogEnvSchema = baseEnvSchema.extend({
   // catalog events, so no producer is wired here — only the consumer client.
   KAFKA_BROKERS: z.string().min(1).default('localhost:9092'),
   KAFKA_CLIENT_ID: z.string().min(1).default('catalog'),
+  // The `core`-profile Redis, fronting hot restaurant reads (cache-aside +
+  // write-through). Never a hard dependency: a down/unreachable Redis falls
+  // back to the Postgres read model transparently.
+  REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
 });

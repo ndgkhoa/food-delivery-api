@@ -26,6 +26,7 @@ export default {
         'shared-jwt',
         'shared-tenancy',
         'shared-locking',
+        'shared-cache',
         'shared-audit',
         'shared-messaging',
         'shared-config-client',

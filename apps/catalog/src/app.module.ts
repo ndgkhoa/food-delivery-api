@@ -15,11 +15,13 @@ import { AuditModule } from '@catalog/infrastructure/audit/audit.module';
 import { PersistenceModule } from '@catalog/infrastructure/persistence/persistence.module';
 import { CatalogGrpcController } from '@catalog/interface/grpc/catalog.grpc.controller';
 import { GrpcTenantContextInterceptor } from '@catalog/interface/grpc/grpc-tenant-context.interceptor';
+import { CacheStatsController } from '@catalog/interface/http/cache-stats.controller';
 import { EntityNotFoundFilter } from '@catalog/interface/http/filters/entity-not-found.filter';
 import { MenuItemsController } from '@catalog/interface/http/menu-items.controller';
 import { RestaurantsController } from '@catalog/interface/http/restaurants.controller';
 import { CatalogProjectionConsumer } from '@catalog/interface/messaging/catalog-projection.consumer';
 import { ReviewProjectionConsumer } from '@catalog/interface/messaging/review-projection.consumer';
+import { CacheModule } from '@food-delivery-api/shared-cache';
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import {
@@ -49,8 +51,16 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
     PersistenceModule,
     TenancyModule,
     AuditModule,
+    // Cache-aside/write-through for restaurant reads (never a hard dependency
+    // — a down Redis falls back to the Postgres read model transparently).
+    CacheModule.forRoot({ redisUrl: process.env.REDIS_URL ?? 'redis://localhost:6379' }),
   ],
-  controllers: [RestaurantsController, MenuItemsController, CatalogGrpcController],
+  controllers: [
+    RestaurantsController,
+    MenuItemsController,
+    CatalogGrpcController,
+    CacheStatsController,
+  ],
   providers: [
     // Restaurant use cases. GetRestaurantHandler stays on the write model
     // (command validation); GetRestaurantViewHandler serves reads from the

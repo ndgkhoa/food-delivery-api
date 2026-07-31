@@ -3,8 +3,10 @@ import {
   type ReadRestaurantRepository,
 } from '@catalog/domain/read-model/read-restaurant.repository';
 import { TRANSACTION_PORT, type TransactionPort } from '@catalog/domain/shared/transaction.port';
+import { syncRestaurantCache } from '@catalog/interface/messaging/catalog-cache-sync';
 import { applyReviewEvent } from '@catalog/interface/messaging/catalog-rating-projector';
 import type { KafkaJS } from '@confluentinc/kafka-javascript';
+import { REDIS_CACHE, type RedisCache } from '@food-delivery-api/shared-cache';
 import {
   IdempotentConsumer,
   KafkaConsumerSubscriber,
@@ -42,6 +44,7 @@ export class ReviewProjectionConsumer implements OnApplicationBootstrap, OnModul
     @Inject(PROCESSED_EVENT_STORE) private readonly processedEvents: ProcessedEventStorePort,
     @Inject(READ_RESTAURANT_REPOSITORY)
     private readonly readRestaurants: ReadRestaurantRepository,
+    @Inject(REDIS_CACHE) private readonly cache: RedisCache,
     private readonly config: ConfigService,
   ) {}
 
@@ -62,6 +65,15 @@ export class ReviewProjectionConsumer implements OnApplicationBootstrap, OnModul
             applyReviewEvent(envelope, payload, this.readRestaurants),
           );
         });
+        // Write-through AFTER the commit — see catalog-projection.consumer's
+        // matching call for why this never runs inside the transaction.
+        await syncRestaurantCache(
+          envelope.eventType,
+          envelope.aggregateId,
+          envelope.tenantId,
+          this.cache,
+          this.readRestaurants,
+        );
       },
     });
     this.logger.log(`Projecting ${REVIEW_EVENTS_TOPIC} into the catalog read model`);

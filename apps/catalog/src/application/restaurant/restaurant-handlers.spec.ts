@@ -16,6 +16,7 @@ import { AuditAction } from '@catalog/domain/shared/audit-action';
 import type { OutboxEntry, OutboxWriter } from '@catalog/domain/shared/outbox.port';
 import type { PageResult, Pagination } from '@catalog/domain/shared/pagination';
 import type { TransactionPort } from '@catalog/domain/shared/transaction.port';
+import { FakeRedisCache } from '@catalog/testing/fake-redis-cache';
 import type { TenantContextPort, TenantRequestContext } from '@food-delivery-api/shared-tenancy';
 
 /**
@@ -177,7 +178,11 @@ describe('restaurant application handlers', () => {
       transaction,
       getRestaurant,
     );
-    listRestaurants = new ListRestaurantsHandler(repository, tenantContext);
+    listRestaurants = new ListRestaurantsHandler(
+      repository,
+      tenantContext,
+      new FakeRedisCache().asRedisCache(),
+    );
   });
 
   it('creates a restaurant scoped to the calling tenant and writes an audit entry', async () => {
