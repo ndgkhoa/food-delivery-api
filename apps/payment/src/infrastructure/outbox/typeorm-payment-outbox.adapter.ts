@@ -5,6 +5,7 @@ import {
   type OutboxRecord,
 } from '@food-delivery-api/shared-messaging';
 import { captureActiveTraceContext } from '@food-delivery-api/shared-observability';
+import { withAdvisoryLock } from '@food-delivery-api/shared-persistence';
 import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
@@ -26,6 +27,14 @@ interface UnpublishedRow {
 }
 
 /**
+ * Distinct per-service Postgres advisory-lock key so the payment relay's drain
+ * serializes across HPA replicas. Only needs to be unique within payment's own
+ * database (each service owns its database), but kept distinct from the other
+ * services' keys (order 4001, inventory 4003, review 4004) for clarity.
+ */
+const OUTBOX_RELAY_LOCK_KEY = 4002;
+
+/**
  * `OutboxWriter.append` enlists in the caller's transaction so a reply row
  * commits atomically with its dedupe marker; tenant is read from the tenant
  * context (set by the consumer from the command header) and the triggering
@@ -33,6 +42,9 @@ interface UnpublishedRow {
  * so the saga shares one trace id. `OutboxPort.fetchUnpublished` / `markPublished` are the relay's drain:
  * claim a batch with `FOR UPDATE SKIP LOCKED`, map each to a keyed Kafka record
  * (key = order id) with the six envelope headers, publish, mark done.
+ * `OutboxPort.runExclusively` wraps the whole drain in a session-held advisory
+ * lock so only one HPA replica drains at a time, avoiding duplicate-publish
+ * amplification across replicas.
  */
 @Injectable()
 export class TypeOrmPaymentOutboxAdapter implements OutboxWriter, OutboxPort {
@@ -130,5 +142,10 @@ export class TypeOrmPaymentOutboxAdapter implements OutboxWriter, OutboxPort {
       { id: In(ids), publishedAt: IsNull() },
       { publishedAt: new Date() },
     );
+  }
+
+  async runExclusively<T>(drain: () => Promise<T>): Promise<{ ran: boolean; result?: T }> {
+    const outcome = await withAdvisoryLock(this.dataSource, OUTBOX_RELAY_LOCK_KEY, drain);
+    return outcome.ran ? { ran: true, result: outcome.result } : { ran: false };
   }
 }

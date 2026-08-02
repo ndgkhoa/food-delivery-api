@@ -1,0 +1,5 @@
+namespace: food-delivery
+resources:
+  - deployment-blue.yaml
+  - deployment-green.yaml
+  - service.yaml

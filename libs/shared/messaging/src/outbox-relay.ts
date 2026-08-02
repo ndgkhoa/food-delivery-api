@@ -13,11 +13,15 @@ export interface OutboxRecord {
  * Port a service's own outbox table adapter implements. `fetchUnpublished`
  * should use `FOR UPDATE SKIP LOCKED` so overlapping ticks/replicas claim
  * DIFFERENT batches instead of blocking. This is **at-least-once, not
- * exactly-once**: a row can still be published more than once — the relay may
- * crash after `publishBatch` but before `markPublished`, or two relays can race
- * the publish window (the row lock is released once `fetchUnpublished`'s own tx
- * commits, well before publish). Consumers MUST dedupe by event id (see
- * IdempotentConsumer); run one relay per service to keep re-publishes rare.
+ * exactly-once**: a row can still be published more than once if the relay
+ * crashes after `publishBatch` but before `markPublished` — that gap is
+ * inherent and consumers MUST dedupe by event id (see IdempotentConsumer).
+ * Implement `runExclusively` to also serialize the whole drain (fetch through
+ * markPublished) across replicas via an advisory lock, so running ≥2 relay
+ * replicas for a service doesn't amplify steady-state duplicate publishes —
+ * without it, the row lock releases at `fetchUnpublished`'s own tx commit,
+ * well before publish, letting a second replica re-fetch and re-publish the
+ * same still-unpublished rows.
  */
 export interface OutboxPort {
   fetchUnpublished(limit: number): Promise<OutboxRecord[]>;
@@ -28,6 +32,13 @@ export interface OutboxPort {
    * reaper to escalate. Best-effort — a failure here is logged, not fatal.
    */
   incrementAttempts?(ids: string[]): Promise<void>;
+  /**
+   * Optionally wraps `drain` in a service-specific mutual-exclusion mechanism
+   * (an advisory lock keyed per service) so only one replica's relay drains at
+   * a time. `ran: false` means another replica already holds it — the relay
+   * treats that as a clean, error-free skip and just tries again next tick.
+   */
+  runExclusively?<T>(drain: () => Promise<T>): Promise<{ ran: boolean; result?: T }>;
 }
 
 export const OUTBOX_PORT = Symbol('OutboxPort');
@@ -87,8 +98,21 @@ export class OutboxRelay {
     }
   }
 
-  /** Drains a single batch. Exposed for tests and for callers that want to trigger an off-cycle flush. */
+  /**
+   * Drains a single batch. Exposed for tests and for callers that want to
+   * trigger an off-cycle flush. When the port implements `runExclusively`,
+   * the drain runs only if this replica wins the advisory lock; a lost race
+   * is a clean skip (returns 0), not an error — the next tick tries again.
+   */
   async runOnce(): Promise<number> {
+    if (!this.outbox.runExclusively) {
+      return this.drainBatch();
+    }
+    const outcome = await this.outbox.runExclusively(() => this.drainBatch());
+    return outcome.ran ? (outcome.result ?? 0) : 0;
+  }
+
+  private async drainBatch(): Promise<number> {
     const rows = await this.outbox.fetchUnpublished(this.batchSize);
     if (rows.length === 0) {
       return 0;

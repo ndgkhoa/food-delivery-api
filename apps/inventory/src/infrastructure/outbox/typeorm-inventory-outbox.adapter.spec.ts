@@ -4,7 +4,7 @@ import type { OutboxCommandEntry } from '@inventory/domain/shared/outbox.port';
 import { TypeOrmInventoryOutboxAdapter } from '@inventory/infrastructure/outbox/typeorm-inventory-outbox.adapter';
 import type { InventoryOutboxOrmEntity } from '@inventory/infrastructure/persistence/entities/inventory-outbox.orm-entity';
 import { runWithEntityManager } from '@inventory/infrastructure/persistence/transaction/transactional-entity-manager';
-import type { DataSource, EntityManager, Repository } from 'typeorm';
+import type { DataSource, EntityManager, QueryRunner, Repository } from 'typeorm';
 
 jest.mock('@food-delivery-api/shared-observability', () => ({
   captureActiveTraceContext: jest.fn(),
@@ -59,6 +59,26 @@ function fakeDataSource(rows: Record<string, unknown>[]): DataSource {
   return {
     transaction: async (work: (manager: EntityManager) => unknown) => work(manager),
   } as unknown as DataSource;
+}
+
+/** Stand-in for the dedicated advisory-lock connection `withAdvisoryLock` opens. */
+function fakeLockDataSource(tryLockResult: boolean): {
+  dataSource: DataSource;
+  queryRunner: QueryRunner;
+} {
+  const queryRunner = {
+    connect: jest.fn().mockResolvedValue(undefined),
+    query: jest.fn(async (sql: string) =>
+      sql.startsWith('SELECT pg_try_advisory_lock')
+        ? [{ pg_try_advisory_lock: tryLockResult }]
+        : [],
+    ),
+    release: jest.fn().mockResolvedValue(undefined),
+  } as unknown as QueryRunner;
+  const dataSource = {
+    createQueryRunner: jest.fn().mockReturnValue(queryRunner),
+  } as unknown as DataSource;
+  return { dataSource, queryRunner };
 }
 
 const tenantId = '11111111-1111-4111-8111-111111111111';
@@ -176,6 +196,39 @@ describe('TypeOrmInventoryOutboxAdapter', () => {
       const [record] = await adapter.fetchUnpublished(10);
 
       expect(record.headers.traceparent).toBeUndefined();
+    });
+  });
+
+  describe('runExclusively', () => {
+    it('runs the drain and reports ran:true + its result when the lock is won', async () => {
+      const { dataSource, queryRunner } = fakeLockDataSource(true);
+      const adapter = new TypeOrmInventoryOutboxAdapter(
+        new FakeOutboxRepository() as unknown as Repository<InventoryOutboxOrmEntity>,
+        dataSource,
+        tenantContext,
+      );
+      const drain = jest.fn().mockResolvedValue(3);
+
+      const outcome = await adapter.runExclusively(drain);
+
+      expect(outcome).toEqual({ ran: true, result: 3 });
+      expect(drain).toHaveBeenCalledTimes(1);
+      expect(queryRunner.release).toHaveBeenCalledTimes(1);
+    });
+
+    it('skips the drain and reports ran:false when another replica holds the lock', async () => {
+      const { dataSource } = fakeLockDataSource(false);
+      const adapter = new TypeOrmInventoryOutboxAdapter(
+        new FakeOutboxRepository() as unknown as Repository<InventoryOutboxOrmEntity>,
+        dataSource,
+        tenantContext,
+      );
+      const drain = jest.fn();
+
+      const outcome = await adapter.runExclusively(drain);
+
+      expect(outcome).toEqual({ ran: false });
+      expect(drain).not.toHaveBeenCalled();
     });
   });
 });

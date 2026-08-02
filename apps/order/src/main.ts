@@ -30,10 +30,19 @@ async function bootstrap() {
 
   setupOpenApi(app);
 
+  // Under k8s a rolling update sends SIGTERM; enabling Nest's shutdown hooks
+  // lets the payment/inventory reply consumers, the outbox relay, and the
+  // saga reaper disconnect/stop cleanly via onModuleDestroy instead of being
+  // hard-killed mid-poll (which would strand an uncommitted Kafka offset).
+  app.enableShutdownHooks();
+
   const port = process.env.PORT ?? 3003;
   await app.listen(port);
   Logger.log(`order listening on http://localhost:${port}/api/v1`, 'Bootstrap');
   Logger.log(`order API reference at http://localhost:${port}/api/v1/reference`, 'Bootstrap');
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  Logger.error(`order failed to bootstrap: ${error}`, 'Bootstrap');
+  process.exit(1);
+});

@@ -1,3 +1,5 @@
+export type { AdvisoryLockOutcome } from './advisory-lock';
+export { withAdvisoryLock } from './advisory-lock';
 export {
   buildReplicatedDataSourceOptions,
   type ReplicatedPostgresConnectionOptions,

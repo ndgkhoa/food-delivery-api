@@ -25,10 +25,18 @@ async function bootstrap() {
 
   setupOpenApi(app);
 
+  // Under k8s a rolling update sends SIGTERM; enabling Nest's shutdown hooks
+  // lets TypeORM/Redis close their connections via onModuleDestroy instead of
+  // being hard-killed mid-request.
+  app.enableShutdownHooks();
+
   const port = process.env.PORT ?? 3002;
   await app.listen(port);
   Logger.log(`auth listening on http://localhost:${port}/api/v1`, 'Bootstrap');
   Logger.log(`auth API reference at http://localhost:${port}/api/v1/reference`, 'Bootstrap');
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  Logger.error(`auth failed to bootstrap: ${error}`, 'Bootstrap');
+  process.exit(1);
+});

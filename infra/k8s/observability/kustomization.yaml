@@ -1,0 +1,20 @@
+# In-cluster metrics pipeline that feeds order's custom-metric HPA: OTel
+# Collector (receives OTLP metrics from the app pods, same pipeline as the
+# compose `observability` profile) -> Prometheus (scrapes the Collector's
+# Prometheus exporter) -> prometheus-adapter (serves a Prometheus query as the
+# custom.metrics.k8s.io API). The HPA that consumes it is order's single HPA in
+# infra/k8s/base/order/hpa.yaml (CPU + the custom request-rate metric on ONE
+# object — a second HPA on the same Deployment would fight it), so this component
+# ships only the metrics plumbing, not a competing HPA.
+#
+# Deliberately no top-level `namespace:` field here (unlike infra/k8s/base):
+# every resource below already hardcodes its own `metadata.namespace`
+# (observability for the metrics stack, kube-system for the one RoleBinding the
+# aggregation layer's auth-delegation requires) — kustomize's namespace
+# transformer would force ALL of those onto a single namespace, which is wrong
+# for a component that legitimately spans more than one.
+resources:
+  - namespace.yaml
+  - otel-collector
+  - prometheus
+  - prometheus-adapter

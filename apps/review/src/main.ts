@@ -30,10 +30,19 @@ async function bootstrap() {
 
   setupOpenApi(app);
 
+  // Under k8s a rolling update sends SIGTERM; enabling Nest's shutdown hooks
+  // lets the order-events consumer and the outbox relay disconnect/stop
+  // cleanly via onModuleDestroy instead of being hard-killed mid-poll (which
+  // would strand an uncommitted Kafka offset).
+  app.enableShutdownHooks();
+
   const port = process.env.PORT ?? 3009;
   await app.listen(port);
   Logger.log(`review listening on http://localhost:${port}/api/v1`, 'Bootstrap');
   Logger.log(`review API reference at http://localhost:${port}/api/v1/reference`, 'Bootstrap');
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  Logger.error(`review failed to bootstrap: ${error}`, 'Bootstrap');
+  process.exit(1);
+});

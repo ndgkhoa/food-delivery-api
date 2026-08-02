@@ -1,0 +1,47 @@
+# CPU-based autoscaling: replicas track average CPU utilization against the
+# requests/limits set in deployment.yaml (metrics-server supplies the cpu
+# metric). minReplicas stays 1 here in the dev-shaped base; the prod overlay
+# patches every HPA's minReplicas up so a rolling update or node loss never
+# drops a service to zero ready pods.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: media
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: media
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: media
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      # Wait for 2 minutes of sustained low CPU before removing a pod, and
+      # remove at most half the current replicas per minute — absorbs a
+      # short traffic dip without immediately shedding capacity a follow-up
+      # spike would just need again (flapping).
+      stabilizationWindowSeconds: 120
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+    scaleUp:
+      # React to a spike immediately (no stabilization delay) but cap growth
+      # to doubling the fleet per minute so a brief blip can't overshoot
+      # maxReplicas in one step.
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 60

@@ -32,10 +32,19 @@ async function bootstrap() {
 
   setupAggregatedReference(app);
 
+  // Under k8s a rolling update / canary promotion sends SIGTERM; enabling
+  // Nest's shutdown hooks lets the circuit-breaker registry and the Redis
+  // rate-limit store close their connections via onModuleDestroy/
+  // onApplicationShutdown instead of being hard-killed mid-request.
+  app.enableShutdownHooks();
+
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
   Logger.log(`gateway listening on http://localhost:${port}/api/v1`, 'Bootstrap');
   Logger.log(`aggregated API reference at http://localhost:${port}/api/v1/reference`, 'Bootstrap');
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  Logger.error(`gateway failed to bootstrap: ${error}`, 'Bootstrap');
+  process.exit(1);
+});

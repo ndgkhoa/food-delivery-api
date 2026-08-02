@@ -51,6 +51,12 @@ async function bootstrap() {
   );
   await app.startAllMicroservices();
 
+  // Under k8s a rolling update sends SIGTERM; enabling Nest's shutdown hooks
+  // lets the catalog/review projection Kafka consumers disconnect cleanly via
+  // onModuleDestroy instead of being hard-killed mid-poll (which would strand
+  // an uncommitted offset and cause a duplicate redelivery on the new pod).
+  app.enableShutdownHooks();
+
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
   Logger.log(`catalog listening on http://localhost:${port}/api/v1`, 'Bootstrap');
@@ -58,4 +64,7 @@ async function bootstrap() {
   Logger.log(`catalog gRPC listening on ${grpcUrl}`, 'Bootstrap');
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  Logger.error(`catalog failed to bootstrap: ${error}`, 'Bootstrap');
+  process.exit(1);
+});

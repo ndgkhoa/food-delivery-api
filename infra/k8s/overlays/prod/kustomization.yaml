@@ -72,6 +72,21 @@ patches:
           limits:
             cpu: 1000m
             memory: 512Mi
+  # Every HPA's floor moves from 1 (dev) to 2 in one shot, same labelSelector
+  # trick — a single ready pod is a single point of failure during a node
+  # drain or a slow rolling update; `/spec/replicas` above only sets the
+  # Deployment's initial count, the HPA controller reconciles it right back
+  # down to `minReplicas` on its next sync unless that floor moves too.
+  - target:
+      kind: HorizontalPodAutoscaler
+      labelSelector: app.kubernetes.io/part-of=food-delivery
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 10
   # External managed infra endpoints — placeholder hostnames only. A real
   # rollout wires these (and the matching Secret credentials) from the
   # target environment's secret manager, never hardcoded here. Harmless no-op

@@ -5,6 +5,7 @@ import {
   type OutboxRecord,
 } from '@food-delivery-api/shared-messaging';
 import { captureActiveTraceContext } from '@food-delivery-api/shared-observability';
+import { withAdvisoryLock } from '@food-delivery-api/shared-persistence';
 import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
@@ -26,6 +27,14 @@ interface UnpublishedRow {
 }
 
 /**
+ * Distinct per-service Postgres advisory-lock key so the review relay's drain
+ * serializes across HPA replicas. Only needs to be unique within review's own
+ * database (each service owns its database), but kept distinct from the other
+ * services' keys (order 4001, payment 4002, inventory 4003) for clarity.
+ */
+const OUTBOX_RELAY_LOCK_KEY = 4004;
+
+/**
  * Two roles over the same `review_outbox` table, mirroring order's
  * `TypeOrmOrderOutboxAdapter`:
  * - `OutboxWriter.append` — enlists in the caller's transaction so the
@@ -36,6 +45,9 @@ interface UnpublishedRow {
  *   `FOR UPDATE SKIP LOCKED` so overlapping ticks claim DIFFERENT rows.
  *   At-least-once: consumers dedupe by event id (the row `id`) where needed
  *   (catalog/search's rating projections are naturally idempotent either way).
+ * - `OutboxPort.runExclusively` — wraps the whole drain in a session-held
+ *   advisory lock so only one HPA replica drains at a time, avoiding
+ *   duplicate-publish amplification across replicas.
  */
 @Injectable()
 export class TypeOrmReviewOutboxAdapter implements OutboxWriter, OutboxPort {
@@ -131,5 +143,10 @@ export class TypeOrmReviewOutboxAdapter implements OutboxWriter, OutboxPort {
       { id: In(ids), publishedAt: IsNull() },
       { publishedAt: new Date() },
     );
+  }
+
+  async runExclusively<T>(drain: () => Promise<T>): Promise<{ ran: boolean; result?: T }> {
+    const outcome = await withAdvisoryLock(this.dataSource, OUTBOX_RELAY_LOCK_KEY, drain);
+    return outcome.ran ? { ran: true, result: outcome.result } : { ran: false };
   }
 }
