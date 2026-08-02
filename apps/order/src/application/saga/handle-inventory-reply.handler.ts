@@ -4,6 +4,7 @@ import {
   PROCESSED_EVENT_STORE,
   type ProcessedEventStorePort,
 } from '@food-delivery-api/shared-messaging';
+import { recordSagaOutcome, type SagaOutcome } from '@food-delivery-api/shared-observability';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { chargePaymentCommand, orderCancelledEvent } from '@order/application/saga/saga-commands';
 import type { Order } from '@order/domain/order/order';
@@ -48,17 +49,23 @@ export class HandleInventoryReplyHandler {
   ) {}
 
   async execute(envelope: EventEnvelopeHeaders, payload: InventoryReplyPayload): Promise<void> {
-    await this.transaction.runInTransaction(async () => {
-      await IdempotentConsumer.runOnce(this.processedEvents, envelope.eventId, undefined, () =>
+    const outcome = await this.transaction.runInTransaction(() =>
+      IdempotentConsumer.runOnce(this.processedEvents, envelope.eventId, undefined, () =>
         this.apply(envelope, payload),
-      );
-    });
+      ),
+    );
+    // Recorded AFTER the transaction commits (never inside it) so a metric is
+    // never emitted for a saga transition that ends up rolled back.
+    if (outcome) {
+      recordSagaOutcome(outcome);
+    }
   }
 
+  /** Returns the saga outcome reached (`'cancelled'` on either cancel leg), or `undefined` when this reply caused no terminal transition. */
   private async apply(
     envelope: EventEnvelopeHeaders,
     payload: InventoryReplyPayload,
-  ): Promise<void> {
+  ): Promise<SagaOutcome | undefined> {
     const { tenantId, eventType, eventId } = envelope;
     const orderId = payload.orderId;
     const saga = await this.sagaRepository.findByOrderId(tenantId, orderId);
@@ -69,7 +76,7 @@ export class HandleInventoryReplyHandler {
     switch (eventType) {
       case STOCK_RESERVED: {
         if (saga.state !== 'STARTED') {
-          return;
+          return undefined;
         }
         const order = await this.loadOrder(tenantId, orderId);
         await this.orderRepository.updateStatus(order.reserve());
@@ -78,49 +85,50 @@ export class HandleInventoryReplyHandler {
         await this.outbox.append(
           chargePaymentCommand(orderId, order.totalCents, envelope.correlationId),
         );
-        return;
+        return undefined;
       }
       case STOCK_RESERVATION_FAILED: {
         if (saga.state !== 'STARTED') {
-          return;
+          return undefined;
         }
         const order = await this.loadOrder(tenantId, orderId);
-        await this.cancelOrder(order, saga, eventId, envelope.correlationId);
-        return;
+        return this.cancelOrder(order, saga, eventId, envelope.correlationId);
       }
       case STOCK_RELEASED: {
         // Terminal compensation leg: release confirms the hold is gone, cancel the order.
         if (saga.state !== 'COMPENSATING') {
-          return;
+          return undefined;
         }
         const order = await this.loadOrder(tenantId, orderId);
-        await this.cancelOrder(order, saga, eventId, envelope.correlationId);
-        return;
+        return this.cancelOrder(order, saga, eventId, envelope.correlationId);
       }
       default:
         this.logger.warn(
           `Ignoring unknown inventory reply type "${eventType}" for order ${orderId}`,
         );
-        return;
+        return undefined;
     }
   }
 
   /**
    * Cancels the order + saga and emits the `OrderCancelled` lifecycle event in
    * the same transaction — shared by both cancel legs (reservation failed / stock
-   * released) so the emission can never diverge from the transition.
+   * released) so the emission can never diverge from the transition. Returns
+   * `'cancelled'` for the caller to record as the saga's outcome once the
+   * transaction commits.
    */
   private async cancelOrder(
     order: Order,
     saga: OrderSaga,
     eventId: string,
     correlationId: string,
-  ): Promise<void> {
+  ): Promise<SagaOutcome> {
     await this.orderRepository.updateStatus(order.cancel());
     await this.sagaRepository.transition(saga.transition('CANCELLED', eventId));
     await this.outbox.append(
       orderCancelledEvent(order.id, order.userId, order.totalCents, correlationId),
     );
+    return 'cancelled';
   }
 
   private async loadOrder(tenantId: string, orderId: string) {

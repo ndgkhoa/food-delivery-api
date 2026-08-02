@@ -1,0 +1,15 @@
+# Grafana dashboard provisioning (as-code) — loads every JSON file under
+# infra/grafana/dashboards on boot; editing a file here and restarting
+# Grafana is the update path (`allowUiUpdates: false` — no click-ops drift).
+apiVersion: 1
+
+providers:
+  - name: food-delivery
+    orgId: 1
+    folder: Food Delivery
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/dashboards

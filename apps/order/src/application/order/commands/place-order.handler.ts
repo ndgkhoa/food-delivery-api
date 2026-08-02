@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { CONFIG_CLIENT, type ConfigClient } from '@food-delivery-api/shared-config-client';
+import { recordOrderPlaced } from '@food-delivery-api/shared-observability';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { reserveStockCommand } from '@order/application/saga/saga-commands';
 import {
@@ -145,26 +146,31 @@ export class PlaceOrderHandler {
     //    command — all in ONE transaction so the relay can never publish a
     //    command for an order that failed to persist.
     try {
-      return await this.transaction.runInTransaction(async () => {
+      const persistedOrder = await this.transaction.runInTransaction(async () => {
         await this.idempotencyRepository.save(
           command.tenantId,
           command.userId,
           command.idempotencyKey,
           orderId,
         );
-        const persistedOrder = await this.orderRepository.insert(pendingOrder);
+        const inserted = await this.orderRepository.insert(pendingOrder);
         await this.sagaRepository.insert(
           OrderSaga.start({ orderId, tenantId: command.tenantId, correlationId }),
         );
         await this.outbox.append(
           reserveStockCommand(
             orderId,
-            persistedOrder.items.map((item) => ({ itemId: item.itemId, qty: item.qty })),
+            inserted.items.map((item) => ({ itemId: item.itemId, qty: item.qty })),
             correlationId,
           ),
         );
-        return persistedOrder;
+        return inserted;
       });
+      // Placement, not confirmation: reached only once the transaction has
+      // committed, and once per newly-created (non-replayed) order. Revenue
+      // reflects the order total at placement time.
+      recordOrderPlaced(persistedOrder.totalCents);
+      return persistedOrder;
     } catch (error) {
       if (isUniqueViolation(error)) {
         // A concurrent request won the key; its order committed atomically with
