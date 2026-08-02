@@ -1,0 +1,25 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "dependencyDashboard": true,
+  "schedule": ["before 6am every weekday"],
+  "packageRules": [
+    {
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "description": "Auto-merge lockfile-only dev-dependency patch/minor bumps — tooling only, no app-runtime risk, keeps noise out of manual review."
+    },
+    {
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "minor and patch updates",
+      "description": "Batch routine minor/patch bumps into one PR per manager run; majors stay separate for individual review."
+    },
+    {
+      "matchPackageNames": ["@opentelemetry/**"],
+      "groupName": "opentelemetry packages",
+      "description": "OpenTelemetry packages must move in lockstep across every update type, including majors — a prior version mismatch (Temporal's OTel interceptor pinned to 1.x vs the workspace's 2.x) broke instrumentation, so all @opentelemetry/* bumps land in a single PR."
+    }
+  ]
+}
