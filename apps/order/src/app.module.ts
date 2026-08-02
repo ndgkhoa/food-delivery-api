@@ -1,5 +1,6 @@
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
 import { ConfigClientModule } from '@food-delivery-api/shared-config-client';
+import { HealthModule } from '@food-delivery-api/shared-health';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import {
   KafkaConsumerSubscriber,
@@ -45,6 +46,7 @@ import { SagaReaperProvider } from '@order/interface/messaging/saga-reaper.provi
   imports: [
     SharedConfigModule.forRoot(orderEnvSchema),
     SharedLoggingModule.forRoot(),
+    HealthModule,
     PersistenceModule,
     TenancyModule,
     GrpcClientsModule,

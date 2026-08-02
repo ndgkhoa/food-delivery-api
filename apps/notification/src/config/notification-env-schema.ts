@@ -7,10 +7,13 @@ import { z } from 'zod';
  * the BullMQ Redis connection, SMTP coordinates for the Mailpit email channel,
  * the per-channel enable flags, and the retry/backoff policy shared by the
  * BullMQ producer (attempts/backoff) and the failure handler (exhaustion
- * check). Headless — no HTTP/gRPC surface, so the base schema's `PORT`
- * default is simply unused.
+ * check). Otherwise headless (no public API) — `PORT` backs only the minimal
+ * HTTP listener added for the k8s liveness/readiness probe
+ * (`GET /api/v1/health`); defaults to 3012, the next free port after
+ * inventory (3011).
  */
 export const notificationEnvSchema = baseEnvSchema.extend({
+  PORT: z.coerce.number().int().positive().default(3012),
   DB_NAME: z.string().min(1).default('notification'),
   /** Kafka brokers the order.events consumer connects to. */
   KAFKA_BROKERS: z.string().min(1).default('localhost:9092'),

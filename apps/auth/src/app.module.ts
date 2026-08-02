@@ -8,6 +8,7 @@ import { PersistenceModule } from '@auth/infrastructure/persistence/persistence.
 import { DomainErrorFilter } from '@auth/interface/http/filters/domain-error.filter';
 import { TenantsController } from '@auth/interface/http/tenants.controller';
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
+import { HealthModule } from '@food-delivery-api/shared-health';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import { RolesGuard } from '@food-delivery-api/shared-tenancy';
 import { Module } from '@nestjs/common';
@@ -27,6 +28,7 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
   imports: [
     SharedConfigModule.forRoot(authEnvSchema),
     SharedLoggingModule.forRoot(),
+    HealthModule,
     PersistenceModule,
     KeycloakModule,
   ],

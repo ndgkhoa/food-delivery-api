@@ -1,4 +1,5 @@
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
+import { HealthModule } from '@food-delivery-api/shared-health';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import {
   RolesGuard,
@@ -31,6 +32,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
   imports: [
     SharedConfigModule.forRoot(mediaEnvSchema),
     SharedLoggingModule.forRoot(),
+    HealthModule,
     TenancyModule,
     PersistenceModule,
     MinioStorageModule,

@@ -23,6 +23,7 @@ import { CatalogProjectionConsumer } from '@catalog/interface/messaging/catalog-
 import { ReviewProjectionConsumer } from '@catalog/interface/messaging/review-projection.consumer';
 import { CacheModule } from '@food-delivery-api/shared-cache';
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
+import { HealthModule } from '@food-delivery-api/shared-health';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import {
   createKafkaClient,
@@ -48,6 +49,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
   imports: [
     SharedConfigModule.forRoot(catalogEnvSchema),
     SharedLoggingModule.forRoot(),
+    HealthModule,
     PersistenceModule,
     TenancyModule,
     AuditModule,

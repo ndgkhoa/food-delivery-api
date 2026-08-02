@@ -1,4 +1,5 @@
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
+import { HealthModule } from '@food-delivery-api/shared-health';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import {
   createKafkaClient,
@@ -31,6 +32,7 @@ import { ReviewProjectionConsumer } from '@search/interface/messaging/review-pro
   imports: [
     SharedConfigModule.forRoot(searchEnvSchema),
     SharedLoggingModule.forRoot(),
+    HealthModule,
     TenancyModule,
     ElasticsearchClientModule,
   ],

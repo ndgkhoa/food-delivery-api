@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: delivery-config
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: delivery
+    app.kubernetes.io/part-of: food-delivery
+    food-delivery.io/config-kind: app-env
+data:
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.food-delivery:4318"
+  TELEMETRY_ENABLED: "true"
+  PORT: "3005"
+  REDIS_URL: "redis://redis.food-delivery:6379"
+  KAFKA_BROKERS: "kafka.food-delivery:9092"
+  KAFKA_CLIENT_ID: "delivery"
+  DRIVER_LOCATION_RATE_LIMIT_PER_SEC: "5"
+  NEARBY_RADIUS_M: "3000"
+  KEYCLOAK_URL: "http://keycloak.food-delivery:8080"
+  KEYCLOAK_REALM: "food-delivery"
+  JWT_AUDIENCE: "food-delivery-api"
+  JWT_CLOCK_TOLERANCE_SEC: "5"

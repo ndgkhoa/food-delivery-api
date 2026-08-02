@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-config
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: gateway
+    app.kubernetes.io/part-of: food-delivery
+    food-delivery.io/config-kind: app-env
+data:
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.food-delivery:4318"
+  TELEMETRY_ENABLED: "true"
+  PORT: "3000"
+  CATALOG_SERVICE_URL: "http://catalog.food-delivery:3001"
+  AUTH_SERVICE_URL: "http://auth.food-delivery:3002"
+  ORDER_SERVICE_URL: "http://order.food-delivery:3003"
+  SEARCH_SERVICE_URL: "http://search.food-delivery:3004"
+  DELIVERY_SERVICE_URL: "http://delivery.food-delivery:3005"
+  MEDIA_SERVICE_URL: "http://media.food-delivery:3006"
+  CONFIG_SERVICE_URL: "http://config.food-delivery:3008"
+  REVIEW_SERVICE_URL: "http://review.food-delivery:3009"
+  ANALYTICS_SERVICE_URL: "http://analytics.food-delivery:3010"
+  KEYCLOAK_URL: "http://keycloak.food-delivery:8080"
+  KEYCLOAK_REALM: "food-delivery"
+  JWT_AUDIENCE: "food-delivery-api"
+  JWT_CLOCK_TOLERANCE_SEC: "5"
+  KEYCLOAK_SPA_CLIENT_ID: "food-delivery-spa"
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_MAX: "100"
+  RATE_LIMIT_WINDOW_SEC: "60"
+  REDIS_URL: "redis://redis.food-delivery:6379"
+  CB_ENABLED: "true"
+  CB_ERROR_THRESHOLD_PERCENT: "50"
+  CB_RESET_TIMEOUT_MS: "10000"
+  CB_ROLLING_WINDOW_MS: "10000"
+  CB_VOLUME_THRESHOLD: "5"
