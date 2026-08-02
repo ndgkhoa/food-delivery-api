@@ -5,6 +5,7 @@ import {
   inventoryProtoPath,
   PROTO_LOADER_OPTIONS,
 } from '@food-delivery-api/shared-contracts';
+import { GlobalExceptionFilter } from '@food-delivery-api/shared-errors';
 import { correlationIdMiddleware } from '@food-delivery-api/shared-logging';
 import { AppModule } from '@inventory/app.module';
 import { Logger } from '@nestjs/common';
@@ -26,6 +27,8 @@ async function bootstrap() {
   // Must run before pino-http's own middleware so `genReqId` reads a normalized header.
   app.use(correlationIdMiddleware);
   app.useLogger(app.get(PinoLogger));
+  // Unified error envelope for the health-check HTTP surface (inventory's primary edge is gRPC).
+  app.useGlobalFilters(new GlobalExceptionFilter());
   app.setGlobalPrefix('api/v1');
 
   const grpcUrl = process.env.INVENTORY_GRPC_URL ?? '0.0.0.0:50052';

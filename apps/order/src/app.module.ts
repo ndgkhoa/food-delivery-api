@@ -9,7 +9,7 @@ import {
 } from '@food-delivery-api/shared-messaging';
 import { TenancyModule, TrustedIdentityInterceptor } from '@food-delivery-api/shared-tenancy';
 import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CancelOrderHandler } from '@order/application/order/commands/cancel-order.handler';
 import { ConfirmOrderHandler } from '@order/application/order/commands/confirm-order.handler';
@@ -26,7 +26,6 @@ import { GrpcClientsModule } from '@order/infrastructure/grpc/grpc-clients.modul
 import { InventoryGrpcAdapter } from '@order/infrastructure/grpc/inventory-grpc.adapter';
 import { OrdersPartitionMaintenanceService } from '@order/infrastructure/persistence/partitioning/orders-partition-maintenance';
 import { PersistenceModule } from '@order/infrastructure/persistence/persistence.module';
-import { OrderDomainErrorFilter } from '@order/interface/http/filters/order-domain-error.filter';
 import { OrdersController } from '@order/interface/http/orders.controller';
 import { InventoryReplyConsumer } from '@order/interface/messaging/inventory-reply.consumer';
 import { OrderOutboxRelayProvider } from '@order/interface/messaging/order-outbox-relay.provider';
@@ -93,8 +92,6 @@ import { SagaReaperProvider } from '@order/interface/messaging/saga-reaper.provi
     // the gateway propagates (shared-tenancy), never from a raw client header. No RolesGuard:
     // ownership (owner or admin) is enforced in the handlers, not by a role requirement.
     { provide: APP_INTERCEPTOR, useClass: TrustedIdentityInterceptor },
-    // Maps order domain errors to their HTTP status so use cases stay transport-agnostic.
-    { provide: APP_FILTER, useClass: OrderDomainErrorFilter },
   ],
 })
 export class AppModule {}

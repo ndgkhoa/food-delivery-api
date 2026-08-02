@@ -5,14 +5,13 @@ import { ListTenantsHandler } from '@auth/application/tenant/queries/list-tenant
 import { authEnvSchema } from '@auth/config/auth-env-schema';
 import { KeycloakModule } from '@auth/infrastructure/keycloak/keycloak.module';
 import { PersistenceModule } from '@auth/infrastructure/persistence/persistence.module';
-import { DomainErrorFilter } from '@auth/interface/http/filters/domain-error.filter';
 import { TenantsController } from '@auth/interface/http/tenants.controller';
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
 import { HealthModule } from '@food-delivery-api/shared-health';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import { RolesGuard } from '@food-delivery-api/shared-tenancy';
 import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { APP_GUARD } from '@nestjs/core';
 
 /**
  * Composition root: wires ports (domain) to adapters (infrastructure), registers
@@ -39,7 +38,6 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
     ListTenantsHandler,
     GetTenantHandler,
     { provide: APP_GUARD, useClass: RolesGuard },
-    { provide: APP_FILTER, useClass: DomainErrorFilter },
   ],
 })
 export class AppModule {}

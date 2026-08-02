@@ -1,5 +1,6 @@
 import '@gateway/instrumentation';
 import 'reflect-metadata';
+import { GlobalExceptionFilter } from '@food-delivery-api/shared-errors';
 import { correlationIdMiddleware } from '@food-delivery-api/shared-logging';
 import { AppModule } from '@gateway/app.module';
 import { setupAggregatedReference } from '@gateway/reference/setup-aggregated-reference';
@@ -22,6 +23,9 @@ async function bootstrap() {
   // Generate/propagate x-correlation-id before pino-http reads it (see shared-logging).
   app.use(correlationIdMiddleware);
   app.useLogger(app.get(PinoLogger));
+  // Unified error envelope for every 4xx/5xx response across all services —
+  // also covers edge/proxied errors so the gateway matches downstream shapes.
+  app.useGlobalFilters(new GlobalExceptionFilter());
 
   // URI versioning under a global `api` prefix yields the `/api/v1` surface.
   app.setGlobalPrefix('api');

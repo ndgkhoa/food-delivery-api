@@ -3,6 +3,7 @@ import 'reflect-metadata';
 import { AppModule } from '@delivery/app.module';
 import { RedisIoAdapter } from '@delivery/infrastructure/ws/redis-io-adapter';
 import { setupOpenApi } from '@delivery/interface/http/setup-openapi';
+import { GlobalExceptionFilter } from '@food-delivery-api/shared-errors';
 import { correlationIdMiddleware } from '@food-delivery-api/shared-logging';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -23,6 +24,8 @@ async function bootstrap() {
   // Must run before pino-http's own middleware so `genReqId` reads a normalized header.
   app.use(correlationIdMiddleware);
   app.useLogger(app.get(PinoLogger));
+  // Unified error envelope for every 4xx/5xx response across all services.
+  app.useGlobalFilters(new GlobalExceptionFilter());
 
   // Drain Redis + the Kafka consumer + WS clients on SIGTERM/SIGINT.
   app.enableShutdownHooks();
