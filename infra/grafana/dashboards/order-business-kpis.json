@@ -1,0 +1,92 @@
+{
+  "title": "Order Business KPIs",
+  "uid": "order-business-kpis",
+  "tags": ["food-delivery", "business"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Orders placed (rate/min)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(orders_placed_total[5m])) * 60",
+          "legendFormat": "orders/min"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Revenue (USD/min)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(rate(order_revenue_cents_total[5m])) * 60 / 100",
+          "legendFormat": "revenue/min"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Saga outcome (confirmed vs cancelled)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(saga_outcome_total[5m])) * 60",
+          "legendFormat": "{{outcome}}/min"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "DLQ depth (messages/5m) by topic",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (topic) (increase(dlq_messages_total[5m]))",
+          "legendFormat": "{{topic}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Saga cancellation ratio (15m)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 16 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0.1 },
+              { "color": "red", "value": 0.2 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(saga_outcome_total{outcome=\"cancelled\"}[15m])) / sum(rate(saga_outcome_total[15m]))",
+          "legendFormat": "cancellation ratio"
+        }
+      ]
+    }
+  ]
+}

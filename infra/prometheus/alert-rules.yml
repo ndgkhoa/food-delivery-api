@@ -1,0 +1,72 @@
+# Minimal SLO alert rules (dev/portfolio scope — alert only on a real breach,
+# not on noise). Golden-signal metric names below follow the OTel Collector's
+# Prometheus exporter naming convention for the semconv `http.server.request.duration`
+# histogram (dots -> underscores, unit suffix appended): confirm the exact
+# name once the `observability` profile is actually running and Prometheus's
+# target page shows the scraped series (`otel-collector:8889/metrics`) — a
+# semconv/exporter version bump can shift a suffix.
+groups:
+  - name: golden-signals
+    rules:
+      - alert: HighHttp5xxRate
+        expr: >-
+          sum by (job) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
+            /
+          sum by (job) (rate(http_server_request_duration_seconds_count[5m]))
+            > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'High 5xx rate on {{ $labels.job }}'
+          description: 'More than 5% of {{ $labels.job }} requests have returned 5xx over the last 5 minutes.'
+
+      - alert: HighHttpP99Latency
+        expr: >-
+          histogram_quantile(0.99, sum by (job, le) (rate(http_server_request_duration_seconds_bucket[5m]))) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'p99 latency budget breached on {{ $labels.job }}'
+          description: '{{ $labels.job }} p99 request latency has exceeded 1s over the last 5 minutes.'
+
+  - name: telemetry-health
+    rules:
+      # Watchdog: the golden-signal alerts above query a metric whose name comes
+      # from the http instrumentation's semconv output. A version bump (Renovate
+      # pins exact) could rename it, and a rule querying a now-missing metric
+      # silently NEVER fires — the SLO alerts would go quietly dark. This fires
+      # if the series disappears entirely, surfacing the rename instead.
+      - alert: GoldenSignalMetricAbsent
+        expr: absent(http_server_request_duration_seconds_count)
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Golden-signal HTTP metric is absent'
+          description: 'http_server_request_duration_seconds_count has been absent for 15m — the http instrumentation may have renamed it (the 5xx/latency SLO alerts silently depend on it).'
+
+  - name: business-slo
+    rules:
+      - alert: DlqMessagesGrowing
+        expr: increase(dlq_messages_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Messages are being dead-lettered on topic {{ $labels.topic }}'
+          description: 'At least one message was routed to the dead-letter topic for "{{ $labels.topic }}" in the last 5 minutes — investigate before it silently accumulates.'
+
+      - alert: HighSagaFailureRatio
+        expr: >-
+          sum(rate(saga_outcome_total{outcome="cancelled"}[15m]))
+            /
+          sum(rate(saga_outcome_total[15m]))
+            > 0.2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Order saga cancellation ratio above budget'
+          description: 'More than 20% of terminal order sagas have cancelled over the last 15 minutes.'

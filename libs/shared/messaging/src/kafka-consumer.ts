@@ -1,5 +1,5 @@
 import type { KafkaJS } from '@confluentinc/kafka-javascript';
-import { runWithExtractedContext } from '@food-delivery-api/shared-observability';
+import { recordDlqMessage, runWithExtractedContext } from '@food-delivery-api/shared-observability';
 import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
 import { buildDeadLetterMessage, deadLetterTopic, type RawInboundMessage } from './dead-letter';
@@ -123,6 +123,9 @@ export class KafkaConsumerSubscriber implements OnModuleDestroy {
           `Dead-lettered ${raw.topic}[${raw.partition}]@${raw.message.offset} to ` +
             `${deadLetterTopic(raw.topic)} (${reason})`,
         );
+        // Labelled by the ORIGINAL source topic (bounded, fixed set) — never by
+        // message/order id.
+        recordDlqMessage(raw.topic);
         return true;
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);

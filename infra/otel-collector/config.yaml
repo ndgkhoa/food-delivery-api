@@ -1,7 +1,9 @@
 # OTel Collector for the `observability` compose profile (dev only). Receives
-# OTLP traces from every service (each imports `@food-delivery-api/shared-observability/register`,
-# which exports to OTEL_EXPORTER_OTLP_ENDPOINT — this collector on 4317/4318)
-# and forwards them to Jaeger over OTLP. Metrics/logs pipelines land in 8b.
+# OTLP traces AND metrics from every service (each imports
+# `@food-delivery-api/shared-observability/register`, which exports to
+# OTEL_EXPORTER_OTLP_ENDPOINT — this collector on 4317/4318). Traces forward to
+# Jaeger over OTLP; metrics are exposed on :8889 for Prometheus to scrape.
+# Logs bypass the Collector entirely — see infra/alloy/config.alloy.
 receivers:
   otlp:
     protocols:
@@ -24,6 +26,11 @@ exporters:
     endpoint: jaeger:4317
     tls:
       insecure: true
+  # Converts OTLP metrics into Prometheus's pull model — Prometheus scrapes
+  # this endpoint on its own interval (see infra/prometheus/prometheus.yml)
+  # rather than the Collector pushing to it.
+  prometheus:
+    endpoint: 0.0.0.0:8889
 
 extensions:
   # Exposes a liveness endpoint on :13133 — not used by this compose file's own
@@ -39,3 +46,7 @@ service:
       receivers: [otlp]
       processors: [memory_limiter, batch]
       exporters: [otlp/jaeger]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]

@@ -4,7 +4,7 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 
 ## Overview
 - **Priority**: P2
-- **Status**: 🔄 In progress — **8a** [distributed tracing (OTel → Jaeger)](./phase-08a-distributed-tracing.md) in progress; 8b metrics/logs, 8c K8s, 8d CI/CD remaining.
+- **Status**: 🔄 In progress — **8a** [distributed tracing (OTel → Jaeger)](./phase-08a-distributed-tracing.md) ✅ Done (#29); **8b** [metrics/logs + SLO alerts](./phase-08b-metrics-logs-slo.md) ✅ Verified live (awaiting merge); 8c K8s, 8d CI/CD remaining.
 - **Brief**: Make the system operable + observable. K8s manifests + HPA autoscaling, Blue-Green/Canary deploy, GitHub Actions CI/CD. Full observability: OpenTelemetry tracing → Jaeger, Prometheus/Grafana metrics, Loki centralized logs. Instrumentation was stubbed early (P0 logging/correlation ID) — now fully wired end-to-end.
 
 ## Key insights

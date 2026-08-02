@@ -4,6 +4,7 @@ import {
   PROCESSED_EVENT_STORE,
   type ProcessedEventStorePort,
 } from '@food-delivery-api/shared-messaging';
+import { recordSagaOutcome, type SagaOutcome } from '@food-delivery-api/shared-observability';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { orderConfirmedEvent, releaseStockCommand } from '@order/application/saga/saga-commands';
 import { ORDER_REPOSITORY, type OrderRepository } from '@order/domain/order/order.repository';
@@ -45,14 +46,23 @@ export class HandlePaymentReplyHandler {
   ) {}
 
   async execute(envelope: EventEnvelopeHeaders, payload: PaymentReplyPayload): Promise<void> {
-    await this.transaction.runInTransaction(async () => {
-      await IdempotentConsumer.runOnce(this.processedEvents, envelope.eventId, undefined, () =>
+    const outcome = await this.transaction.runInTransaction(() =>
+      IdempotentConsumer.runOnce(this.processedEvents, envelope.eventId, undefined, () =>
         this.apply(envelope, payload),
-      );
-    });
+      ),
+    );
+    // Recorded AFTER the transaction commits (never inside it) so a metric is
+    // never emitted for a saga transition that ends up rolled back.
+    if (outcome) {
+      recordSagaOutcome(outcome);
+    }
   }
 
-  private async apply(envelope: EventEnvelopeHeaders, payload: PaymentReplyPayload): Promise<void> {
+  /** Returns the saga outcome reached (`'confirmed'` on completion), or `undefined` when this reply caused no terminal transition. */
+  private async apply(
+    envelope: EventEnvelopeHeaders,
+    payload: PaymentReplyPayload,
+  ): Promise<SagaOutcome | undefined> {
     const { tenantId, eventType, eventId } = envelope;
     const orderId = payload.orderId;
     const saga = await this.sagaRepository.findByOrderId(tenantId, orderId);
@@ -62,7 +72,7 @@ export class HandlePaymentReplyHandler {
 
     // Both replies only apply while the saga awaits a payment outcome.
     if (saga.state !== 'STOCK_RESERVED') {
-      return;
+      return undefined;
     }
 
     switch (eventType) {
@@ -81,18 +91,18 @@ export class HandlePaymentReplyHandler {
             envelope.correlationId,
           ),
         );
-        return;
+        return 'confirmed';
       }
       case PAYMENT_FAILED: {
         // Begin compensation: keep the order RESERVED, release the stock hold.
         // Carry the saga's correlation id from this reply onto the release command.
         await this.sagaRepository.transition(saga.transition('COMPENSATING', eventId));
         await this.outbox.append(releaseStockCommand(orderId, envelope.correlationId));
-        return;
+        return undefined;
       }
       default:
         this.logger.warn(`Ignoring unknown payment reply type "${eventType}" for order ${orderId}`);
-        return;
+        return undefined;
     }
   }
 
