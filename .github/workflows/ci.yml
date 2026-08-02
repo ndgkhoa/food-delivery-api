@@ -97,6 +97,11 @@ jobs:
       - name: Trivy config scan — infra/k8s
         uses: aquasecurity/trivy-action@v0.36.0
         with:
+          # Pin the Trivy binary so CI matches the version scans are verified
+          # against locally — the action's own default lags and grades some
+          # checks a severity higher, which would fail the gate on a version
+          # skew rather than a real regression. Renovate bumps this deliberately.
+          version: v0.72.0
           scan-type: config
           scan-ref: infra/k8s
           severity: HIGH,CRITICAL
@@ -112,8 +117,12 @@ jobs:
           category: trivy-config-k8s
 
       - name: Trivy config scan — infra/docker
+        # Run even if an earlier scan failed, so one finding doesn't hide the
+        # rest and every SARIF still uploads; the job still fails on any finding.
+        if: always()
         uses: aquasecurity/trivy-action@v0.36.0
         with:
+          version: v0.72.0
           scan-type: config
           scan-ref: infra/docker
           severity: HIGH,CRITICAL
@@ -129,8 +138,10 @@ jobs:
           category: trivy-config-docker
 
       - name: Trivy filesystem vulnerability scan
+        if: always()
         uses: aquasecurity/trivy-action@v0.36.0
         with:
+          version: v0.72.0
           scan-type: fs
           scan-ref: .
           scanners: vuln

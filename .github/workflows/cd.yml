@@ -108,6 +108,9 @@ jobs:
       - name: Trivy image scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
+          # Pin the Trivy binary so image scans match the version verified
+          # elsewhere (the action default lags); Renovate bumps it deliberately.
+          version: v0.72.0
           scan-type: image
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.app }}:${{ github.sha }}
           severity: HIGH,CRITICAL
