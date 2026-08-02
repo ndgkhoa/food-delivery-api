@@ -37,6 +37,12 @@ export const orderEnvSchema = baseEnvSchema.extend({
   SAGA_REAPER_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
   /** How often (ms) the stranded-saga reaper sweep runs. */
   SAGA_REAPER_INTERVAL_MS: z.coerce.number().int().positive().default(30_000),
+  /**
+   * A stranded saga's lifetime re-drive budget: at/above this many reconcile
+   * attempts the reaper escalates (ERROR log + metric) instead of re-driving
+   * again, bounding what would otherwise be an unbounded retry loop.
+   */
+  SAGA_RECONCILER_MAX_ATTEMPTS: z.coerce.number().int().positive().default(10),
   /** Base URL of the config service — PlaceOrderHandler reads the tenant's delivery-fee/VAT/discount tunables from it. */
   CONFIG_SERVICE_URL: z.string().min(1).default('http://localhost:3008'),
   /** config-client's read-through cache TTL (ms) — the self-healing backstop if a `config.events` invalidation is ever missed. */

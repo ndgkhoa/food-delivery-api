@@ -10,12 +10,18 @@ function started(): OrderSaga {
 }
 
 describe('OrderSaga', () => {
-  it('starts in STARTED at version 0 with no last event', () => {
+  it('starts in STARTED at version 0 with no last event and a full attempts budget', () => {
     const saga = started();
     expect(saga.state).toBe('STARTED');
     expect(saga.version).toBe(0);
     expect(saga.lastEventId).toBeNull();
+    expect(saga.attempts).toBe(0);
     expect(saga.isTerminal).toBe(false);
+  });
+
+  it('carries attempts through a transition unchanged (only the reconciler bumps it)', () => {
+    const reserved = started().transition('STOCK_RESERVED', eventId);
+    expect(reserved.attempts).toBe(0);
   });
 
   it('advances STARTED → STOCK_RESERVED → COMPLETED, recording the driving event', () => {

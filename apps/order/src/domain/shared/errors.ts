@@ -134,3 +134,25 @@ export class SagaNotFoundError extends DomainException {
     super(`No saga found for order "${orderId}"`);
   }
 }
+
+/**
+ * Raised by the stranded-saga reconciler's guarded attempts-increment when the
+ * saga is no longer in the state the re-drive decision was made for — a
+ * concurrent real reply already advanced (or terminated) it between the
+ * reconciler's read and this write. Signals the caller's transaction to roll
+ * back so the re-drive command staged alongside it is never appended: acting
+ * on a state that already moved on would replay stale intent (e.g. reserving
+ * stock again for an order a real reply just cancelled). The reconciler
+ * treats this as an expected skip, not a failure.
+ */
+export class SagaStateChangedError extends DomainException {
+  readonly code = 'ORDER_SAGA_STATE_CHANGED';
+  readonly httpStatus = 409;
+
+  constructor(
+    readonly orderId: string,
+    readonly expectedState: string,
+  ) {
+    super(`Saga for order "${orderId}" is no longer in state "${expectedState}"`);
+  }
+}

@@ -6,12 +6,13 @@ import {
 import { Order } from '@order/domain/order/order';
 import type { OrderRepository } from '@order/domain/order/order.repository';
 import { OrderItem } from '@order/domain/order/order-item';
-import { OrderSaga } from '@order/domain/saga/order-saga';
+import { OrderSaga, type SagaState } from '@order/domain/saga/order-saga';
 import type { OrderSagaRepository } from '@order/domain/saga/order-saga.repository';
 import {
   NON_TERMINAL_SAGA_STATES,
   type StrandedSagaCandidate,
 } from '@order/domain/saga/stranded-saga-sweep';
+import { SagaStateChangedError } from '@order/domain/shared/errors';
 import type { OutboxCommandEntry, OutboxWriter } from '@order/domain/shared/outbox.port';
 import type { TransactionPort } from '@order/domain/shared/transaction.port';
 
@@ -92,6 +93,27 @@ export class FakeSagaRepository implements OrderSagaRepository {
         state: saga.state,
         updatedAt: saga.updatedAt,
       }));
+  }
+
+  async recordReconcileAttempt(orderId: string, expectedState: SagaState): Promise<void> {
+    const saga = this.rows.get(orderId);
+    if (!saga || saga.state !== expectedState) {
+      throw new SagaStateChangedError(orderId, expectedState);
+    }
+    this.rows.set(
+      orderId,
+      OrderSaga.reconstitute({
+        orderId: saga.orderId,
+        tenantId: saga.tenantId,
+        state: saga.state,
+        correlationId: saga.correlationId,
+        lastEventId: saga.lastEventId,
+        version: saga.version,
+        attempts: saga.attempts + 1,
+        createdAt: saga.createdAt,
+        updatedAt: new Date(),
+      }),
+    );
   }
 }
 

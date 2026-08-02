@@ -87,6 +87,10 @@ class FakeSagaRepository implements OrderSagaRepository {
   async findNonTerminal(): Promise<never[]> {
     return [];
   }
+
+  async recordReconcileAttempt(): Promise<void> {
+    // Not exercised by place-order tests — the reconciler is covered separately.
+  }
 }
 
 class FakeCatalogGateway implements CatalogGatewayPort {

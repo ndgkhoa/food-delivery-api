@@ -6,7 +6,7 @@ import {
   NON_TERMINAL_SAGA_STATES,
   type StrandedSagaCandidate,
 } from '@order/domain/saga/stranded-saga-sweep';
-import { SagaConcurrencyConflictError } from '@order/domain/shared/errors';
+import { SagaConcurrencyConflictError, SagaStateChangedError } from '@order/domain/shared/errors';
 import { OrderSagaOrmEntity } from '@order/infrastructure/persistence/entities/order-saga.orm-entity';
 import { getTransactionalEntityManager } from '@order/infrastructure/persistence/transaction/transactional-entity-manager';
 import type { Repository } from 'typeorm';
@@ -19,6 +19,7 @@ function toDomain(row: OrderSagaOrmEntity): OrderSaga {
     correlationId: row.correlationId,
     lastEventId: row.lastEventId,
     version: row.version,
+    attempts: row.attempts,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   });
@@ -44,6 +45,7 @@ export class TypeOrmOrderSagaRepository implements OrderSagaRepository {
       correlationId: saga.correlationId,
       lastEventId: saga.lastEventId,
       version: saga.version,
+      attempts: saga.attempts,
     });
   }
 
@@ -86,9 +88,33 @@ export class TypeOrmOrderSagaRepository implements OrderSagaRepository {
       correlationId: saga.correlationId,
       lastEventId: saga.lastEventId,
       version: saga.version + 1,
+      attempts: saga.attempts,
       createdAt: saga.createdAt,
       updatedAt: new Date(),
     });
+  }
+
+  /**
+   * Reconciler bookkeeping — enlists in the caller's active transaction (the
+   * same one the re-drive command's outbox append runs in) via the same
+   * transactional-entity-manager getter every other write here uses. Guards
+   * the `UPDATE` on the saga STILL being in `expectedState`: a concurrent real
+   * reply that already advanced/terminated the saga makes this conditional
+   * update affect zero rows, which throws `SagaStateChangedError` so the
+   * caller's transaction rolls back instead of committing a re-drive for a
+   * saga that already moved on its own.
+   */
+  async recordReconcileAttempt(orderId: string, expectedState: SagaState): Promise<void> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(OrderSagaOrmEntity)
+      .set({ attempts: () => 'attempts + 1', updatedAt: () => 'now()' })
+      .where('order_id = :orderId AND state = :expectedState', { orderId, expectedState })
+      .execute();
+
+    if ((result.affected ?? 0) === 0) {
+      throw new SagaStateChangedError(orderId, expectedState);
+    }
   }
 
   async findNonTerminal(olderThan: Date): Promise<StrandedSagaCandidate[]> {

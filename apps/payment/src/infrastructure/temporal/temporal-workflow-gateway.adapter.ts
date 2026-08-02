@@ -1,8 +1,15 @@
 import { captureActiveTraceContext } from '@food-delivery-api/shared-observability';
+import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { OUTBOX_WRITER, type OutboxWriter } from '@payment/domain/shared/outbox.port';
+import { TRANSACTION_PORT, type TransactionPort } from '@payment/domain/shared/transaction.port';
 import type { WorkflowGatewayPort } from '@payment/domain/shared/workflow-gateway.port';
 import { WORKFLOW_CLIENT } from '@payment/infrastructure/temporal/temporal.tokens';
+import {
+  paymentFailedReply,
+  paymentSucceededReply,
+} from '@payment/interface/messaging/payment-reply-factory';
 import {
   CHARGE_WORKFLOW_TYPE,
   type ChargeWorkflowInput,
@@ -25,8 +32,15 @@ function chargeWorkflowId(orderId: string): string {
  * order id. `REJECT_DUPLICATE` reuse means Temporal rejects a second start of the
  * same id whether the first run is still OPEN or already CLOSED (within retention),
  * so a `ChargePayment` redelivered after the workflow completes raises
- * `WorkflowExecutionAlreadyStartedError` and is treated as an idempotent no-op —
- * exactly one charge per order, never a second run re-executing the charge activity.
+ * `WorkflowExecutionAlreadyStartedError`. That redelivery is exactly how the order
+ * saga's stranded-saga reconciler recovers a STOCK_RESERVED saga whose payment
+ * reply never arrived: the reconciler re-emits `ChargePayment`, `startCharge` hits
+ * the duplicate-start error, and — because the run already reached COMPLETED — this
+ * adapter re-appends its already-decided outcome to the payment outbox under a
+ * FRESH event id so the order side's dedupe-by-event-id reply consumer reprocesses
+ * it. `REJECT_DUPLICATE` guarantees the charge activity itself never runs a second
+ * time; only the REPLY is ever re-emitted. A run still RUNNING emits its own reply
+ * when it finishes, so a duplicate start against it stays a plain no-op.
  * Signals route an async provider result from the webhook to the waiting workflow.
  */
 @Injectable()
@@ -36,6 +50,9 @@ export class TemporalWorkflowGatewayAdapter implements WorkflowGatewayPort {
 
   constructor(
     @Inject(WORKFLOW_CLIENT) private readonly client: WorkflowClient,
+    @Inject(OUTBOX_WRITER) private readonly outbox: OutboxWriter,
+    @Inject(TRANSACTION_PORT) private readonly transaction: TransactionPort,
+    @Inject(TENANT_CONTEXT_PORT) private readonly tenantContext: TenantContextPort,
     config: ConfigService,
   ) {
     this.taskQueue = config.getOrThrow<string>('TEMPORAL_TASK_QUEUE');
@@ -60,10 +77,77 @@ export class TemporalWorkflowGatewayAdapter implements WorkflowGatewayPort {
       this.logger.log(`Started charge workflow for order ${input.orderId}`);
     } catch (error) {
       if (error instanceof WorkflowExecutionAlreadyStartedError) {
-        this.logger.log(`Charge workflow already running for order ${input.orderId} — no-op`);
+        await this.recoverReplyForDuplicateStart(input);
         return;
       }
       throw error;
+    }
+  }
+
+  /**
+   * A redelivered `ChargePayment` always hits this once `startCharge` sees
+   * `WorkflowExecutionAlreadyStartedError` — never a second charge run
+   * (`REJECT_DUPLICATE` owns that guarantee). What it recovers is the REPLY:
+   * if the run already reached COMPLETED, its one-shot `emitReply` activity
+   * already fired — but if that reply never reached the order side (dropped,
+   * dead-lettered, or the saga was stuck before it ever ran), the saga can
+   * never advance because the workflow will never emit a second time. Re-append
+   * the run's already-decided `ProviderResult` here, under a brand-new outbox
+   * event id, so the order's dedupe-by-event-id reply consumer treats it as a
+   * fresh delivery. Deliberately skips the `IdempotentConsumer` dedupe guard the
+   * emit-reply activity uses (that guard is what would otherwise suppress this
+   * exact re-append) — dedup happens on the READ side (the order saga's
+   * state-guarded transition), not here. A still-RUNNING workflow is left
+   * alone — it will emit its own reply when it finishes, and re-emitting now
+   * would race that reply.
+   */
+  private async recoverReplyForDuplicateStart(input: ChargeWorkflowInput): Promise<void> {
+    const handle = this.client.getHandle<() => Promise<ProviderResult>>(
+      chargeWorkflowId(input.orderId),
+    );
+    let statusName: string;
+    try {
+      statusName = (await handle.describe()).status.name;
+    } catch (describeError) {
+      // Can't determine the run's fate (purged past retention, transient
+      // Temporal outage, etc). Stay a no-op like the prior behavior — the
+      // reconciler will simply re-drive again on its next sweep.
+      this.logger.warn(
+        `Charge workflow already running for order ${input.orderId} — describe failed, no-op: ` +
+          `${describeError instanceof Error ? describeError.message : String(describeError)}`,
+      );
+      return;
+    }
+
+    if (statusName !== 'COMPLETED') {
+      // Still RUNNING (or any other non-terminal/unexpected status) — it owns
+      // emitting its own reply; re-emitting now would race it.
+      this.logger.log(`Charge workflow already running for order ${input.orderId} — no-op`);
+      return;
+    }
+
+    try {
+      const result = await handle.result();
+      const reply = result.ok
+        ? paymentSucceededReply(input.orderId, input.correlationId)
+        : paymentFailedReply(
+            input.orderId,
+            result.reason ?? 'payment declined',
+            input.correlationId,
+          );
+      await this.tenantContext.run({ tenantId: input.tenantId, actor: 'system', roles: [] }, () =>
+        this.transaction.runInTransaction(() => this.outbox.append(reply)),
+      );
+      this.logger.log(
+        `Re-appended reply for completed charge workflow, order ${input.orderId} (ok=${result.ok})`,
+      );
+    } catch (error) {
+      // Never let a redelivered command path throw beyond its pre-existing
+      // no-op behavior — the reconciler's next sweep gets another shot.
+      this.logger.error(
+        `Failed to recover reply for completed charge workflow, order ${input.orderId}: ` +
+          `${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

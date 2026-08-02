@@ -1,4 +1,4 @@
-import type { OrderSaga } from '@order/domain/saga/order-saga';
+import type { OrderSaga, SagaState } from '@order/domain/saga/order-saga';
 import type { StrandedSagaCandidate } from '@order/domain/saga/stranded-saga-sweep';
 
 export interface OrderSagaRepository {
@@ -24,6 +24,21 @@ export interface OrderSagaRepository {
    * bounded (a healthy saga advances well inside the timeout). Operational only.
    */
   findNonTerminal(olderThan: Date): Promise<StrandedSagaCandidate[]>;
+  /**
+   * Reconciler bookkeeping: atomically increments `attempts` and refreshes
+   * `updated_at` for the saga just re-driven, GUARDED on the saga still being
+   * in `expectedState` (the state `decideReconcileAction` decided the re-drive
+   * command for). Throws `SagaStateChangedError` when the guard's conditional
+   * `UPDATE` affects zero rows — a concurrent real reply already advanced the
+   * saga since it was read, so the caller's transaction (which also holds the
+   * re-drive command's outbox append) must roll back rather than commit a
+   * re-drive for a saga that already moved on its own. Called inside the same
+   * transaction as that outbox append (see `TransactionPort`), BEFORE it, so
+   * the guard is checked before any write is staged. System-wide like
+   * `findNonTerminal` — the reconciler sweep is operational, not a
+   * tenant-scoped request.
+   */
+  recordReconcileAttempt(orderId: string, expectedState: SagaState): Promise<void>;
 }
 
 export const ORDER_SAGA_REPOSITORY = Symbol('OrderSagaRepository');

@@ -29,6 +29,13 @@ export interface OrderSagaProps {
   lastEventId: string | null;
   /** Optimistic-lock version. 0 for a brand-new, not-yet-persisted saga. */
   version: number;
+  /**
+   * Reconciler re-drive count — a per-saga LIFETIME budget, not reset per
+   * stage (kept simple on purpose). 0 for a brand-new saga. Only the
+   * reconciler's `recordReconcileAttempt` bumps this; a real reply
+   * transition never touches it.
+   */
+  attempts: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -57,6 +64,7 @@ export class OrderSaga {
       correlationId: props.correlationId ?? null,
       lastEventId: null,
       version: 0,
+      attempts: 0,
       createdAt: now,
       updatedAt: now,
     });
@@ -89,6 +97,10 @@ export class OrderSaga {
 
   get version(): number {
     return this.props.version;
+  }
+
+  get attempts(): number {
+    return this.props.attempts;
   }
 
   get createdAt(): Date {

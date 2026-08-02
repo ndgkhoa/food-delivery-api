@@ -5,7 +5,13 @@ import {
   MeterProvider,
   PeriodicExportingMetricReader,
 } from '@opentelemetry/sdk-metrics';
-import { recordDlqMessage, recordOrderPlaced, recordSagaOutcome } from './metrics';
+import {
+  recordDlqMessage,
+  recordOrderPlaced,
+  recordSagaOutcome,
+  recordSagaReconcileEscalated,
+  recordSagaReconcileRedriven,
+} from './metrics';
 
 describe('business metrics helpers', () => {
   afterEach(() => {
@@ -70,6 +76,19 @@ describe('business metrics helpers', () => {
       expect(points?.[0]?.value).toBe(1);
       expect(points?.[0]?.attributes).toEqual({ topic: 'order.commands' });
     });
+
+    it('recordSagaReconcileRedriven records the re-driven-from state as a bounded label', async () => {
+      recordSagaReconcileRedriven('STOCK_RESERVED');
+      const points = (await collect()).get('saga_reconcile_redriven_total');
+      expect(points?.[0]?.value).toBe(1);
+      expect(points?.[0]?.attributes).toEqual({ state: 'STOCK_RESERVED' });
+    });
+
+    it('recordSagaReconcileEscalated increments the unlabeled escalation count', async () => {
+      recordSagaReconcileEscalated();
+      const points = (await collect()).get('saga_reconcile_escalated_total');
+      expect(points?.[0]?.value).toBe(1);
+    });
   });
 
   describe('with no meter provider registered (the default, e.g. under NODE_ENV=test)', () => {
@@ -84,6 +103,14 @@ describe('business metrics helpers', () => {
 
     it('recordDlqMessage never throws and is callable', () => {
       expect(() => recordDlqMessage('order.commands')).not.toThrow();
+    });
+
+    it('recordSagaReconcileRedriven never throws and is callable', () => {
+      expect(() => recordSagaReconcileRedriven('STARTED')).not.toThrow();
+    });
+
+    it('recordSagaReconcileEscalated never throws and is callable', () => {
+      expect(() => recordSagaReconcileEscalated()).not.toThrow();
     });
   });
 
@@ -110,6 +137,22 @@ describe('business metrics helpers', () => {
       });
 
       expect(() => recordDlqMessage('inventory.replies')).not.toThrow();
+    });
+
+    it('recordSagaReconcileRedriven swallows the error instead of propagating it', () => {
+      jest.spyOn(metrics, 'getMeter').mockImplementationOnce(() => {
+        throw new Error('meter provider unavailable');
+      });
+
+      expect(() => recordSagaReconcileRedriven('COMPENSATING')).not.toThrow();
+    });
+
+    it('recordSagaReconcileEscalated swallows the error instead of propagating it', () => {
+      jest.spyOn(metrics, 'getMeter').mockImplementationOnce(() => {
+        throw new Error('meter provider unavailable');
+      });
+
+      expect(() => recordSagaReconcileEscalated()).not.toThrow();
     });
   });
 });
