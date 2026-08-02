@@ -6,5 +6,11 @@ export {
   runWithTraceParent,
 } from './kafka-trace-propagation';
 export type { SagaOutcome } from './metrics';
-export { recordDlqMessage, recordOrderPlaced, recordSagaOutcome } from './metrics';
+export {
+  recordDlqMessage,
+  recordOrderPlaced,
+  recordSagaOutcome,
+  recordSagaReconcileEscalated,
+  recordSagaReconcileRedriven,
+} from './metrics';
 export { registerTracing } from './register';

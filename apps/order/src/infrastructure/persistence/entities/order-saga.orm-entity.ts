@@ -29,6 +29,10 @@ export class OrderSagaOrmEntity {
   @Column({ type: 'integer', default: 0 })
   version!: number;
 
+  /** Reconciler re-drive count — the reaper escalates instead of re-driving once this hits its cap. */
+  @Column({ type: 'integer', default: 0 })
+  attempts!: number;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

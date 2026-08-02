@@ -47,6 +47,20 @@ function dlqMessage(): Counter {
   });
 }
 
+function sagaReconcileRedriven(): Counter {
+  return meter().createCounter('saga_reconcile_redriven_total', {
+    description:
+      'Count of stranded sagas re-driven by the reconciler (idempotent command re-emitted), by the state re-driven from.',
+  });
+}
+
+function sagaReconcileEscalated(): Counter {
+  return meter().createCounter('saga_reconcile_escalated_total', {
+    description:
+      'Count of stranded sagas escalated (reconcile-attempts cap reached) instead of re-driven again.',
+  });
+}
+
 function reasonOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -93,5 +107,34 @@ export function recordDlqMessage(topic: string): void {
     dlqMessage().add(1, { topic });
   } catch (error) {
     logger.warn(`failed to record dlq-message metric: ${reasonOf(error)}`);
+  }
+}
+
+/**
+ * Records the reconciler re-driving a stranded saga (re-emitting the
+ * idempotent command its state was waiting on). `state` is the ONLY label —
+ * callers only ever pass one of the fixed non-terminal saga states
+ * (`STARTED`/`STOCK_RESERVED`/`COMPENSATING`), so cardinality stays bounded.
+ * Never throws: a down Collector must never block the reconcile sweep.
+ */
+export function recordSagaReconcileRedriven(state: string): void {
+  try {
+    sagaReconcileRedriven().add(1, { state });
+  } catch (error) {
+    logger.warn(`failed to record saga-reconcile-redriven metric: ${reasonOf(error)}`);
+  }
+}
+
+/**
+ * Records the reconciler giving up on a stranded saga (its reconcile-attempts
+ * cap was reached) instead of re-driving it again. No labels — this is a
+ * rare, operator-facing signal paired with an ERROR log carrying the order id.
+ * Never throws.
+ */
+export function recordSagaReconcileEscalated(): void {
+  try {
+    sagaReconcileEscalated().add(1);
+  } catch (error) {
+    logger.warn(`failed to record saga-reconcile-escalated metric: ${reasonOf(error)}`);
   }
 }

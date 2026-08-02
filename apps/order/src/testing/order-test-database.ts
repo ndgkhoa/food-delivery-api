@@ -6,6 +6,7 @@ import { AddOrderRestaurantId1753748100000 } from '@order/infrastructure/persist
 import { PartitionOrdersByMonth1753748200000 } from '@order/infrastructure/persistence/migrations/1753748200000-partition-orders-by-month';
 import { IndexOrdersTenantUserCreated1753748300000 } from '@order/infrastructure/persistence/migrations/1753748300000-index-orders-tenant-user-created';
 import { AddTraceParentToOrderOutbox1753748400000 } from '@order/infrastructure/persistence/migrations/1753748400000-add-trace-parent-to-order-outbox';
+import { AddAttemptsToOrderSaga1753748500000 } from '@order/infrastructure/persistence/migrations/1753748500000-add-attempts-to-order-saga';
 import { orderOrmEntities } from '@order/infrastructure/persistence/typeorm-options';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
@@ -41,6 +42,7 @@ export async function startOrderTestDatabase(): Promise<OrderTestDatabase> {
       PartitionOrdersByMonth1753748200000,
       IndexOrdersTenantUserCreated1753748300000,
       AddTraceParentToOrderOutbox1753748400000,
+      AddAttemptsToOrderSaga1753748500000,
     ],
     synchronize: false,
     logging: false,
