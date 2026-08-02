@@ -29,6 +29,13 @@ RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
 # git is required at install time: the root package.json's `prepare` script
 # runs `lefthook install`, which shells out to git. node:slim is Debian-based
 # and does not ship git by default.
+# DL3008 (pin apt package versions): deliberately unpinned — the exact
+# Debian package version drifts with every `node:24.14-slim` base bump
+# (Renovate keeps NODE_IMAGE current), so a hardcoded version would break the
+# build the next time the base image updates. `apt-get update` in the same
+# RUN layer already guarantees the newest available build, which is the
+# desired behaviour for a build-time-only tool that never ships in the image.
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 
@@ -88,6 +95,10 @@ RUN npm install --omit=dev --no-audit --no-fund \
 
 # The official Node image already ships a least-privilege `node` user
 # (uid/gid 1000) — reuse it instead of provisioning a new one.
+# DL3066 (prefer numeric UID): `node` resolves via /etc/passwd baked into
+# every node:*-slim image (uid 1000), so it works on any host that runs this
+# image unmodified; the named form stays self-documenting for maintainers.
+# hadolint ignore=DL3066
 USER node
 
 CMD ["node", "main.js"]

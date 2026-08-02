@@ -1,0 +1,234 @@
+name: CD
+
+# Post-merge only (push to develop/main, never pull_request — forks never get
+# package-write or deploy access). Builds + pushes the 13 service images to GHCR
+# from the ONE parameterized Dockerfile and scans each image. A PRODUCTION
+# rollout runs only on `main` (develop is integration/staging); see the deploy
+# job's branch guard.
+on:
+  push:
+    branches: [main, develop]
+
+# Do NOT cancel an in-flight CD run: a build/push or (worse) a mid-rollout deploy
+# aborted halfway leaves a partial release / partial cluster state. Let each run
+# finish; queue the next.
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+# Least-privilege at the workflow level (read-only); the build-push job elevates
+# packages:write, image-scan takes packages:read + security-events:write — each
+# scoped to the job that needs it rather than granted workspace-wide.
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAMESPACE: ndgkhoa
+
+jobs:
+  build-push:
+    name: build + push (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        # The 13 service apps only — apps/*-e2e projects are test-only and never
+        # shipped as images.
+        app:
+          - gateway
+          - catalog
+          - auth
+          - order
+          - search
+          - delivery
+          - media
+          - payment
+          - config
+          - review
+          - analytics
+          - inventory
+          - notification
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Compute tags declaratively (no shell interpolation of git refs): the
+      # immutable full commit sha ALWAYS, the branch name, and `:latest` ONLY on
+      # the default branch (main) — so a develop merge can never overwrite the
+      # `:latest` tag that production pins to.
+      - name: Derive image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.app }}
+          tags: |
+            type=sha,format=long,prefix=
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/Dockerfile
+          build-args: |
+            APP=${{ matrix.app }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+  image-scan:
+    name: trivy image scan (${{ matrix.app }})
+    needs: build-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - gateway
+          - catalog
+          - auth
+          - order
+          - search
+          - delivery
+          - media
+          - payment
+          - config
+          - review
+          - analytics
+          - inventory
+          - notification
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The REAL runtime-vulnerability gate: it scans the actual shipped image
+      # (prod deps only) and BLOCKS (exit-code 1) on any HIGH/CRITICAL. It does
+      # NOT use the repo `.trivyignore` — that file's allowlist is dev-only
+      # (build-tooling CVEs, dev-infra misconfig) and must never silence a real
+      # vulnerability in a runtime image. If the base image ever carries an
+      # unfixable CVE, add an image-scoped ignore here with a justification.
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          version: v0.72.0
+          scan-type: image
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.app }}:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          format: sarif
+          output: trivy-image-${{ matrix.app }}.sarif
+
+      - name: Upload image scan SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-image-${{ matrix.app }}.sarif
+          category: trivy-image-${{ matrix.app }}
+
+  deploy:
+    name: deploy (production, environment-gated)
+    needs: [build-push, image-scan]
+    # Production deploys ONLY from main. develop merges build+scan+validate but
+    # never roll out to prod (a develop→prod deploy would ship integration code).
+    # A staging deploy off develop is a documented follow-up (needs a staging env).
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubeconform + kustomize
+        run: |
+          curl -sSL "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz" \
+            | tar xz -C /usr/local/bin kubeconform
+          curl -sSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.7.1/kustomize_v5.7.1_linux_amd64.tar.gz" \
+            | tar xz -C /usr/local/bin kustomize
+
+      # Always runs, secret or not — the honest, portfolio-safe part of the gate:
+      # the prod overlay must render + validate against the k8s schemas on every
+      # main merge, cluster or no cluster.
+      - name: Render + validate prod overlay
+        run: kubectl kustomize infra/k8s/overlays/prod | kubeconform -strict -ignore-missing-schemas -summary
+
+      # `secrets` is not a valid context inside a step `if:`, so the presence
+      # check happens here (where `env:` CAN read a secret) and is exposed as a
+      # boolean output for later steps to gate on. Only the boolean is emitted —
+      # the secret value never touches a log.
+      - name: Check for a configured cluster
+        id: kubeconfig-check
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG }}
+        run: echo "present=$([ -n "$KUBECONFIG_CONTENT" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Configure kubeconfig
+        if: steps.kubeconfig-check.outputs.present == 'true'
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG }}
+        run: |
+          mkdir -p "$HOME/.kube"
+          printf '%s' "$KUBECONFIG_CONTENT" > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+          echo "KUBECONFIG=$HOME/.kube/config" >> "$GITHUB_ENV"
+
+      # Pin every app to the IMMUTABLE commit-sha image just built — never the
+      # mutable `:latest` the overlay declares statically. This makes the release
+      # reproducible + rollback-able (redeploy an older sha) instead of whatever
+      # `:latest` happens to point at.
+      - name: Pin prod images to this commit
+        if: steps.kubeconfig-check.outputs.present == 'true'
+        working-directory: infra/k8s/overlays/prod
+        run: |
+          # Match on the base image name the overlay declares (food-delivery/<app>),
+          # rewriting it to the GHCR image at this commit's immutable sha.
+          for app in gateway catalog auth order search delivery media payment config review analytics inventory notification; do
+            kustomize edit set image \
+              "food-delivery/${app}=${REGISTRY}/${IMAGE_NAMESPACE}/${app}:${GITHUB_SHA}"
+          done
+
+      # Real rollout only when a cluster is wired up (the KUBECONFIG environment
+      # secret, protected behind the `production` Environment's required-reviewer
+      # rule). This is a rolling update; `rollout status` is the health gate — it
+      # fails the job (no promotion) if the new pods never become ready. A true
+      # progressive rollout (the infra/k8s/rollout canary/blue-green manifests via
+      # Argo Rollouts) is the documented prod upgrade.
+      - name: Apply prod overlay
+        if: steps.kubeconfig-check.outputs.present == 'true'
+        run: kubectl apply -k infra/k8s/overlays/prod
+
+      - name: Rollout health gate
+        if: steps.kubeconfig-check.outputs.present == 'true'
+        run: kubectl rollout status deploy --all -n food-delivery --timeout=180s
+
+      - name: No cluster configured
+        if: steps.kubeconfig-check.outputs.present != 'true'
+        run: echo "No KUBECONFIG secret set — validate-only gate passed above. This is a documented portfolio state, not a broken step; wiring a real cluster's KUBECONFIG into the 'production' Environment activates the apply + rollout health gate."

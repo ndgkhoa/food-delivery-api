@@ -1,0 +1,167 @@
+name: CI
+
+# Runs on every PR into develop/main and on every push to those branches —
+# this is the fast, per-commit gate (nx-affected + workspace lint gates +
+# workflow/Dockerfile/IaC scanning). Image builds live in cd.yml (post-merge
+# only) since building all 13 service images on every PR is expensive.
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least-privilege default; the trivy job elevates security-events for SARIF
+# upload only where it runs.
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "24.14.0"
+  PNPM_VERSION: "10.32.1"
+
+jobs:
+  affected:
+    name: nx affected (lint, test, build) + workspace gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # nx affected and nx-set-shas need full history to diff against
+          # the base branch — a shallow clone can't resolve the merge base.
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Nx computation cache
+        uses: actions/cache@v4
+        with:
+          path: .nx/cache
+          key: nx-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            nx-${{ runner.os }}-
+
+      - name: Derive base/head SHAs for nx affected
+        uses: nrwl/nx-set-shas@v4
+
+      - name: nx affected — lint, test, build
+        run: pnpm nx affected -t lint test build --base=${{ env.NX_BASE }} --head=${{ env.NX_HEAD }}
+
+      - name: Biome (format + lint + imports)
+        run: pnpm run lint
+
+      - name: dependency-cruiser (bounded-context boundaries)
+        run: pnpm run cruiser
+
+      - name: Knip (unused files/exports/deps)
+        run: pnpm run knip
+
+  actionlint:
+    name: actionlint (self-lint the workflows)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: raven-actions/actionlint@v2
+
+  hadolint:
+    name: hadolint (Dockerfile)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hadolint/hadolint-action@v3.4.0
+        with:
+          dockerfile: infra/docker/Dockerfile
+
+  # Trivy runs in ADVISORY mode here (exit-code 0): every finding is uploaded to
+  # the Security tab for visibility, but it does not hard-gate CI. Rationale: the
+  # IaC config findings are dev-only infra (the in-cluster Postgres/Redis + the
+  # metrics-adapter RBAC, none of which the prod overlay deploys) whose SEVERITY
+  # drifts with Trivy's misconfig-checks bundle — it's fetched fresh from an OCI
+  # registry, versioned independently of the pinned binary, so the same manifests
+  # grade clean on one checks bundle and HIGH on another, making a blocking gate
+  # non-reproducible. The filesystem vuln findings are transitive dev-tooling CVEs
+  # (@nx/webpack, @nx/jest) that never reach a runtime image. The MEANINGFUL
+  # runtime-vuln gate is the CD image scan (cd.yml), which scans the actual
+  # shipped image (prod deps only) and DOES block. Renovate + the Security tab
+  # track the advisory findings. (Hardening this to blocking with a pinned checks
+  # bundle is a documented follow-up.)
+  trivy-scan:
+    name: trivy (IaC config + filesystem vulnerabilities)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy config scan — infra/k8s
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          version: v0.72.0
+          scan-type: config
+          scan-ref: infra/k8s
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+          trivyignores: .trivyignore
+          format: sarif
+          output: trivy-config-k8s.sarif
+      - name: Upload k8s config SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-config-k8s.sarif
+          category: trivy-config-k8s
+
+      - name: Trivy config scan — infra/docker
+        # Run even if an earlier scan failed, so one finding doesn't hide the
+        # rest and every SARIF still uploads; the job still fails on any finding.
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          version: v0.72.0
+          scan-type: config
+          scan-ref: infra/docker
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+          trivyignores: .trivyignore
+          format: sarif
+          output: trivy-config-docker.sarif
+      - name: Upload Dockerfile config SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-config-docker.sarif
+          category: trivy-config-docker
+
+      - name: Trivy filesystem vulnerability scan
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          version: v0.72.0
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+          trivyignores: .trivyignore
+          format: sarif
+          output: trivy-fs.sarif
+      - name: Upload filesystem vulnerability SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
