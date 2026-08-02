@@ -19,6 +19,7 @@
     "esModuleInterop": true,
     "paths": {
       "@food-delivery-api/shared-config": ["libs/shared/config/src/index.ts"],
+      "@food-delivery-api/shared-errors": ["libs/shared/errors/src/index.ts"],
       "@food-delivery-api/shared-health": ["libs/shared/health/src/index.ts"],
       "@food-delivery-api/shared-logging": ["libs/shared/logging/src/index.ts"],
       "@food-delivery-api/shared-jwt": ["libs/shared/jwt/src/index.ts"],

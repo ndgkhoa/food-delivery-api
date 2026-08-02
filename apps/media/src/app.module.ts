@@ -15,11 +15,10 @@ import { ImageProcessingModule } from '@media/infrastructure/image/image-process
 import { MinioStorageModule } from '@media/infrastructure/minio/minio-storage.module';
 import { PersistenceModule } from '@media/infrastructure/persistence/persistence.module';
 import { ThumbnailQueueModule } from '@media/infrastructure/queue/thumbnail-queue.module';
-import { MediaExceptionFilter } from '@media/interface/http/filters/media-exception.filter';
 import { MediaController } from '@media/interface/http/media.controller';
 import { ThumbnailWorker } from '@media/interface/queue/thumbnail.worker';
 import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 /**
  * Composition root: wires the domain ports (media repository, object storage,
@@ -54,8 +53,6 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
     // Every route is tenant-scoped by default — the tenant comes from the verified
     // identity the gateway propagates (shared-tenancy), never a raw client header.
     { provide: APP_INTERCEPTOR, useClass: TrustedIdentityInterceptor },
-    // Maps media domain errors to HTTP statuses so use cases stay transport-agnostic.
-    { provide: APP_FILTER, useClass: MediaExceptionFilter },
   ],
 })
 export class AppModule {}

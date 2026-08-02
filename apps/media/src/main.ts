@@ -1,5 +1,6 @@
 import '@media/instrumentation';
 import 'reflect-metadata';
+import { GlobalExceptionFilter } from '@food-delivery-api/shared-errors';
 import { correlationIdMiddleware } from '@food-delivery-api/shared-logging';
 import { AppModule } from '@media/app.module';
 import { setupOpenApi } from '@media/interface/http/setup-openapi';
@@ -19,6 +20,8 @@ async function bootstrap() {
   // Must run before pino-http's own middleware so `genReqId` reads a normalized header.
   app.use(correlationIdMiddleware);
   app.useLogger(app.get(PinoLogger));
+  // Unified error envelope for every 4xx/5xx response across all services.
+  app.useGlobalFilters(new GlobalExceptionFilter());
 
   // Drain the Postgres pool, MinIO client, and the BullMQ queue + worker on SIGTERM/SIGINT.
   app.enableShutdownHooks();

@@ -85,12 +85,21 @@ export class KeycloakOidcClient {
     if (!response.ok) {
       // Keycloak returns `invalid_grant` for a bad/expired/rotated code or
       // refresh token → 401 so the client re-authenticates; other OAuth errors
-      // are caller mistakes → 400. Only the standard OAuth `error` code is
-      // surfaced (never the raw upstream body).
+      // are caller mistakes → 400. The standard OAuth error code is surfaced as
+      // the envelope's machine-readable `code` (the client branches on it to
+      // decide re-auth) with a human `message`; the raw upstream body is never
+      // exposed.
       const oauthError = typeof payload.error === 'string' ? payload.error : 'invalid_request';
       const status =
         oauthError === 'invalid_grant' ? HttpStatus.UNAUTHORIZED : HttpStatus.BAD_REQUEST;
-      throw new HttpException({ statusCode: status, error: oauthError }, status);
+      throw new HttpException(
+        {
+          statusCode: status,
+          code: oauthError,
+          message: `OAuth token exchange failed: ${oauthError}`,
+        },
+        status,
+      );
     }
     return payload as unknown as KeycloakTokenSet;
   }

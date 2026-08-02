@@ -1,5 +1,6 @@
 import '@notification/instrumentation';
 import 'reflect-metadata';
+import { GlobalExceptionFilter } from '@food-delivery-api/shared-errors';
 import { correlationIdMiddleware } from '@food-delivery-api/shared-logging';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
@@ -19,6 +20,8 @@ async function bootstrap() {
 
   app.use(correlationIdMiddleware);
   app.useLogger(app.get(PinoLogger));
+  // Unified error envelope for every 4xx/5xx response across all services.
+  app.useGlobalFilters(new GlobalExceptionFilter());
   app.setGlobalPrefix('api/v1');
   app.enableShutdownHooks();
 

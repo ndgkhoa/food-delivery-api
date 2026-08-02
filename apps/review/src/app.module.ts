@@ -8,12 +8,11 @@ import {
 } from '@food-delivery-api/shared-messaging';
 import { TenancyModule, TrustedIdentityInterceptor } from '@food-delivery-api/shared-tenancy';
 import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { RecordReviewEligibilityHandler } from '@review/application/record-review-eligibility.handler';
 import { SubmitReviewHandler } from '@review/application/submit-review.handler';
 import { reviewEnvSchema } from '@review/config/review-env-schema';
 import { PersistenceModule } from '@review/infrastructure/persistence/persistence.module';
-import { ReviewDomainErrorFilter } from '@review/interface/http/filters/review-domain-error.filter';
 import { ReviewsController } from '@review/interface/http/reviews.controller';
 import { OrderEventsConsumer } from '@review/interface/messaging/order-events.consumer';
 import { ReviewOutboxRelayProvider } from '@review/interface/messaging/review-outbox-relay.provider';
@@ -52,8 +51,6 @@ import { ReviewOutboxRelayProvider } from '@review/interface/messaging/review-ou
     // No RolesGuard: any authenticated tenant may submit a review; ownership is
     // enforced by the handler against the eligibility record, not a role.
     { provide: APP_INTERCEPTOR, useClass: TrustedIdentityInterceptor },
-    // Maps review domain errors to their HTTP status so use cases stay transport-agnostic.
-    { provide: APP_FILTER, useClass: ReviewDomainErrorFilter },
   ],
 })
 export class AppModule {}
