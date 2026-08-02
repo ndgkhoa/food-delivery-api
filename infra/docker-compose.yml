@@ -413,6 +413,55 @@ services:
       retries: 5
       start_period: 20s
 
+  # Distributed tracing. Enable with the `observability` profile (no `core`
+  # dependency needed — every service's OTLP exporter just needs a reachable
+  # endpoint): docker compose -f infra/docker-compose.yml --profile observability up -d
+  # Every service imports `@food-delivery-api/shared-observability/register`
+  # (first import in its `main.ts`) and exports OTLP traces to this collector's
+  # HTTP receiver (4318, OTEL_EXPORTER_OTLP_ENDPOINT default); the collector
+  # forwards them to Jaeger over OTLP gRPC. OFF by default — RAM on a 16GB dev
+  # box; bring it up deliberately to inspect a trace. Metrics/logs pipelines
+  # (Prometheus/Grafana/Loki) are 8b — this profile is traces only.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.157.0
+    container_name: food-delivery-otel-collector
+    profiles: [observability]
+    restart: unless-stopped
+    command: ['--config=/etc/otelcol/config.yaml']
+    volumes:
+      - ./otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - '${OTEL_COLLECTOR_GRPC_PORT:-4317}:4317'
+      - '${OTEL_COLLECTOR_HTTP_PORT:-4318}:4318'
+    depends_on:
+      jaeger:
+        condition: service_healthy
+    healthcheck:
+      # The image ships no shell/curl — use the collector binary's own config
+      # validation as the liveness probe instead of an HTTP check.
+      test: ['CMD', '/otelcol-contrib', 'validate', '--config=/etc/otelcol/config.yaml']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Trace storage + query UI (Jaeger v2, OTel-Collector-based — speaks OTLP
+  # natively, receivers enabled by default with no extra config). UI on
+  # :16686; the `otel-collector` above forwards every service's traces here.
+  jaeger:
+    image: jaegertracing/jaeger:2.19.0
+    container_name: food-delivery-jaeger
+    profiles: [observability]
+    restart: unless-stopped
+    ports:
+      - '${JAEGER_UI_PORT:-16686}:16686'
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:16686']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
 volumes:
   postgres-data:
   postgres-replica-data:

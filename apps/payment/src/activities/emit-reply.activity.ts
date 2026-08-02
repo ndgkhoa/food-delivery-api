@@ -2,6 +2,7 @@ import {
   IdempotentConsumer,
   type ProcessedEventStorePort,
 } from '@food-delivery-api/shared-messaging';
+import { runWithTraceParent } from '@food-delivery-api/shared-observability';
 import type { TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import type { OutboxWriter } from '@payment/domain/shared/outbox.port';
 import type { TransactionPort } from '@payment/domain/shared/transaction.port';
@@ -36,10 +37,15 @@ export function createEmitReplyActivity(
       ? paymentSucceededReply(input.orderId, input.correlationId)
       : paymentFailedReply(input.orderId, input.reason ?? 'payment declined', input.correlationId);
 
-    await deps.tenantContext.run({ tenantId: input.tenantId, actor: 'system', roles: [] }, () =>
-      deps.transaction.runInTransaction(() =>
-        IdempotentConsumer.runOnce(deps.processedEvents, input.orderId, undefined, () =>
-          deps.outbox.append(reply),
+    // Re-activate the originating trace (Temporal detached it) so the outbox
+    // writer's own trace-context capture records the saga's trace id on the reply
+    // row — the relay then forwards it and the whole tail joins one trace.
+    await runWithTraceParent(input.traceParent, () =>
+      deps.tenantContext.run({ tenantId: input.tenantId, actor: 'system', roles: [] }, () =>
+        deps.transaction.runInTransaction(() =>
+          IdempotentConsumer.runOnce(deps.processedEvents, input.orderId, undefined, () =>
+            deps.outbox.append(reply),
+          ),
         ),
       ),
     );

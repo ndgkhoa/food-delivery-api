@@ -1,4 +1,5 @@
 import type { KafkaJS } from '@confluentinc/kafka-javascript';
+import { injectTraceContext } from '@food-delivery-api/shared-observability';
 import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { KAFKA_CLIENT, type KafkaClient } from './kafka-client';
 
@@ -30,6 +31,16 @@ function toWireHeaders(headers: Record<string, string>): Record<string, Buffer> 
 }
 
 function toWireMessage(message: OutboundKafkaMessage): WireMessage {
+  // ADDITIVE to the envelope's `x-*` headers, never overwriting one already
+  // present (a future outbox row that captures its own trace context at write
+  // time would win over whatever this publish-time injection produces).
+  // `injectTraceContext` always attaches a valid traceparent (it starts its
+  // own span if nothing is already active — see kafka-trace-propagation.ts),
+  // so the producer -> consumer boundary never goes untraced even for an
+  // outbox-relay publish tick with no request in flight.
+  if (!message.headers.traceparent) {
+    injectTraceContext(message.headers);
+  }
   return {
     key: Buffer.from(message.key, 'utf8'),
     value: Buffer.from(JSON.stringify(message.value), 'utf8'),

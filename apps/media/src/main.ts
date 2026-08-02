@@ -1,3 +1,4 @@
+import '@media/instrumentation';
 import 'reflect-metadata';
 import { correlationIdMiddleware } from '@food-delivery-api/shared-logging';
 import { AppModule } from '@media/app.module';

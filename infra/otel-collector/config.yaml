@@ -1,0 +1,41 @@
+# OTel Collector for the `observability` compose profile (dev only). Receives
+# OTLP traces from every service (each imports `@food-delivery-api/shared-observability/register`,
+# which exports to OTEL_EXPORTER_OTLP_ENDPOINT — this collector on 4317/4318)
+# and forwards them to Jaeger over OTLP. Metrics/logs pipelines land in 8b.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Caps memory before it becomes an OOM risk on a dev box; batch amortizes
+  # the per-export overhead to Jaeger.
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 256
+  batch:
+    timeout: 5s
+
+exporters:
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+extensions:
+  # Exposes a liveness endpoint on :13133 — not used by this compose file's own
+  # healthcheck (which validates the config via the collector binary itself),
+  # but useful for external tooling / a future readiness probe (8c, K8s).
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/jaeger]

@@ -1,3 +1,4 @@
+import '@auth/instrumentation';
 import 'reflect-metadata';
 import { AppModule } from '@auth/app.module';
 import { setupOpenApi } from '@auth/interface/http/setup-openapi';

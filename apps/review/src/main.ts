@@ -1,3 +1,4 @@
+import '@review/instrumentation';
 import 'reflect-metadata';
 import { correlationIdMiddleware } from '@food-delivery-api/shared-logging';
 import { Logger, ValidationPipe } from '@nestjs/common';

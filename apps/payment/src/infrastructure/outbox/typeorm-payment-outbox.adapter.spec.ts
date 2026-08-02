@@ -1,0 +1,181 @@
+import { captureActiveTraceContext } from '@food-delivery-api/shared-observability';
+import type { TenantContextPort, TenantRequestContext } from '@food-delivery-api/shared-tenancy';
+import type { OutboxCommandEntry } from '@payment/domain/shared/outbox.port';
+import { TypeOrmPaymentOutboxAdapter } from '@payment/infrastructure/outbox/typeorm-payment-outbox.adapter';
+import type { PaymentOutboxOrmEntity } from '@payment/infrastructure/persistence/entities/payment-outbox.orm-entity';
+import { runWithEntityManager } from '@payment/infrastructure/persistence/transaction/transactional-entity-manager';
+import type { DataSource, EntityManager, Repository } from 'typeorm';
+
+jest.mock('@food-delivery-api/shared-observability', () => ({
+  captureActiveTraceContext: jest.fn(),
+}));
+
+const mockCaptureActiveTraceContext = captureActiveTraceContext as jest.MockedFunction<
+  typeof captureActiveTraceContext
+>;
+
+/** Captures saved rows and echoes `create` so assertions can inspect the persisted shape. */
+class FakeOutboxRepository {
+  readonly saved: PaymentOutboxOrmEntity[] = [];
+  create(row: Partial<PaymentOutboxOrmEntity>): PaymentOutboxOrmEntity {
+    return row as PaymentOutboxOrmEntity;
+  }
+  async save(row: PaymentOutboxOrmEntity): Promise<PaymentOutboxOrmEntity> {
+    this.saved.push(row);
+    return row;
+  }
+}
+
+/** Chainable stand-in for TypeORM's `SelectQueryBuilder`, returning canned raw rows. */
+class FakeQueryBuilder {
+  constructor(private readonly rows: Record<string, unknown>[]) {}
+  select(): this {
+    return this;
+  }
+  where(): this {
+    return this;
+  }
+  orderBy(): this {
+    return this;
+  }
+  limit(): this {
+    return this;
+  }
+  setLock(): this {
+    return this;
+  }
+  setOnLocked(): this {
+    return this;
+  }
+  async getRawMany<T>(): Promise<T[]> {
+    return this.rows as T[];
+  }
+}
+
+function fakeDataSource(rows: Record<string, unknown>[]): DataSource {
+  const manager = {
+    getRepository: () => ({ createQueryBuilder: () => new FakeQueryBuilder(rows) }),
+  } as unknown as EntityManager;
+  return {
+    transaction: async (work: (manager: EntityManager) => unknown) => work(manager),
+  } as unknown as DataSource;
+}
+
+const tenantId = '11111111-1111-4111-8111-111111111111';
+const tenantContext: TenantContextPort = {
+  run: <T>(_ctx: TenantRequestContext, work: () => T) => work(),
+  getContext: () => ({ tenantId, actor: 'system', roles: [] }),
+  getTenantIdOrThrow: () => tenantId,
+  getActor: () => 'system',
+};
+
+const entry: OutboxCommandEntry = {
+  aggregateId: '22222222-2222-4222-8222-222222222222',
+  topic: 'payment.events',
+  eventType: 'PaymentCharged',
+  payload: { orderId: '22222222-2222-4222-8222-222222222222' },
+};
+
+describe('TypeOrmPaymentOutboxAdapter', () => {
+  beforeEach(() => {
+    mockCaptureActiveTraceContext.mockReset();
+  });
+
+  describe('append', () => {
+    it('persists the captured traceparent when a trace context is active', async () => {
+      mockCaptureActiveTraceContext.mockReturnValue({
+        traceparent: '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
+      });
+      const fallback = new FakeOutboxRepository();
+      const adapter = new TypeOrmPaymentOutboxAdapter(
+        fallback as unknown as Repository<PaymentOutboxOrmEntity>,
+        fakeDataSource([]),
+        tenantContext,
+      );
+
+      await adapter.append(entry);
+
+      expect(fallback.saved).toHaveLength(1);
+      expect(fallback.saved[0].traceParent).toBe(
+        '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
+      );
+    });
+
+    it('persists a null traceParent when no trace context is active', async () => {
+      mockCaptureActiveTraceContext.mockReturnValue({});
+      const fallback = new FakeOutboxRepository();
+      const adapter = new TypeOrmPaymentOutboxAdapter(
+        fallback as unknown as Repository<PaymentOutboxOrmEntity>,
+        fakeDataSource([]),
+        tenantContext,
+      );
+
+      await adapter.append(entry);
+
+      expect(fallback.saved[0].traceParent).toBeNull();
+    });
+
+    it('enlists the active transactional entity manager instead of the default repository', async () => {
+      mockCaptureActiveTraceContext.mockReturnValue({});
+      const fallback = new FakeOutboxRepository();
+      const txRepo = new FakeOutboxRepository();
+      const manager = {
+        getRepository: () => txRepo as unknown as Repository<PaymentOutboxOrmEntity>,
+      } as unknown as EntityManager;
+
+      const adapter = new TypeOrmPaymentOutboxAdapter(
+        fallback as unknown as Repository<PaymentOutboxOrmEntity>,
+        fakeDataSource([]),
+        tenantContext,
+      );
+
+      await runWithEntityManager(manager, () => adapter.append(entry));
+
+      expect(txRepo.saved).toHaveLength(1);
+      expect(fallback.saved).toHaveLength(0);
+    });
+  });
+
+  describe('fetchUnpublished', () => {
+    const baseRow = {
+      id: '33333333-3333-4333-8333-333333333333',
+      aggregate_id: entry.aggregateId,
+      topic: entry.topic,
+      event_type: entry.eventType,
+      payload: entry.payload,
+      tenant_id: tenantId,
+      correlation_id: '44444444-4444-4444-8444-444444444444',
+      created_at: new Date('2026-01-01T00:00:00.000Z'),
+    };
+
+    it('puts the persisted traceparent into the mapped headers', async () => {
+      mockCaptureActiveTraceContext.mockReturnValue({});
+      const adapter = new TypeOrmPaymentOutboxAdapter(
+        new FakeOutboxRepository() as unknown as Repository<PaymentOutboxOrmEntity>,
+        fakeDataSource([
+          { ...baseRow, trace_parent: '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01' },
+        ]),
+        tenantContext,
+      );
+
+      const [record] = await adapter.fetchUnpublished(10);
+
+      expect(record.headers.traceparent).toBe(
+        '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
+      );
+    });
+
+    it('omits the traceparent header when the persisted column is null', async () => {
+      mockCaptureActiveTraceContext.mockReturnValue({});
+      const adapter = new TypeOrmPaymentOutboxAdapter(
+        new FakeOutboxRepository() as unknown as Repository<PaymentOutboxOrmEntity>,
+        fakeDataSource([{ ...baseRow, trace_parent: null }]),
+        tenantContext,
+      );
+
+      const [record] = await adapter.fetchUnpublished(10);
+
+      expect(record.headers.traceparent).toBeUndefined();
+    });
+  });
+});

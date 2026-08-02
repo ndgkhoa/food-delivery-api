@@ -40,4 +40,15 @@ export class ReviewOutboxOrmEntity {
 
   @Column({ type: 'integer', default: 0 })
   attempts!: number;
+
+  /**
+   * W3C traceparent captured synchronously at append time (the request/handler
+   * transaction), so the relay's later publish tick can forward the ORIGINAL
+   * request's trace context instead of starting a fresh one — see
+   * `captureActiveTraceContext` in `@food-delivery-api/shared-observability`.
+   * Null when telemetry is off or no span was active; the producer then falls
+   * back to its own per-hop injection.
+   */
+  @Column({ name: 'trace_parent', type: 'varchar', length: 64, nullable: true })
+  traceParent!: string | null;
 }

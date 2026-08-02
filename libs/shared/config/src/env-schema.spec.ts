@@ -25,6 +25,8 @@ describe('validateEnv', () => {
       DB_USERNAME: 'postgres',
       DB_PASSWORD: 'secret',
       DB_NAME: 'catalog',
+      OTEL_EXPORTER_OTLP_ENDPOINT: 'http://localhost:4318',
+      TELEMETRY_ENABLED: 'true',
     });
   });
 
@@ -36,6 +38,8 @@ describe('validateEnv', () => {
     expect(result.PORT).toBe(3000);
     expect(result.LOG_LEVEL).toBe('info');
     expect(result.DB_PORT).toBe(5432);
+    expect(result.OTEL_EXPORTER_OTLP_ENDPOINT).toBe('http://localhost:4318');
+    expect(result.TELEMETRY_ENABLED).toBe('true');
   });
 
   it('throws a readable error when required vars are missing', () => {

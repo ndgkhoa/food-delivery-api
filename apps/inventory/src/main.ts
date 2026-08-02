@@ -1,3 +1,4 @@
+import '@inventory/instrumentation';
 import 'reflect-metadata';
 import {
   INVENTORY_GRPC_PACKAGE,
