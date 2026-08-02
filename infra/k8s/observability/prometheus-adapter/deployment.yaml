@@ -1,0 +1,82 @@
+# --cert-dir points at an emptyDir: the adapter generates its own self-signed
+# serving cert on start (no CA to manage for a learning cluster); the
+# matching APIService sets insecureSkipTLSVerify — same trade-off upstream's
+# own example manifests make.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-adapter
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: prometheus-adapter
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus-adapter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: prometheus-adapter
+        app.kubernetes.io/part-of: food-delivery
+    spec:
+      serviceAccountName: prometheus-adapter
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: prometheus-adapter
+          image: registry.k8s.io/prometheus-adapter/prometheus-adapter:v0.12.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --secure-port=6443
+            - --cert-dir=/tmp
+            - --config=/etc/adapter/config.yaml
+            - --prometheus-url=http://prometheus.observability.svc:9090/
+            - --metrics-relist-interval=1m
+          ports:
+            - name: https
+              containerPort: 6443
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              cpu: 250m
+              memory: 192Mi
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: https
+              scheme: HTTPS
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: https
+              scheme: HTTPS
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: config
+              mountPath: /etc/adapter
+              readOnly: true
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: prometheus-adapter-config

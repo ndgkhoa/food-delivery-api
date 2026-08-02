@@ -1,0 +1,25 @@
+# Weighted traffic split (native k8s Ingress can't weight — this is why the
+# canary needs Traefik's CRD, already installed in this cluster:
+# `kubectl get crd | grep traefik.io` shows traefikservices.traefik.io at
+# v1alpha1). 90% of requests land on gateway-stable, 10% on gateway-canary.
+#
+# To dial the canary up as it proves healthy, edit the `weight` values below
+# and re-apply (e.g. 70/30, then 50/50, then 0/100 to complete the
+# promotion) — no pod restart needed, Traefik picks the new split up live.
+apiVersion: traefik.io/v1alpha1
+kind: TraefikService
+metadata:
+  name: gateway-weighted
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: gateway
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  weighted:
+    services:
+      - name: gateway-stable
+        port: 3000
+        weight: 90
+      - name: gateway-canary
+        port: 3000
+        weight: 10

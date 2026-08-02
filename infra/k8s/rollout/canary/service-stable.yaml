@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-stable
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: gateway
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: gateway
+    track: stable
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http

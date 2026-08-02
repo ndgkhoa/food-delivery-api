@@ -1,0 +1,38 @@
+# Blue-green cutover runbook (native Service-selector switch, no extra
+# controller):
+#
+# 1. Apply this whole directory: `kubectl apply -k infra/k8s/rollout/blue-green`.
+#    Both gateway-blue and gateway-green run; the Service below starts
+#    pointed at `version: blue`, so only blue serves traffic.
+# 2. Verify gateway-green is healthy on its own:
+#    `kubectl exec -it deploy/gateway-green -- wget -qO- localhost:3000/api/v1/health`
+# 3. Cutover — atomic, one field, takes effect as soon as kube-proxy syncs:
+#    `kubectl patch svc gateway -n food-delivery -p '{"spec":{"selector":{"version":"green"}}}'`
+# 4. Confirm green is serving (repeat requests, check gateway-green's logs
+#    for the new traffic), then either scale gateway-blue to 0 or leave it
+#    warm as the rollback target.
+# 5. Rollback (same shape, instant): `kubectl patch svc gateway -n food-delivery
+#    -p '{"spec":{"selector":{"version":"blue"}}}'`
+#
+# Overwrites infra/k8s/base/gateway/service.yaml's `gateway` Service (same
+# name/namespace) for the duration of the demo — its original selector
+# (`app.kubernetes.io/name: gateway`, no `version`) only matched the base
+# singleton Deployment, which this demo's `version` selector now excludes.
+# Scale that base Deployment to 0 for a clean demo so it isn't just idling.
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: gateway
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: gateway
+    version: blue
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http

@@ -28,6 +28,17 @@ resources:
 # probes, giving each pod a generous window (30 × 10s = 5 min) to finish booting
 # + connecting before liveness can ever fire. Added once here (container index 0,
 # the app container) so all 13 Deployments inherit it without 13 edits.
+#
+# The same patch also covers graceful shutdown for every Deployment: kube-proxy
+# removing a terminating pod from a Service's endpoints is asynchronous with the
+# kubelet sending SIGTERM, so without a delay the process can be told to shut
+# down (and Nest's onModuleDestroy hooks start draining) before traffic has
+# stopped being routed to it — in-flight/new requests then hit a closing
+# socket and 502. `preStop` sleeps 5s (comfortably longer than kube-proxy's
+# propagation delay) so the pod is already out of rotation by the time SIGTERM
+# arrives; `terminationGracePeriodSeconds: 30` gives Nest's shutdown hooks
+# (Kafka consumer disconnects, Temporal worker stop, DB/Redis pool close) room
+# to finish after that before the kubelet SIGKILLs the container.
 patches:
   - target:
       kind: Deployment
@@ -40,3 +51,12 @@ patches:
             port: http
           periodSeconds: 10
           failureThreshold: 30
+      - op: add
+        path: /spec/template/spec/containers/0/lifecycle
+        value:
+          preStop:
+            exec:
+              command: ["sh", "-c", "sleep 5"]
+      - op: add
+        path: /spec/template/spec/terminationGracePeriodSeconds
+        value: 30
