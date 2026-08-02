@@ -1,4 +1,5 @@
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
+import { HealthModule } from '@food-delivery-api/shared-health';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import {
   KafkaConsumerSubscriber,
@@ -28,6 +29,7 @@ import { ReviewOutboxRelayProvider } from '@review/interface/messaging/review-ou
   imports: [
     SharedConfigModule.forRoot(reviewEnvSchema),
     SharedLoggingModule.forRoot(),
+    HealthModule,
     PersistenceModule,
     TenancyModule,
     MessagingModule.forRoot({

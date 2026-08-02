@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-config
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: payment
+    app.kubernetes.io/part-of: food-delivery
+    food-delivery.io/config-kind: app-env
+data:
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.food-delivery:4318"
+  TELEMETRY_ENABLED: "true"
+  PORT: "3007"
+  DB_HOST: "postgres.food-delivery"
+  DB_PORT: "5432"
+  DB_NAME: "payment"
+  KAFKA_BROKERS: "kafka.food-delivery:9092"
+  KAFKA_CLIENT_ID: "payment"
+  PAYMENT_STUB_FAIL_AT_CENTS: "66600"
+  TEMPORAL_ADDRESS: "temporal.food-delivery:7233"
+  TEMPORAL_NAMESPACE: "default"
+  TEMPORAL_TASK_QUEUE: "payment-charges"

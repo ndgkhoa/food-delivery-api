@@ -15,6 +15,7 @@ import { DeliveryController } from '@delivery/interface/http/delivery.controller
 import { OrderEventsConsumer } from '@delivery/interface/messaging/order-events.consumer';
 import { DeliveryGateway } from '@delivery/interface/ws/delivery.gateway';
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
+import { HealthModule } from '@food-delivery-api/shared-health';
 import { JwtVerificationModule } from '@food-delivery-api/shared-jwt';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import {
@@ -41,6 +42,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
   imports: [
     SharedConfigModule.forRoot(deliveryEnvSchema),
     SharedLoggingModule.forRoot(),
+    HealthModule,
     TenancyModule,
     RedisClientModule,
     JwtVerificationModule.forRootAsync({

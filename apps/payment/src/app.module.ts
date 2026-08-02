@@ -1,4 +1,5 @@
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
+import { HealthModule } from '@food-delivery-api/shared-health';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import {
   KafkaConsumerSubscriber,
@@ -25,6 +26,7 @@ import { PaymentOutboxRelayProvider } from '@payment/interface/messaging/payment
   imports: [
     SharedConfigModule.forRoot(paymentEnvSchema),
     SharedLoggingModule.forRoot(),
+    HealthModule,
     PersistenceModule,
     TenancyModule,
     MessagingModule.forRoot({

@@ -1,0 +1,42 @@
+# Aggregates the namespace, all 13 per-service manifest sets, and the gateway
+# Ingress into one base. Overlays (dev/prod) patch this — they never
+# duplicate a manifest.
+namespace: food-delivery
+resources:
+  - namespace.yaml
+  - gateway
+  - catalog
+  - auth
+  - order
+  - search
+  - delivery
+  - media
+  - payment
+  - config
+  - review
+  - analytics
+  - inventory
+  - notification
+  - ingress.yaml
+
+# Every service connects its DB/Kafka/Redis/Temporal dependencies during Nest
+# bootstrap (onModuleInit/onApplicationBootstrap), which runs BEFORE the HTTP
+# health port binds — so on a cold start where a dependency is slow, BOTH
+# liveness and readiness would fail identically and liveness would restart the
+# pod before the dependency ever appears (thundering restart + backoff). A
+# startupProbe fixes that: while it runs, k8s suspends the liveness/readiness
+# probes, giving each pod a generous window (30 × 10s = 5 min) to finish booting
+# + connecting before liveness can ever fire. Added once here (container index 0,
+# the app container) so all 13 Deployments inherit it without 13 edits.
+patches:
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/startupProbe
+        value:
+          httpGet:
+            path: /api/v1/health
+            port: http
+          periodSeconds: 10
+          failureThreshold: 30

@@ -1,0 +1,28 @@
+# Dev overlay: the base is already dev-shaped (1 replica, food-delivery/<app>:dev
+# images, IfNotPresent, modest resources) — see infra/k8s/base — so this overlay
+# only needs to (1) pull in the infra-dev component (Postgres + Redis, whose
+# in-cluster Service DNS the base ConfigMaps already point at) and (2) turn off
+# telemetry export, since the otel-collector isn't part of this minimal infra
+# and would just retry/log noisy connection failures.
+#
+# NODE_ENV stays `production` (the base value) even in this dev overlay: the
+# runtime IMAGES are prod builds and deliberately omit devDependencies, so the
+# logger's `pino-pretty` transport (only wired when NODE_ENV !== production) is
+# NOT in the image — forcing NODE_ENV=development here makes pino try to load a
+# missing module and CrashLoops every pod. Pretty logs are useless for `kubectl
+# logs` anyway; keep the structured JSON.
+namespace: food-delivery
+resources:
+  - ../../base
+  - ../../infra-dev
+patches:
+  - target:
+      kind: ConfigMap
+      labelSelector: food-delivery.io/config-kind=app-env
+    patch: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: placeholder
+      data:
+        TELEMETRY_ENABLED: "false"

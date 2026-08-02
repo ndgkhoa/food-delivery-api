@@ -1,0 +1,27 @@
+# Mirrors infra/nginx/nginx.conf: a single blanket reverse proxy to the
+# gateway Service — the gateway itself owns all `/api/v1/*` downstream routing
+# (see gateway-env-schema.ts's *_SERVICE_URL vars), so the Ingress needs no
+# path-prefix rules of its own. Traefik ships as k3d's default ingress
+# controller, so no extra controller install is needed for local verification.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gateway
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: gateway
+    app.kubernetes.io/part-of: food-delivery
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  ingressClassName: traefik
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port:
+                  name: http

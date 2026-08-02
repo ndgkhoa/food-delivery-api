@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: media-config
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: media
+    app.kubernetes.io/part-of: food-delivery
+    food-delivery.io/config-kind: app-env
+data:
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.food-delivery:4318"
+  TELEMETRY_ENABLED: "true"
+  PORT: "3006"
+  DB_HOST: "postgres.food-delivery"
+  DB_PORT: "5432"
+  DB_NAME: "media"
+  MINIO_ENDPOINT: "minio.food-delivery"
+  MINIO_PORT: "9000"
+  MINIO_USE_SSL: "false"
+  MEDIA_BUCKET: "media"
+  PRESIGN_TTL_SECONDS: "300"
+  MAX_UPLOAD_BYTES: "5000000"
+  ALLOWED_MIME: "image/jpeg,image/png,image/webp"
+  THUMBNAIL_WIDTH: "200"
+  REDIS_URL: "redis://redis.food-delivery:6379"

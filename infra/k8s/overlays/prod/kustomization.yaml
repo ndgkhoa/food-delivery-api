@@ -1,0 +1,98 @@
+# Prod overlay: NO in-cluster infra (unlike dev, infra-dev is not a resource
+# here) — every app's DB/Redis/Kafka/ES/ClickHouse/Temporal/MinIO/Keycloak
+# endpoints are patched to point at external managed services instead
+# (placeholder hostnames; real values come from a secret manager/GitOps
+# pipeline in 8d, never committed here). Registry images replace the local
+# `food-delivery/<app>:dev` tags, replicas go to 2 for every stateless app,
+# and resource requests/limits move from dev-modest to production-real.
+namespace: food-delivery
+resources:
+  - ../../base
+
+images:
+  - name: food-delivery/gateway
+    newName: ghcr.io/ndgkhoa/gateway
+    newTag: latest
+  - name: food-delivery/catalog
+    newName: ghcr.io/ndgkhoa/catalog
+    newTag: latest
+  - name: food-delivery/auth
+    newName: ghcr.io/ndgkhoa/auth
+    newTag: latest
+  - name: food-delivery/order
+    newName: ghcr.io/ndgkhoa/order
+    newTag: latest
+  - name: food-delivery/search
+    newName: ghcr.io/ndgkhoa/search
+    newTag: latest
+  - name: food-delivery/delivery
+    newName: ghcr.io/ndgkhoa/delivery
+    newTag: latest
+  - name: food-delivery/media
+    newName: ghcr.io/ndgkhoa/media
+    newTag: latest
+  - name: food-delivery/payment
+    newName: ghcr.io/ndgkhoa/payment
+    newTag: latest
+  - name: food-delivery/config
+    newName: ghcr.io/ndgkhoa/config
+    newTag: latest
+  - name: food-delivery/review
+    newName: ghcr.io/ndgkhoa/review
+    newTag: latest
+  - name: food-delivery/analytics
+    newName: ghcr.io/ndgkhoa/analytics
+    newTag: latest
+  - name: food-delivery/inventory
+    newName: ghcr.io/ndgkhoa/inventory
+    newTag: latest
+  - name: food-delivery/notification
+    newName: ghcr.io/ndgkhoa/notification
+    newTag: latest
+
+patches:
+  # Replicas, pull policy, and resources for every app Deployment in one shot
+  # via a labelSelector target — avoids 13 near-identical patch blocks.
+  - target:
+      kind: Deployment
+      labelSelector: app.kubernetes.io/part-of=food-delivery
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 250m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+  # External managed infra endpoints — placeholder hostnames only. A real
+  # rollout wires these (and the matching Secret credentials) from the
+  # target environment's secret manager, never hardcoded here. Harmless no-op
+  # for apps that don't read a given key (extra env vars are ignored by zod).
+  - target:
+      kind: ConfigMap
+      labelSelector: food-delivery.io/config-kind=app-env
+    patch: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: placeholder
+      data:
+        NODE_ENV: "production"
+        DB_HOST: "prod-postgres.internal.example.com"
+        REDIS_URL: "redis://prod-redis.internal.example.com:6379"
+        KAFKA_BROKERS: "prod-kafka.internal.example.com:9092"
+        ELASTICSEARCH_NODE: "https://prod-elasticsearch.internal.example.com:9200"
+        CLICKHOUSE_URL: "https://prod-clickhouse.internal.example.com:8123"
+        TEMPORAL_ADDRESS: "prod-temporal.internal.example.com:7233"
+        MINIO_ENDPOINT: "prod-minio.internal.example.com"
+        KEYCLOAK_URL: "https://auth.example.com"
+        SMTP_HOST: "prod-smtp.internal.example.com"
+        OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability:4318"

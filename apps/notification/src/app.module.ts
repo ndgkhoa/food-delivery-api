@@ -1,4 +1,5 @@
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
+import { HealthModule } from '@food-delivery-api/shared-health';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import { KafkaConsumerSubscriber, MessagingModule } from '@food-delivery-api/shared-messaging';
 import { TenancyModule } from '@food-delivery-api/shared-tenancy';
@@ -20,13 +21,15 @@ import { NotificationWorker } from '@notification/interface/queue/notification.w
  * ledger + dedupe store), tenancy (consume-time tenant scope), the Kafka
  * messaging edge (`order.events` consumer), the channel adapters (Mailpit
  * email + sms/push stubs), the BullMQ queue/DLQ producers, and the per-channel
- * workers. Headless — no HTTP/gRPC controllers; `KafkaTopicAdmin` is not
- * needed since this service only consumes (never publishes to Kafka).
+ * workers. Otherwise headless — no public API; `HealthModule` adds only the
+ * k8s liveness/readiness endpoint. `KafkaTopicAdmin` is not needed since this
+ * service only consumes (never publishes to Kafka).
  */
 @Module({
   imports: [
     SharedConfigModule.forRoot(notificationEnvSchema),
     SharedLoggingModule.forRoot(),
+    HealthModule,
     PersistenceModule,
     TenancyModule,
     MessagingModule.forRoot({

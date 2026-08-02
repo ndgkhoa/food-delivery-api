@@ -22,6 +22,7 @@ export default {
         'review',
         'config',
         'shared-config',
+        'shared-health',
         'shared-logging',
         'shared-jwt',
         'shared-tenancy',

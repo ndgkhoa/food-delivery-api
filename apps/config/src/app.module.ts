@@ -10,6 +10,7 @@ import { PersistenceModule } from '@config/infrastructure/persistence/persistenc
 import { ConfigController } from '@config/interface/http/config.controller';
 import { ConfigExceptionFilter } from '@config/interface/http/filters/config-exception.filter';
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
+import { HealthModule } from '@food-delivery-api/shared-health';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import { MessagingModule } from '@food-delivery-api/shared-messaging';
 import {
@@ -30,6 +31,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
   imports: [
     SharedConfigModule.forRoot(configEnvSchema),
     SharedLoggingModule.forRoot(),
+    HealthModule,
     TenancyModule,
     PersistenceModule,
     // Producer-only: config never consumes its own `config.events` topic — the

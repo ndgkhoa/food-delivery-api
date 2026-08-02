@@ -16,6 +16,7 @@ import { OrdersFactSchemaBootstrap } from '@analytics/infrastructure/clickhouse/
 import { AnalyticsController } from '@analytics/interface/http/analytics.controller';
 import { OrderEventsConsumer } from '@analytics/interface/messaging/order-events.consumer';
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
+import { HealthModule } from '@food-delivery-api/shared-health';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import { KafkaConsumerSubscriber, MessagingModule } from '@food-delivery-api/shared-messaging';
 import { TenancyModule, TrustedIdentityInterceptor } from '@food-delivery-api/shared-tenancy';
@@ -35,6 +36,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
   imports: [
     SharedConfigModule.forRoot(analyticsEnvSchema),
     SharedLoggingModule.forRoot(),
+    HealthModule,
     TenancyModule,
     ClickHouseClientModule,
     MessagingModule.forRoot({

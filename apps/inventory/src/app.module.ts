@@ -1,4 +1,5 @@
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
+import { HealthModule } from '@food-delivery-api/shared-health';
 import { LockingModule } from '@food-delivery-api/shared-locking';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import {
@@ -27,6 +28,7 @@ import { Module } from '@nestjs/common';
   imports: [
     SharedConfigModule.forRoot(inventoryEnvSchema),
     SharedLoggingModule.forRoot(),
+    HealthModule,
     PersistenceModule,
     LockingModule.forRoot(),
     TenancyModule,
