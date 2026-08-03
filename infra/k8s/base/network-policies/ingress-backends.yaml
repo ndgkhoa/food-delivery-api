@@ -1,0 +1,187 @@
+# One NetworkPolicy per gateway-proxied backend: each accepts http traffic
+# ONLY from the gateway pod, on its own http port. `inventory` is
+# deliberately excluded here — it is not gateway-proxied, gRPC-only, and gets
+# its own order-only ingress rule in ingress-grpc.yaml.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress-catalog-http
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: ingress-catalog-http
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: catalog
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: gateway
+      ports:
+        - protocol: TCP
+          port: 3001
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress-auth-http
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: ingress-auth-http
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: auth
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: gateway
+      ports:
+        - protocol: TCP
+          port: 3002
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress-order-http
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: ingress-order-http
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: order
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: gateway
+      ports:
+        - protocol: TCP
+          port: 3003
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress-search-http
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: ingress-search-http
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: search
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: gateway
+      ports:
+        - protocol: TCP
+          port: 3004
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress-delivery-http
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: ingress-delivery-http
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: delivery
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: gateway
+      ports:
+        - protocol: TCP
+          port: 3005
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress-media-http
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: ingress-media-http
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: media
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: gateway
+      ports:
+        - protocol: TCP
+          port: 3006
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress-review-http
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: ingress-review-http
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: review
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: gateway
+      ports:
+        - protocol: TCP
+          port: 3009
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress-analytics-http
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: ingress-analytics-http
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: analytics
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: gateway
+      ports:
+        - protocol: TCP
+          port: 3010

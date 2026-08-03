@@ -6,6 +6,19 @@
 # `food-delivery/<app>:dev` tags, replicas go to 2 for every stateless app,
 # and resource requests/limits move from dev-modest to production-real.
 #
+# NetworkPolicy enforcement needs a stack that implements the NetworkPolicy API.
+# k3s/k3d DO enforce out of the box — they bundle a kube-router-based policy
+# controller (verified on this repo's k3d: a non-order pod is refused on the
+# catalog gRPC port while order connects). The prod requirement is only that the
+# target cluster is NOT running without policy enforcement — do NOT start k3s
+# with `--disable-network-policy`, and on a managed cluster confirm the CNI
+# (Calico/Cilium/cloud-native) enforces NetworkPolicy. Plain flannel with no
+# policy controller does NOT enforce; k3s's flannel does because of the bundled
+# controller. One more prod check: k3s/kube-router exempts node-origin traffic
+# so kubelet httpGet probes survive default-deny (verified on k3d), but a CNI
+# running a host firewall / HostEndpoints may filter probe traffic — confirm
+# liveness/readiness still pass after applying these policies on the real CNI.
+#
 # `internal-identity-secret` (base/internal-identity/secret.yaml) carries the
 # placeholder dev value straight through here — this overlay does NOT patch
 # it, matching every other Secret. A real rollout MUST replace it with a
@@ -16,6 +29,10 @@
 namespace: food-delivery
 resources:
   - ../../base
+  # Prod repoints infra to EXTERNAL managed services, so the base default-deny
+  # egress needs a prod-only carve-out to reach them (else every app fails to
+  # start). See the file header for the template-CIDR caveat.
+  - allow-external-infra-egress.yaml
 
 images:
   - name: food-delivery/gateway
