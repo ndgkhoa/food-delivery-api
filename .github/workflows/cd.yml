@@ -203,6 +203,12 @@ jobs:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.app }}:${{ github.sha }}
           severity: HIGH,CRITICAL
           exit-code: "1"
+          # The action builds the SARIF with ALL severities by default, and the
+          # exit-code then counts every one of them — so unfixable LOW/MEDIUM base
+          # CVEs would fail the gate despite `severity: HIGH,CRITICAL`. Limit the
+          # SARIF (and thus the exit-code) to the requested severities so this
+          # blocks ONLY on HIGH/CRITICAL, as intended.
+          limit-severities-for-sarif: true
           trivyignores: infra/docker/.trivyignore
           format: sarif
           output: trivy-image-${{ matrix.app }}.sarif
