@@ -1,30 +1,28 @@
 # Weighted-canary demo for gateway — standalone from infra/k8s/base (kept
 # out of the base/overlay apply set per the plan; applied on its own to
-# demonstrate the mechanism). `gateway-canary` takes the minority weighted
-# slice; see traefik-service.yaml for the split. A real rollout bumps
-# `image:` here (a new tag) before applying — kept identical to
-# gateway-stable so this demo runs without a second built image.
-apiVersion: apps/v1
-kind: Deployment
+# demonstrate the mechanism). Replaces the former hand-rolled
+# gateway-stable/gateway-canary Deployment pair: the Argo Rollouts
+# controller now owns the canary/stable pod sets (via its own generated
+# ReplicaSet hashes) and drives gateway-weighted's traffic split through
+# each step below instead of a human hand-editing weights.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
-  name: gateway-canary
+  name: gateway
   namespace: food-delivery
   labels:
     app.kubernetes.io/name: gateway
     app.kubernetes.io/part-of: food-delivery
-    track: canary
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: gateway
-      track: canary
   template:
     metadata:
       labels:
         app.kubernetes.io/name: gateway
         app.kubernetes.io/part-of: food-delivery
-        track: canary
     spec:
       securityContext:
         runAsNonRoot: true
@@ -88,3 +86,22 @@ spec:
       volumes:
         - name: tmp
           emptyDir: {}
+  strategy:
+    canary:
+      canaryService: gateway-canary
+      stableService: gateway-stable
+      trafficRouting:
+        traefik:
+          weightedTraefikServiceName: gateway-weighted
+      steps:
+        - setWeight: 10
+        - pause:
+            duration: 30s
+        - analysis:
+            templates:
+              - templateName: gateway-success-rate
+        - setWeight: 50
+        - pause:
+            duration: 30s
+        # After the final step the controller promotes to 100% automatically,
+        # so no trailing setWeight is needed.

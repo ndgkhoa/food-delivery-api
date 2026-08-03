@@ -1,11 +1,15 @@
 # Weighted traffic split (native k8s Ingress can't weight — this is why the
 # canary needs Traefik's CRD, already installed in this cluster:
 # `kubectl get crd | grep traefik.io` shows traefikservices.traefik.io at
-# v1alpha1). 90% of requests land on gateway-stable, 10% on gateway-canary.
+# v1alpha1).
 #
-# To dial the canary up as it proves healthy, edit the `weight` values below
-# and re-apply (e.g. 70/30, then 50/50, then 0/100 to complete the
-# promotion) — no pod restart needed, Traefik picks the new split up live.
+# Weights are now CONTROLLER-MANAGED, not hand-edited: the Argo Rollouts
+# controller (rollout.yaml's `trafficRouting.traefik.weightedTraefikServiceName`)
+# patches these `weight` values itself as the Rollout steps through
+# setWeight 10 -> 50 -> 100. They start neutral (100/0, all traffic on
+# stable) so applying this file doesn't preempt the controller's first
+# reconcile. Watch it live via `kubectl argo rollouts get rollout gateway
+# --watch`; promote a paused step with `kubectl argo rollouts promote gateway`.
 apiVersion: traefik.io/v1alpha1
 kind: TraefikService
 metadata:
@@ -19,7 +23,7 @@ spec:
     services:
       - name: gateway-stable
         port: 3000
-        weight: 90
+        weight: 100
       - name: gateway-canary
         port: 3000
-        weight: 10
+        weight: 0
