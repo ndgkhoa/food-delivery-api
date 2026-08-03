@@ -27,6 +27,7 @@ describe('validateEnv', () => {
       DB_NAME: 'catalog',
       OTEL_EXPORTER_OTLP_ENDPOINT: 'http://localhost:4318',
       TELEMETRY_ENABLED: 'true',
+      INTERNAL_IDENTITY_MAX_SKEW_MS: 60_000,
     });
   });
 
