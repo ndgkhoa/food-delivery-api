@@ -5,6 +5,14 @@
 # pipeline in 8d, never committed here). Registry images replace the local
 # `food-delivery/<app>:dev` tags, replicas go to 2 for every stateless app,
 # and resource requests/limits move from dev-modest to production-real.
+#
+# `internal-identity-secret` (base/internal-identity/secret.yaml) carries the
+# placeholder dev value straight through here — this overlay does NOT patch
+# it, matching every other Secret. A real rollout MUST replace it with a
+# freshly generated, sufficiently random value (>=32 chars, matching the
+# `INTERNAL_IDENTITY_SIGNING_KEY` schema minimum) injected by the target
+# environment's secret manager, and that exact value must reach the gateway
+# AND every service — any mismatch 401s every request.
 namespace: food-delivery
 resources:
   - ../../base

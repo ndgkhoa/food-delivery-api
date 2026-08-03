@@ -24,6 +24,17 @@ export const baseEnvSchema = z.object({
   // is `true`, which would silently invert an explicit opt-out — `register.ts`
   // itself does a plain `=== 'false'` string check for the same reason.
   TELEMETRY_ENABLED: z.enum(['true', 'false']).default('true'),
+  // Shared HMAC secret the gateway signs the trusted identity headers with and
+  // every service verifies them against — NOT `.min(1)`-required: unset means
+  // "unsigned/unenforced", which keeps local one-off runs (no key exported)
+  // working. `TenancyModule`'s verifier factory reads this straight off
+  // `process.env` (same "no validated schema at the point it's read" rationale
+  // as `OTEL_EXPORTER_OTLP_ENDPOINT` above), so this entry documents the
+  // contract rather than being consumed via `ConfigService` in shared-tenancy.
+  INTERNAL_IDENTITY_SIGNING_KEY: z.string().min(32).optional(),
+  // Replay window (ms) for the signed identity's `x-identity-ts`; tolerates
+  // k8s clock skew across pods without opening a large forgery window.
+  INTERNAL_IDENTITY_MAX_SKEW_MS: z.coerce.number().int().positive().default(60000),
 });
 
 export type BaseEnv = z.infer<typeof baseEnvSchema>;
