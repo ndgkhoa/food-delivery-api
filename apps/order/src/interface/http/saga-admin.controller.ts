@@ -22,8 +22,16 @@ import {
   type OrderSagaRepository,
 } from '@order/domain/saga/order-saga.repository';
 
-/** Only an operator may trigger a DLQ replay — never opened to a tenant's own callers. */
-const SAGA_REPLAY_ROLES = ['admin'] as const;
+/**
+ * Who may trigger a DLQ replay. `admin` is a tenant-scoped role and
+ * `platform-admin` the platform-wide operator (same split the config service
+ * enforces). Either may reach this route, but the replay itself is always
+ * tenant-scoped (`resetReconcileAttempts` filters on the caller's own
+ * `tenantId`), so a tenant `admin` can only ever replay THEIR OWN tenant's
+ * escalated sagas — never another tenant's. The re-drive is idempotent and
+ * confined to the caller's tenant, so exposing it to a tenant admin is safe.
+ */
+const SAGA_REPLAY_ROLES = ['admin', 'platform-admin'] as const;
 
 export interface SagaReplayResponse {
   orderId: string;
@@ -35,10 +43,12 @@ export interface SagaReplayResponse {
  * past `SAGA_RECONCILER_MAX_ATTEMPTS`, re-escalated every sweep until someone
  * intervenes). Replaying resets `attempts` to 0 so the NEXT reaper sweep
  * re-drives the saga through its existing idempotent recovery logic — this
- * endpoint never re-implements command emission itself. Admin-only enforced
- * on this route alone via a method-scoped `RolesGuard`; the order app has no
- * global RolesGuard by design (see `app.module.ts`), so every other route
- * stays open to any authenticated tenant.
+ * endpoint never re-implements command emission itself. Restricted to
+ * `admin`/`platform-admin` on this route alone via a method-scoped
+ * `RolesGuard`; the order app has no global RolesGuard by design (see
+ * `app.module.ts`), so every other route stays open to any authenticated
+ * tenant. The reset is tenant-scoped, so a tenant `admin` only ever replays
+ * their own tenant's sagas.
  */
 @Controller('orders/sagas')
 export class SagaAdminController {

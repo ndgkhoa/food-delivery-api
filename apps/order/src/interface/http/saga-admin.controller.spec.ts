@@ -98,6 +98,18 @@ describe('SagaAdminController (POST /orders/sagas/:orderId/replay)', () => {
     expect(sagaRepository.lastCall).toEqual({ tenantId: TENANT_ID, orderId: ORDER_ID });
   });
 
+  it('also accepts the platform-admin operator role', async () => {
+    sagaRepository.outcome = 'reset';
+
+    const response = await request(app.getHttpServer())
+      .post(`/orders/sagas/${ORDER_ID}/replay`)
+      .set(USER_ID_HEADER, 'operator-1')
+      .set(ROLES_HEADER, 'platform-admin');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ orderId: ORDER_ID, outcome: 'reset' });
+  });
+
   it('rejects a non-admin caller with 403 before the repository is ever called', async () => {
     const response = await request(app.getHttpServer())
       .post(`/orders/sagas/${ORDER_ID}/replay`)
