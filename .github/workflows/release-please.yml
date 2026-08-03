@@ -1,0 +1,32 @@
+name: release-please
+
+# Automates versioning + releases from Conventional Commits. Runs on `main`
+# (the release branch in this Git Flow): after a develop->main merge it opens
+# or updates a "release PR" that computes the next SemVer from the commits
+# since the last tag and regenerates CHANGELOG.md. Merging THAT PR tags
+# `vX.Y.Z` and publishes the GitHub Release — so releases are no longer a manual
+# `git tag` + `gh release create`. `.release-please-manifest.json` holds the
+# current version; `release-please-config.json` holds the behaviour.
+on:
+  push:
+    branches: [main]
+
+# Least-privilege: release-please needs to open the release PR and cut the tag/release.
+permissions:
+  contents: write
+  pull-requests: write
+
+# One release reconciliation at a time on main.
+concurrency:
+  group: release-please-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: googleapis/release-please-action@v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
