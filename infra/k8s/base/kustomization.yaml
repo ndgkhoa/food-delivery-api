@@ -19,6 +19,7 @@ resources:
   - inventory
   - notification
   - ingress.yaml
+  - network-policies
 
 # Every service connects its DB/Kafka/Redis/Temporal dependencies during Nest
 # bootstrap (onModuleInit/onApplicationBootstrap), which runs BEFORE the HTTP
