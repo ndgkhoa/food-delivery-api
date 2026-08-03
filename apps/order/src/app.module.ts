@@ -27,6 +27,7 @@ import { InventoryGrpcAdapter } from '@order/infrastructure/grpc/inventory-grpc.
 import { OrdersPartitionMaintenanceService } from '@order/infrastructure/persistence/partitioning/orders-partition-maintenance';
 import { PersistenceModule } from '@order/infrastructure/persistence/persistence.module';
 import { OrdersController } from '@order/interface/http/orders.controller';
+import { SagaAdminController } from '@order/interface/http/saga-admin.controller';
 import { InventoryReplyConsumer } from '@order/interface/messaging/inventory-reply.consumer';
 import { OrderOutboxRelayProvider } from '@order/interface/messaging/order-outbox-relay.provider';
 import { PaymentReplyConsumer } from '@order/interface/messaging/payment-reply.consumer';
@@ -64,7 +65,7 @@ import { SagaReaperProvider } from '@order/interface/messaging/saga-reaper.provi
       kafkaBrokers: (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(','),
     }),
   ],
-  controllers: [OrdersController],
+  controllers: [OrdersController, SagaAdminController],
   providers: [
     // Order use cases
     PlaceOrderHandler,
@@ -89,8 +90,10 @@ import { SagaReaperProvider } from '@order/interface/messaging/saga-reaper.provi
     { provide: CATALOG_GATEWAY_PORT, useClass: CatalogGrpcAdapter },
     { provide: INVENTORY_GATEWAY_PORT, useClass: InventoryGrpcAdapter },
     // Every route is tenant-scoped by default — the tenant comes from the verified identity
-    // the gateway propagates (shared-tenancy), never from a raw client header. No RolesGuard:
-    // ownership (owner or admin) is enforced in the handlers, not by a role requirement.
+    // the gateway propagates (shared-tenancy), never from a raw client header. No GLOBAL
+    // RolesGuard: ownership (owner or admin) is enforced in the handlers, not by a role
+    // requirement. The one exception is the saga-replay route, which applies `RolesGuard`
+    // method-scoped via `@UseGuards` — every other route's posture is unchanged.
     { provide: APP_INTERCEPTOR, useClass: TrustedIdentityInterceptor },
   ],
 })

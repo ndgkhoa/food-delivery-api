@@ -39,6 +39,20 @@ export interface OrderSagaRepository {
    * tenant-scoped request.
    */
   recordReconcileAttempt(orderId: string, expectedState: SagaState): Promise<void>;
+  /**
+   * DLQ-replay tool for an escalated saga: resets `attempts` back to 0 (and
+   * refreshes `updated_at`) so the NEXT reaper sweep re-drives it through the
+   * same idempotent recovery logic, rather than re-implementing a separate
+   * re-drive path. Tenant-scoped (an operator replays one tenant's order) and
+   * conditioned on the saga still being non-terminal — a completed/cancelled
+   * saga has nothing to replay. Returns `'reset'` when the guarded update
+   * applied, `'terminal'` when the saga exists but is no longer non-terminal,
+   * or `'not_found'` when no saga row exists for the tenant/order.
+   */
+  resetReconcileAttempts(
+    tenantId: string,
+    orderId: string,
+  ): Promise<'reset' | 'terminal' | 'not_found'>;
 }
 
 export const ORDER_SAGA_REPOSITORY = Symbol('OrderSagaRepository');

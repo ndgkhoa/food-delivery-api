@@ -25,13 +25,17 @@ class FakeUpdateQueryBuilder {
   }
 }
 
-function fakeRepository(affected: number): {
+function fakeRepository(
+  affected: number,
+  findOneResult?: Partial<OrderSagaOrmEntity>,
+): {
   repository: Repository<OrderSagaOrmEntity>;
   queryBuilder: FakeUpdateQueryBuilder;
 } {
   const queryBuilder = new FakeUpdateQueryBuilder(affected);
   const repository = {
     createQueryBuilder: () => queryBuilder,
+    findOne: async () => findOneResult ?? null,
   } as unknown as Repository<OrderSagaOrmEntity>;
   return { repository, queryBuilder };
 }
@@ -58,5 +62,42 @@ describe('TypeOrmOrderSagaRepository.recordReconcileAttempt', () => {
     await expect(
       orderSagaRepository.recordReconcileAttempt('order-2', 'STOCK_RESERVED'),
     ).rejects.toThrow(SagaStateChangedError);
+  });
+});
+
+describe('TypeOrmOrderSagaRepository.resetReconcileAttempts', () => {
+  it('resets attempts and returns "reset" when the guarded UPDATE affects a non-terminal saga', async () => {
+    const { repository, queryBuilder } = fakeRepository(1);
+    const orderSagaRepository = new TypeOrmOrderSagaRepository(repository);
+
+    await expect(orderSagaRepository.resetReconcileAttempts('tenant-1', 'order-1')).resolves.toBe(
+      'reset',
+    );
+    expect(queryBuilder.wheres[0]?.params).toMatchObject({
+      tenantId: 'tenant-1',
+      orderId: 'order-1',
+    });
+  });
+
+  it('returns "terminal" when the UPDATE affects 0 rows but the saga row exists (already terminal)', async () => {
+    const { repository } = fakeRepository(0, {
+      orderId: 'order-2',
+      tenantId: 'tenant-1',
+      state: 'COMPLETED',
+    } as Partial<OrderSagaOrmEntity>);
+    const orderSagaRepository = new TypeOrmOrderSagaRepository(repository);
+
+    await expect(orderSagaRepository.resetReconcileAttempts('tenant-1', 'order-2')).resolves.toBe(
+      'terminal',
+    );
+  });
+
+  it('returns "not_found" when the UPDATE affects 0 rows and no saga row exists', async () => {
+    const { repository } = fakeRepository(0);
+    const orderSagaRepository = new TypeOrmOrderSagaRepository(repository);
+
+    await expect(orderSagaRepository.resetReconcileAttempts('tenant-1', 'order-3')).resolves.toBe(
+      'not_found',
+    );
   });
 });
