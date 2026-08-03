@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/ndgkhoa/food-delivery-api/compare/v1.1.0...v1.2.0) (2026-08-03)
+
+
+### Features
+
+* **order:** admin DLQ-replay endpoint for escalated sagas ([#57](https://github.com/ndgkhoa/food-delivery-api/issues/57)) ([5873141](https://github.com/ndgkhoa/food-delivery-api/commit/587314165c05e5ec651677322658a8903dc9eeb8))
+
 ## [1.1.0](https://github.com/ndgkhoa/food-delivery-api/compare/v1.0.1...v1.1.0) (2026-08-03)
 
 
