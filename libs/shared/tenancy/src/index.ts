@@ -1,5 +1,12 @@
 export { AlsTenantContextAdapter } from './als-tenant-context.adapter';
 export {
+  GRPC_TENANT_VERIFIER,
+  type GrpcTenantVerification,
+  GrpcTenantVerifier,
+  type GrpcTenantVerifierOptions,
+  signGrpcTenant,
+} from './grpc-identity-signature';
+export {
   applyTrustedIdentityHeaders,
   IDENTITY_SIG_HEADER,
   IDENTITY_TS_HEADER,
