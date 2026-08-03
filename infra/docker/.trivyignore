@@ -1,0 +1,24 @@
+# Image-scoped trivy ignore for the runtime container image — wired into the CD
+# image-scan job's `trivyignores` input. This is SEPARATE from the repo-root
+# .trivyignore (dev-only). It lists ONLY CVEs we cannot remediate ourselves,
+# each with a threat-model justification. The image runs on distroless
+# (nodejs24-debian12), which already eliminates the perl/gzip/util-linux/zlib
+# base packages a full slim image carried.
+#
+# libssl3 (system OpenSSL) — 6 CVEs. The distroless base ships libssl3
+# 3.0.18-1~deb12u2; the fix (3.0.19-1~deb12u2) exists in Debian but has not yet
+# landed in a distroless rebuild, and distroless has no apt/shell for us to
+# upgrade it in-image. Not remediable by us — and not on the attack surface:
+# Node core uses its OWN bundled OpenSSL (3.5.5, `process.versions.openssl`), not
+# the system lib; the one native module that could link system libssl3
+# (librdkafka) is configured PLAINTEXT here (no SASL_SSL/TLS broker path), so it
+# is never exercised. (If a broker ever needs SASL_SSL, the runtime image must
+# also add libsasl2, which distroless lacks — track that separately.) Revisit on
+# the next distroless base bump (Renovate-tracked); these clear once distroless
+# rebuilds with deb12u2.
+CVE-2026-31789
+CVE-2026-28387
+CVE-2026-28388
+CVE-2026-28389
+CVE-2026-28390
+CVE-2026-45447
