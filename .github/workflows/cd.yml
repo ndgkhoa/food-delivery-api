@@ -97,11 +97,18 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+          # Let attest-build-provenance be the SINGLE provenance source — without
+          # this, BuildKit also attaches its own (mode=min) provenance and turns
+          # the pushed artifact into an OCI index.
+          provenance: false
 
       # cosign-installer has no moving `@v4` major tag (unlike most actions here),
-      # so it is pinned to an exact version; Renovate keeps it current.
+      # so it is pinned to an exact version; the cosign BINARY is pinned too for
+      # a reproducible signer. Renovate keeps both current.
       - name: Install cosign
         uses: sigstore/cosign-installer@v4.1.2
+        with:
+          cosign-release: v3.1.2
 
       # Sign the image BY DIGEST — one manifest digest covers every tag
       # (sha/branch/latest), so signing the digest signs them all. Keyless: Fulcio
@@ -126,9 +133,12 @@ jobs:
       # Self-verify: fail the job if the just-produced signature doesn't validate
       # against this workflow's identity + the GitHub OIDC issuer, so a broken
       # signing config can never ship a "signed" image that nobody can verify.
+      # The identity regexp is fully ANCHORED (^…$) with literal dots escaped and
+      # the ref pinned to main/develop — cosign matches unanchored, so a loose
+      # pattern would weaken the very control it enforces.
       # A consumer runs the same check against a pulled image:
       #   cosign verify \
-      #     --certificate-identity-regexp 'https://github.com/ndgkhoa/food-delivery-api/.github/workflows/cd.yml@.*' \
+      #     --certificate-identity-regexp '^https://github\.com/ndgkhoa/food-delivery-api/\.github/workflows/cd\.yml@refs/heads/(main|develop)$' \
       #     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
       #     ghcr.io/ndgkhoa/<app>:<sha>
       #   gh attestation verify oci://ghcr.io/ndgkhoa/<app>:<sha> --owner ndgkhoa
@@ -138,8 +148,8 @@ jobs:
           DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           cosign verify \
-            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/cd.yml@.*" \
-            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            --certificate-identity-regexp '^https://github\.com/${{ github.repository }}/\.github/workflows/cd\.yml@refs/heads/(main|develop)$' \
+            --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
             "${IMAGE}@${DIGEST}"
 
   image-scan:

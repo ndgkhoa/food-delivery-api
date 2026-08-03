@@ -4,7 +4,12 @@ Context: [plan.md](./plan.md) · [phase-08d-cicd-github-actions.md](./phase-08d-
 
 ## Overview
 - **Priority**: portfolio-plus — third D-item. Extends the 8d CD pipeline.
-- **Status**: 🚧 In progress — branch `feat/cosign-slsa-provenance`.
+- **Status**: ✅ actionlint-clean + adversarially reviewed (M1 + 2 Low fixed) — branch `feat/cosign-slsa-provenance`. Awaiting merge; signing runs on the first develop CD run (self-verifying).
+  - **Adversarial review** (report `reports/code-reviewer-260803-cosign-slsa-provenance-review-report.md`): **no Critical/High** — the invariant holds (a broken sign/verify fails the job → `image-scan`/`deploy` skip via `needs`, so an unverifiable image never ships or promotes). Verified correct: the permission set, sign/attest **by digest** (`build-push-action@v6` emits `digest` on push; `attest-build-provenance@v4` wants `sha256:…`), the top-level-workflow keyless SAN, and the fail-closed step ordering. Fixes applied:
+    - **M1** — the verify `--certificate-identity-regexp` was unanchored with unescaped dots (cosign matches unanchored). **Fixed**: fully anchored `^https://github\.com/<repo>/\.github/workflows/cd\.yml@refs/heads/(main|develop)$` in both the self-verify step and the consumer comment.
+    - **L1** — `build-push-action@v6` attaches its own BuildKit provenance by default, duplicating the SLSA attestation + making an OCI index. **Fixed**: `provenance: false` on the build step so `attest-build-provenance` is the single source.
+    - **L2** — pinned the cosign BINARY (`cosign-release: v3.1.2`, verified latest) for a reproducible signer, not just the installer action.
+    - L3 (templating `github.repository` into `run`) — moot: the value is a safe owner/repo charset and now sits in a single-quoted regexp (no shell expansion).
 - **Brief**: The CD `build-push` job (`.github/workflows/cd.yml`) builds + pushes 13 service images to GHCR but they are **unsigned + have no provenance** — a consumer can't verify who built an image or how. Add **keyless cosign signing** (Sigstore/Fulcio/Rekor, no key management) + a **SLSA build-provenance attestation** (`actions/attest-build-provenance`) per image, and have the job **self-verify** the signature so a broken signing config fails CD.
 
 ## Key facts (scouted)
