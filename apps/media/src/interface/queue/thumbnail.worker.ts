@@ -1,3 +1,4 @@
+import { runJobWithTrace } from '@food-delivery-api/shared-observability';
 import { GenerateThumbnailHandler } from '@media/application/generate-thumbnail.handler';
 import { THUMBNAIL_QUEUE_NAME } from '@media/domain/media/thumbnail-queue.port';
 import {
@@ -41,7 +42,10 @@ export class ThumbnailWorker implements OnApplicationBootstrap, OnApplicationShu
     });
     this.worker = new Worker<ThumbnailJobData>(
       THUMBNAIL_QUEUE_NAME,
-      (job: Job<ThumbnailJobData>) => this.generateThumbnail.execute(job.data.mediaId),
+      (job: Job<ThumbnailJobData>) =>
+        runJobWithTrace(job.data, THUMBNAIL_QUEUE_NAME, () =>
+          this.generateThumbnail.execute(job.data.mediaId),
+        ),
       { connection: this.connection },
     );
     this.worker.on('failed', (job, err) => {

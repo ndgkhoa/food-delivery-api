@@ -1,11 +1,14 @@
 import { Logger } from '@nestjs/common';
-import { type Counter, metrics } from '@opentelemetry/api';
+import { type Counter, type Histogram, metrics } from '@opentelemetry/api';
 
 const logger = new Logger('Telemetry');
 const METER_NAME = 'food-delivery';
 
 /** Valid terminal outcomes for the order saga — the only values the `outcome` label may take. */
 export type SagaOutcome = 'confirmed' | 'cancelled';
+
+/** Terminal outcome of a processed BullMQ job — the only values the `outcome` label may take. */
+export type BullmqJobOutcome = 'completed' | 'failed';
 
 /**
  * Resolves the meter — and every instrument off it — freshly on EVERY call
@@ -58,6 +61,13 @@ function sagaReconcileEscalated(): Counter {
   return meter().createCounter('saga_reconcile_escalated_total', {
     description:
       'Count of stranded sagas escalated (reconcile-attempts cap reached) instead of re-driven again.',
+  });
+}
+
+function bullmqJobDuration(): Histogram {
+  return meter().createHistogram('bullmq_job_duration_ms', {
+    description: 'Duration of a processed BullMQ job (enqueue -> processed), by queue and outcome.',
+    unit: 'ms',
   });
 }
 
@@ -136,5 +146,25 @@ export function recordSagaReconcileEscalated(): void {
     sagaReconcileEscalated().add(1);
   } catch (error) {
     logger.warn(`failed to record saga-reconcile-escalated metric: ${reasonOf(error)}`);
+  }
+}
+
+/**
+ * Records one processed BullMQ job's duration + terminal outcome, labelled by
+ * `queue` (the fixed per-channel/thumbnail queue names) and `outcome`
+ * (completed|failed) — both bounded, no job/media id label. `runJobWithTrace`
+ * is the single call site, in a `finally`, so this fires exactly once per
+ * processed job regardless of how it settles. Never throws: a down Collector
+ * or a broken meter must never fail job processing.
+ */
+export function recordBullmqJob(
+  queue: string,
+  outcome: BullmqJobOutcome,
+  durationMs: number,
+): void {
+  try {
+    bullmqJobDuration().record(durationMs, { queue, outcome });
+  } catch (error) {
+    logger.warn(`failed to record bullmq-job metric: ${reasonOf(error)}`);
   }
 }
