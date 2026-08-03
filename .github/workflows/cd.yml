@@ -6,8 +6,12 @@ name: CD
 # it. A PRODUCTION rollout runs only on `main` (develop is integration/staging);
 # see the deploy job's branch guard.
 on:
+  # Build/sign/scan (and deploy) only from main. Building on every develop push
+  # too doubled the images pushed to GHCR (each build adds a tagged image plus
+  # its cosign signature + SLSA attestation manifests) with no deploy value —
+  # dev runs a locally-built image, and the prod deploy is main-gated anyway.
   push:
-    branches: [main, develop]
+    branches: [main]
 
 # Do NOT cancel an in-flight CD run: a build/push or (worse) a mid-rollout deploy
 # aborted halfway leaves a partial release / partial cluster state. Let each run
