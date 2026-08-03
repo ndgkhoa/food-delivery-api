@@ -1,3 +1,4 @@
+import { injectJobTraceContext } from '@food-delivery-api/shared-observability';
 import {
   THUMBNAIL_QUEUE_NAME,
   type ThumbnailQueuePort,
@@ -31,17 +32,13 @@ export class BullMqThumbnailQueue implements ThumbnailQueuePort, OnApplicationSh
   }
 
   async enqueue(mediaId: string): Promise<void> {
-    await this.queue.add(
-      'thumbnail',
-      { mediaId },
-      {
-        jobId: mediaId,
-        attempts: MAX_ATTEMPTS,
-        backoff: { type: 'exponential', delay: BACKOFF_BASE_MS },
-        removeOnComplete: true,
-        removeOnFail: false,
-      },
-    );
+    await this.queue.add('thumbnail', injectJobTraceContext({ mediaId }), {
+      jobId: mediaId,
+      attempts: MAX_ATTEMPTS,
+      backoff: { type: 'exponential', delay: BACKOFF_BASE_MS },
+      removeOnComplete: true,
+      removeOnFail: false,
+    });
   }
 
   async onApplicationShutdown(): Promise<void> {

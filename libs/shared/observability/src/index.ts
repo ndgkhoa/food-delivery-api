@@ -1,3 +1,9 @@
+export {
+  BULLMQ_TRACEPARENT_KEY,
+  injectJobTraceContext,
+  runJobWithTrace,
+  stripJobTraceContext,
+} from './bullmq-trace-propagation';
 export type { RawKafkaHeaderMap } from './kafka-trace-propagation';
 export {
   captureActiveTraceContext,
@@ -5,8 +11,9 @@ export {
   runWithExtractedContext,
   runWithTraceParent,
 } from './kafka-trace-propagation';
-export type { SagaOutcome } from './metrics';
+export type { BullmqJobOutcome, SagaOutcome } from './metrics';
 export {
+  recordBullmqJob,
   recordDlqMessage,
   recordOrderPlaced,
   recordSagaOutcome,

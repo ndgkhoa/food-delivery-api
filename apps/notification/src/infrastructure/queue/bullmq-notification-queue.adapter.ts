@@ -1,3 +1,4 @@
+import { injectJobTraceContext } from '@food-delivery-api/shared-observability';
 import { Injectable, type OnApplicationShutdown } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { ChannelName } from '@notification/domain/notification/notification';
@@ -37,7 +38,7 @@ export class BullMqNotificationQueue implements NotificationQueuePort, OnApplica
   }
 
   async enqueue(channel: ChannelName, payload: NotificationJobPayload): Promise<void> {
-    await this.queues[channel].add(`notify-${channel}`, payload, {
+    await this.queues[channel].add(`notify-${channel}`, injectJobTraceContext(payload), {
       jobId: payload.notificationId,
       attempts: this.maxAttempts,
       backoff: { type: 'exponential', delay: this.backoffMs },

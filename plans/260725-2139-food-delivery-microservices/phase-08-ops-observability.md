@@ -4,7 +4,7 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 
 ## Overview
 - **Priority**: P2
-- **Status**: ✅ Complete (pending 8d merge) — **8a** [distributed tracing (OTel → Jaeger)](./phase-08a-distributed-tracing.md) ✅ Done (#29); **8b** [metrics/logs + SLO alerts](./phase-08b-metrics-logs-slo.md) ✅ Done (#30); **8c** K8s deploy — [8c-A manifests/Dockerfiles](./phase-08c-a-k8s-manifests-dockerfiles.md) ✅ Done (#31) · [8c-B HPA/canary/rollout](./phase-08c-b-hpa-canary-rollout.md) ✅ Done (#32); **8d** [CI/CD + scans + Renovate](./phase-08d-cicd-github-actions.md) ✅ Verified live (CI green on PR #33).
+- **Status**: ✅ Complete (all merged) — **8a** [distributed tracing (OTel → Jaeger)](./phase-08a-distributed-tracing.md) ✅ Done (#29); **8b** [metrics/logs + SLO alerts](./phase-08b-metrics-logs-slo.md) ✅ Done (#30); **8c** K8s deploy — [8c-A manifests/Dockerfiles](./phase-08c-a-k8s-manifests-dockerfiles.md) ✅ Done (#31) · [8c-B HPA/canary/rollout](./phase-08c-b-hpa-canary-rollout.md) ✅ Done (#32); **8d** [CI/CD + scans + Renovate](./phase-08d-cicd-github-actions.md) ✅ Verified live (CI green on PR #33).
 - **Brief**: Make the system operable + observable. K8s manifests + HPA autoscaling, Blue-Green/Canary deploy, GitHub Actions CI/CD. Full observability: OpenTelemetry tracing → Jaeger, Prometheus/Grafana metrics, Loki centralized logs. Instrumentation was stubbed early (P0 logging/correlation ID) — now fully wired end-to-end.
 
 ## Key insights
@@ -40,14 +40,14 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 8. E2E: place an order, then open Jaeger and follow one trace gateway→order→saga→inventory→payment→notification; verify metrics + logs correlate by trace id; trigger HPA under load; run a canary rollout + rollback.
 
 ## Todo
-- [ ] OTel SDK + auto-instrumentation in all apps; trace context through Kafka + BullMQ
-- [ ] observability profile (Collector/Jaeger/Prometheus/Grafana/Loki/Alloy)
-- [ ] Grafana golden-signal + business dashboards + SLO alerts
-- [ ] logs → Loki correlated by trace/correlation id
-- [ ] K8s manifests + HPA + Kustomize overlays
-- [ ] canary/blue-green rollout + rollback
-- [ ] GitHub Actions CI/CD (nx affected) + Trivy/Hadolint/actionlint scans + Renovate enabled
-- [ ] E2E: end-to-end trace, correlated logs/metrics, HPA, canary+rollback
+- [x] OTel SDK + auto-instrumentation in all apps; trace context through Kafka (BullMQ propagation deferred → D-items backlog)
+- [x] observability profile (Collector/Jaeger/Prometheus/Grafana/Loki/Alloy)
+- [x] Grafana golden-signal + business dashboards + SLO alerts
+- [x] logs → Loki correlated by trace/correlation id
+- [x] K8s manifests + HPA + Kustomize overlays
+- [x] canary/blue-green rollout + rollback
+- [x] GitHub Actions CI/CD (nx affected) + Trivy/Hadolint/actionlint scans + Renovate enabled
+- [x] E2E: end-to-end trace, correlated logs/metrics, HPA, canary+rollback
 
 ## Success criteria
 - A single order request is fully traceable across all involved services in Jaeger, with logs (Loki) and metrics (Grafana) pivotable by the same trace/correlation id.

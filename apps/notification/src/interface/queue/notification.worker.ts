@@ -1,3 +1,4 @@
+import { runJobWithTrace, stripJobTraceContext } from '@food-delivery-api/shared-observability';
 import {
   Injectable,
   Logger,
@@ -49,7 +50,10 @@ export class NotificationWorker implements OnApplicationBootstrap, OnApplication
     const connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
     const worker = new Worker<NotificationJobPayload>(
       CHANNEL_QUEUE_NAMES[channel],
-      (job: Job<NotificationJobPayload>) => this.sendNotification.execute(job.data),
+      (job: Job<NotificationJobPayload>) =>
+        runJobWithTrace(job.data, CHANNEL_QUEUE_NAMES[channel], () =>
+          this.sendNotification.execute(job.data),
+        ),
       { connection },
     );
     worker.on('failed', (job, err) => {
@@ -57,7 +61,8 @@ export class NotificationWorker implements OnApplicationBootstrap, OnApplication
         return;
       }
       this.handleSendFailure
-        .execute(job.data, job.attemptsMade, err.message)
+        // Strip the telemetry-only trace key so the DLQ parks the clean domain payload.
+        .execute(stripJobTraceContext(job.data), job.attemptsMade, err.message)
         .catch((handlerError: unknown) =>
           this.logger.error(`Failed to record ${channel} send failure: ${handlerError}`),
         );
