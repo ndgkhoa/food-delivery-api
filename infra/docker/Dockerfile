@@ -7,6 +7,11 @@
 # workspace to resolve the Nx project graph).
 
 ARG NODE_IMAGE=node:24.14-slim
+# Distroless runtime (glibc, debian-12) — no shell, npm, apt, perl, gzip,
+# util-linux, or ncurses, so it carries a fraction of a full slim image's CVE
+# surface. glibc (NOT musl/alpine) keeps the native modules' prebuilt binaries,
+# fetched on node:*-slim in the deps stage, compatible.
+ARG RUNTIME_IMAGE=gcr.io/distroless/nodejs24-debian12:nonroot
 
 # =============================================================================
 # builder — installs the full pnpm workspace, then builds the target app's
@@ -60,28 +65,28 @@ ENV NODE_ENV=production
 RUN pnpm nx build "$APP" --configuration=production
 
 # =============================================================================
-# runtime — copies only the built bundle + its generated (pruned) package.json
-# into a slim, non-root image. `npm install` (not pnpm) is deliberate: the
-# generated package.json is a plain, self-contained manifest, so plain npm
-# avoids re-provisioning pnpm/corepack in the runtime stage.
+# deps — installs ONLY the target app's pruned prod deps (+ pg) on a FULL Node
+# image. This stage exists because the runtime image is distroless (no npm, no
+# shell), yet the native modules (kafka-javascript / sharp, via node-pre-gyp)
+# must be fetched by npm here — on the SAME glibc + arch as the distroless
+# debian-12 runtime, so their prebuilt binaries stay compatible. `npm install`
+# (not pnpm) is deliberate: the generatePackageJson'd manifest is a plain,
+# self-contained package.json, so plain npm avoids re-provisioning pnpm/corepack.
 # =============================================================================
-FROM ${NODE_IMAGE} AS runtime
+FROM ${NODE_IMAGE} AS deps
 
 ARG APP
-ENV NODE_ENV=production
 WORKDIR /app
 
 COPY --from=builder /workspace/dist/apps/${APP}/ ./
 # Always copy Temporal's workflow source (present in every build regardless of
-# APP — the builder stage copies the whole workspace). Only payment's worker
-# reads TEMPORAL_WORKFLOWS_PATH; the few KB of TS source is a no-op for every
-# other service. Cheaper than special-casing the Dockerfile per app.
+# APP — the builder copies the whole workspace). Only payment's worker reads
+# TEMPORAL_WORKFLOWS_PATH; the few KB of TS source is a no-op for every other
+# service. Cheaper than special-casing the Dockerfile per app.
 COPY --from=builder /workspace/apps/payment/src/workflows/ ./workflows/
-# Drop test sources from the runtime image — Temporal bundles from the workflows
-# entry point and never imports a `.spec`, so it's dead weight, but no test code
-# belongs in a production image.
+# Drop test sources — Temporal bundles from the workflows entry point and never
+# imports a `.spec`; no test code belongs in a production image.
 RUN rm -f ./workflows/*.spec.* ./workflows/*.test.*
-ENV TEMPORAL_WORKFLOWS_PATH=/app/workflows
 
 # TypeORM loads its DB driver through a RUNTIME `require('pg')`, not a static
 # import — so webpack's `generatePackageJson` can't see it and the pruned
@@ -89,16 +94,28 @@ ENV TEMPORAL_WORKFLOWS_PATH=/app/workflows
 # ("DriverPackageNotInstalledError"). Add it explicitly, pinned to the version
 # the workspace root declares (`pg@^8.22.0`); bump here in lockstep if root does.
 # A no-op weight for the driverless services (gateway/search/delivery).
-RUN npm install --omit=dev --no-audit --no-fund \
+# The `overrides` forces the fixed js-yaml (a @nestjs/swagger transitive the
+# pruned manifest would otherwise resolve to the vulnerable 5.2.1,
+# GHSA-pm4m-ph32-ghv5); bump the floor here if a later advisory supersedes it.
+RUN npm pkg set "overrides.js-yaml=>=5.2.2" \
+    && npm install --omit=dev --no-audit --no-fund \
     && npm install --no-audit --no-fund --save=false pg@8.22.0 \
     && npm cache clean --force
 
-# The official Node image already ships a least-privilege `node` user
-# (uid/gid 1000) — reuse it instead of provisioning a new one.
-# DL3066 (prefer numeric UID): `node` resolves via /etc/passwd baked into
-# every node:*-slim image (uid 1000), so it works on any host that runs this
-# image unmodified; the named form stays self-documenting for maintainers.
-# hadolint ignore=DL3066
-USER node
+# =============================================================================
+# runtime — distroless Node (glibc, debian-12). No shell, npm, apt, perl, gzip,
+# util-linux, or ncurses, so the base carries a fraction of the CVEs a full
+# node:*-slim image does. Runs as the built-in `nonroot` user (uid 65532); the
+# app files are copied world-readable, so a k8s `runAsUser: 1000` override reads
+# + executes them fine. The image's ENTRYPOINT is already `node`, so CMD is just
+# the entry script.
+# =============================================================================
+FROM ${RUNTIME_IMAGE} AS runtime
 
-CMD ["node", "main.js"]
+ENV NODE_ENV=production
+ENV TEMPORAL_WORKFLOWS_PATH=/app/workflows
+WORKDIR /app
+
+COPY --from=deps /app/ ./
+
+CMD ["main.js"]

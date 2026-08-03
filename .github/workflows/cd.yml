@@ -189,11 +189,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # The REAL runtime-vulnerability gate: it scans the actual shipped image
-      # (prod deps only) and BLOCKS (exit-code 1) on any HIGH/CRITICAL. It does
-      # NOT use the repo `.trivyignore` — that file's allowlist is dev-only
-      # (build-tooling CVEs, dev-infra misconfig) and must never silence a real
-      # vulnerability in a runtime image. If the base image ever carries an
-      # unfixable CVE, add an image-scoped ignore here with a justification.
+      # (prod deps only) and BLOCKS (exit-code 1) on any HIGH/CRITICAL. It uses
+      # the IMAGE-SCOPED `infra/docker/.trivyignore` (NOT the repo-root dev-only
+      # one) — that file allowlists ONLY CVEs we cannot remediate ourselves (a
+      # system libssl3 Node never loads, pending a distroless base rebuild),
+      # each with a written justification; it must never silence a fixable
+      # runtime vulnerability.
       - name: Trivy image scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -202,6 +203,7 @@ jobs:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.app }}:${{ github.sha }}
           severity: HIGH,CRITICAL
           exit-code: "1"
+          trivyignores: infra/docker/.trivyignore
           format: sarif
           output: trivy-image-${{ matrix.app }}.sarif
 
