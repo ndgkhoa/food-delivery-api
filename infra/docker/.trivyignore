@@ -8,11 +8,14 @@
 # libssl3 (system OpenSSL) — 6 CVEs. The distroless base ships libssl3
 # 3.0.18-1~deb12u2; the fix (3.0.19-1~deb12u2) exists in Debian but has not yet
 # landed in a distroless rebuild, and distroless has no apt/shell for us to
-# upgrade it in-image. Crucially the running service never loads this library:
-# `node -p process.versions.openssl` reports Node's OWN bundled OpenSSL (3.5.5)
-# for all TLS/crypto, so the vulnerable system libssl3.so is present-but-unused
-# — outside the runtime attack surface. Revisit on the next distroless base bump
-# (Renovate-tracked); these clear once distroless rebuilds with deb12u2.
+# upgrade it in-image. Not remediable by us — and not on the attack surface:
+# Node core uses its OWN bundled OpenSSL (3.5.5, `process.versions.openssl`), not
+# the system lib; the one native module that could link system libssl3
+# (librdkafka) is configured PLAINTEXT here (no SASL_SSL/TLS broker path), so it
+# is never exercised. (If a broker ever needs SASL_SSL, the runtime image must
+# also add libsasl2, which distroless lacks — track that separately.) Revisit on
+# the next distroless base bump (Renovate-tracked); these clear once distroless
+# rebuilds with deb12u2.
 CVE-2026-31789
 CVE-2026-28387
 CVE-2026-28388

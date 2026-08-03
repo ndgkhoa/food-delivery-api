@@ -94,10 +94,13 @@ RUN rm -f ./workflows/*.spec.* ./workflows/*.test.*
 # ("DriverPackageNotInstalledError"). Add it explicitly, pinned to the version
 # the workspace root declares (`pg@^8.22.0`); bump here in lockstep if root does.
 # A no-op weight for the driverless services (gateway/search/delivery).
-# The `overrides` forces the fixed js-yaml (a @nestjs/swagger transitive the
-# pruned manifest would otherwise resolve to the vulnerable 5.2.1,
-# GHSA-pm4m-ph32-ghv5); bump the floor here if a later advisory supersedes it.
-RUN npm pkg set "overrides.js-yaml=>=5.2.2" \
+# The override forces the fixed js-yaml where the pruned manifest would resolve
+# the vulnerable 5.2.1 (GHSA-pm4m-ph32-ghv5, affected 5.0.0-5.2.1). A
+# VERSION-RANGE-selector override targets ONLY that range and pins it exactly to
+# 5.2.3 — so it can't drift to a future major AND leaves consumers outside the
+# advisory (e.g. kafka-javascript's js-yaml 4.3.0) untouched. Bump the pin if a
+# later advisory supersedes it.
+RUN node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json'));p.overrides={...p.overrides,'js-yaml@>=5.0.0 <5.2.2':'5.2.3'};fs.writeFileSync('package.json',JSON.stringify(p,null,2));" \
     && npm install --omit=dev --no-audit --no-fund \
     && npm install --no-audit --no-fund --save=false pg@8.22.0 \
     && npm cache clean --force
