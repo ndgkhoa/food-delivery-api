@@ -4,6 +4,10 @@
     "outDir": "../../dist/out-tsc",
     "module": "commonjs",
     "moduleResolution": "node10",
+    // uuid v14 (pulled transitively by @temporalio) ships ESM only; allowJs lets
+    // ts-jest down-level its `export` syntax to CommonJS for the unit tests. Paired
+    // with the transformIgnorePatterns carve-out in jest.config.cts.
+    "allowJs": true,
     "types": ["jest", "node"]
   },
   "include": ["jest.config.cts", "src/**/*.test.ts", "src/**/*.spec.ts", "src/**/*.d.ts"]
