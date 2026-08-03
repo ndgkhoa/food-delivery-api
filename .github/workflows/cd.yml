@@ -34,6 +34,11 @@ jobs:
     permissions:
       contents: read
       packages: write
+      # Keyless supply-chain signing: id-token mints the short-lived OIDC token
+      # cosign + the provenance attestor exchange with Sigstore/Fulcio (no
+      # long-lived key), attestations lets the provenance be pushed to GHCR.
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -80,6 +85,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -91,6 +97,60 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+          # Let attest-build-provenance be the SINGLE provenance source — without
+          # this, BuildKit also attaches its own (mode=min) provenance and turns
+          # the pushed artifact into an OCI index.
+          provenance: false
+
+      # cosign-installer has no moving `@v4` major tag (unlike most actions here),
+      # so it is pinned to an exact version; the cosign BINARY is pinned too for
+      # a reproducible signer. Renovate keeps both current.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v4.1.2
+        with:
+          cosign-release: v3.1.2
+
+      # Sign the image BY DIGEST — one manifest digest covers every tag
+      # (sha/branch/latest), so signing the digest signs them all. Keyless: Fulcio
+      # issues a short-lived cert bound to this workflow's OIDC identity and the
+      # signature is recorded in Rekor (public transparency log). --yes skips the
+      # interactive confirmation (there is no TTY in CI).
+      - name: Sign image (keyless)
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.app }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+
+      # SLSA build provenance — a signed predicate describing HOW the image was
+      # built (source, builder, materials), attached to the image in GHCR.
+      - name: Attest SLSA provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.app }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      # Self-verify: fail the job if the just-produced signature doesn't validate
+      # against this workflow's identity + the GitHub OIDC issuer, so a broken
+      # signing config can never ship a "signed" image that nobody can verify.
+      # The identity regexp is fully ANCHORED (^…$) with literal dots escaped and
+      # the ref pinned to main/develop — cosign matches unanchored, so a loose
+      # pattern would weaken the very control it enforces.
+      # A consumer runs the same check against a pulled image:
+      #   cosign verify \
+      #     --certificate-identity-regexp '^https://github\.com/ndgkhoa/food-delivery-api/\.github/workflows/cd\.yml@refs/heads/(main|develop)$' \
+      #     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+      #     ghcr.io/ndgkhoa/<app>:<sha>
+      #   gh attestation verify oci://ghcr.io/ndgkhoa/<app>:<sha> --owner ndgkhoa
+      - name: Verify signature (self-check)
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.app }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          cosign verify \
+            --certificate-identity-regexp '^https://github\.com/${{ github.repository }}/\.github/workflows/cd\.yml@refs/heads/(main|develop)$' \
+            --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
+            "${IMAGE}@${DIGEST}"
 
   image-scan:
     name: trivy image scan (${{ matrix.app }})
