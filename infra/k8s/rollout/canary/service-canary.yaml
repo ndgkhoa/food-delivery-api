@@ -1,3 +1,6 @@
+# Selector deliberately has no `track:` — see service-stable.yaml's comment;
+# Argo Rollouts patches this Service's selector with `rollouts-pod-template-hash`
+# to steer it at the canary ReplicaSet as the Rollout progresses.
 apiVersion: v1
 kind: Service
 metadata:
@@ -10,7 +13,6 @@ spec:
   type: ClusterIP
   selector:
     app.kubernetes.io/name: gateway
-    track: canary
   ports:
     - name: http
       port: 3000
