@@ -115,6 +115,34 @@ export class FakeSagaRepository implements OrderSagaRepository {
       }),
     );
   }
+
+  async resetReconcileAttempts(
+    tenantId: string,
+    orderId: string,
+  ): Promise<'reset' | 'terminal' | 'not_found'> {
+    const saga = this.rows.get(orderId);
+    if (!saga || saga.tenantId !== tenantId) {
+      return 'not_found';
+    }
+    if (!NON_TERMINAL_SAGA_STATES.includes(saga.state)) {
+      return 'terminal';
+    }
+    this.rows.set(
+      orderId,
+      OrderSaga.reconstitute({
+        orderId: saga.orderId,
+        tenantId: saga.tenantId,
+        state: saga.state,
+        correlationId: saga.correlationId,
+        lastEventId: saga.lastEventId,
+        version: saga.version,
+        attempts: 0,
+        createdAt: saga.createdAt,
+        updatedAt: new Date(),
+      }),
+    );
+    return 'reset';
+  }
 }
 
 export class FakeOrderRepository implements OrderRepository {

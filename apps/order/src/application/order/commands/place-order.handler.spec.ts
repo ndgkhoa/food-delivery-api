@@ -91,6 +91,11 @@ class FakeSagaRepository implements OrderSagaRepository {
   async recordReconcileAttempt(): Promise<void> {
     // Not exercised by place-order tests — the reconciler is covered separately.
   }
+
+  async resetReconcileAttempts(): Promise<'reset' | 'terminal' | 'not_found'> {
+    // Not exercised by place-order tests — the DLQ-replay tool is covered separately.
+    return 'not_found';
+  }
 }
 
 class FakeCatalogGateway implements CatalogGatewayPort {

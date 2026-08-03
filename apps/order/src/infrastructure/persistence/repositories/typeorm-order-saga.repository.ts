@@ -117,6 +117,42 @@ export class TypeOrmOrderSagaRepository implements OrderSagaRepository {
     }
   }
 
+  /**
+   * DLQ-replay tool: a single conditional `UPDATE ... WHERE tenant_id AND
+   * order_id AND state IN (non-terminal)` resets `attempts` to 0 so the next
+   * reaper sweep re-drives the saga fresh. Deliberately does NOT touch
+   * `updated_at`: the reaper selects stranded rows by `updated_at < now -
+   * timeout`, and an escalated saga is only ever swept because its
+   * `updated_at` is already stale — bumping it here would make the row freshly
+   * idle and skip it for a full timeout window, so the replay would silently
+   * not take effect until then. Leaving `updated_at` untouched keeps the saga
+   * immediately sweep-eligible, so the very next tick re-drives it. Zero
+   * affected rows is ambiguous (missing row vs. terminal row), so a follow-up
+   * tenant-scoped lookup disambiguates the two outcomes for the caller.
+   */
+  async resetReconcileAttempts(
+    tenantId: string,
+    orderId: string,
+  ): Promise<'reset' | 'terminal' | 'not_found'> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(OrderSagaOrmEntity)
+      .set({ attempts: 0 })
+      .where('order_id = :orderId AND tenant_id = :tenantId AND state IN (:...states)', {
+        orderId,
+        tenantId,
+        states: [...NON_TERMINAL_SAGA_STATES],
+      })
+      .execute();
+
+    if ((result.affected ?? 0) > 0) {
+      return 'reset';
+    }
+
+    const existing = await this.findByOrderId(tenantId, orderId);
+    return existing ? 'terminal' : 'not_found';
+  }
+
   async findNonTerminal(olderThan: Date): Promise<StrandedSagaCandidate[]> {
     const rows = await this.ormRepository
       .createQueryBuilder('saga')
