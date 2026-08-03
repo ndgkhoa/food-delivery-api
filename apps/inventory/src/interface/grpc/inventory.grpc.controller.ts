@@ -7,6 +7,7 @@ import {
   type ReserveResponse,
 } from '@food-delivery-api/shared-contracts';
 import { LockContentionError } from '@food-delivery-api/shared-locking';
+import { GRPC_TENANT_VERIFIER, type GrpcTenantVerifier } from '@food-delivery-api/shared-tenancy';
 import { status as GrpcStatus, type Metadata } from '@grpc/grpc-js';
 import { ReleaseStockHandler } from '@inventory/application/reservation/commands/release-stock.handler';
 import { ReserveStockHandler } from '@inventory/application/reservation/commands/reserve-stock.handler';
@@ -15,7 +16,7 @@ import {
   InvalidReserveRequestError,
 } from '@inventory/domain/shared/errors';
 import { readTenantFromMetadata } from '@inventory/interface/grpc/read-tenant-from-metadata';
-import { Controller, Logger } from '@nestjs/common';
+import { Controller, Inject, Logger } from '@nestjs/common';
 import { GrpcMethod, RpcException } from '@nestjs/microservices';
 
 /**
@@ -32,12 +33,13 @@ export class InventoryGrpcController implements InventoryGrpcService {
   constructor(
     private readonly reserveStock: ReserveStockHandler,
     private readonly releaseStock: ReleaseStockHandler,
+    @Inject(GRPC_TENANT_VERIFIER) private readonly tenantVerifier: GrpcTenantVerifier,
   ) {}
 
   @GrpcMethod(INVENTORY_SERVICE_NAME, 'Reserve')
   async reserve(request: ReserveRequest, metadata?: Metadata): Promise<ReserveResponse> {
     try {
-      const tenantId = readTenantFromMetadata(metadata);
+      const tenantId = readTenantFromMetadata(metadata, this.tenantVerifier, Date.now());
       return await this.reserveStock.execute({
         tenantId,
         orderId: request.orderId,
@@ -51,7 +53,7 @@ export class InventoryGrpcController implements InventoryGrpcService {
   @GrpcMethod(INVENTORY_SERVICE_NAME, 'Release')
   async release(request: ReleaseRequest, metadata?: Metadata): Promise<ReleaseResponse> {
     try {
-      const tenantId = readTenantFromMetadata(metadata);
+      const tenantId = readTenantFromMetadata(metadata, this.tenantVerifier, Date.now());
       return await this.releaseStock.execute({ tenantId, orderId: request.orderId });
     } catch (error) {
       throw this.toRpcException(error);

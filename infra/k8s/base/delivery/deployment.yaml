@@ -26,11 +26,14 @@ spec:
           type: RuntimeDefault
       containers:
         - name: delivery
-          image: food-delivery/delivery:dev
+          image: food-delivery-api:dev
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 3005
+          env:
+            - name: APP
+              value: delivery
           envFrom:
             - configMapRef:
                 name: delivery-config

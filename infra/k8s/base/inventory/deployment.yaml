@@ -26,13 +26,16 @@ spec:
           type: RuntimeDefault
       containers:
         - name: inventory
-          image: food-delivery/inventory:dev
+          image: food-delivery-api:dev
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 3011
             - name: grpc
               containerPort: 50052
+          env:
+            - name: APP
+              value: inventory
           envFrom:
             - configMapRef:
                 name: inventory-config
