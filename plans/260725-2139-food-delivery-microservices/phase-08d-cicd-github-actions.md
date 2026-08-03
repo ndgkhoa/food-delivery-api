@@ -1,5 +1,7 @@
 # Slice 8d — CI/CD (GitHub Actions) + supply-chain scans + Renovate
 
+> **Note (superseded in part):** the per-app image matrix + `--build-arg APP` described below was later consolidated into ONE `food-delivery-api` image with a runtime `APP` launcher — see [backlog-single-image-food-delivery-api.md](./backlog-single-image-food-delivery-api.md). The cosign/SLSA + severity-gate/ignore details here still hold, now applied to the single image.
+
 Context: [phase-08.md](./phase-08-ops-observability.md) · [phase-08c-a-k8s-manifests-dockerfiles.md](./phase-08c-a-k8s-manifests-dockerfiles.md) · [phase-08c-b-hpa-canary-rollout.md](./phase-08c-b-hpa-canary-rollout.md) · [architecture.md](./architecture.md)
 
 ## Overview

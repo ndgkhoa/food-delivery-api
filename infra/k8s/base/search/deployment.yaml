@@ -26,11 +26,14 @@ spec:
           type: RuntimeDefault
       containers:
         - name: search
-          image: food-delivery/search:dev
+          image: food-delivery-api:dev
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 3004
+          env:
+            - name: APP
+              value: search
           envFrom:
             - configMapRef:
                 name: search-config

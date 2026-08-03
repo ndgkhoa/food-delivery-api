@@ -2,9 +2,9 @@
 # here) — every app's DB/Redis/Kafka/ES/ClickHouse/Temporal/MinIO/Keycloak
 # endpoints are patched to point at external managed services instead
 # (placeholder hostnames; real values come from a secret manager/GitOps
-# pipeline in 8d, never committed here). Registry images replace the local
-# `food-delivery/<app>:dev` tags, replicas go to 2 for every stateless app,
-# and resource requests/limits move from dev-modest to production-real.
+# pipeline in 8d, never committed here). The registry image replaces the local
+# `food-delivery-api:dev` tag, replicas go to 2 for every stateless app, and
+# resource requests/limits move from dev-modest to production-real.
 #
 # NetworkPolicy enforcement needs a stack that implements the NetworkPolicy API.
 # k3s/k3d DO enforce out of the box — they bundle a kube-router-based policy
@@ -18,6 +18,11 @@
 # so kubelet httpGet probes survive default-deny (verified on k3d), but a CNI
 # running a host firewall / HostEndpoints may filter probe traffic — confirm
 # liveness/readiness still pass after applying these policies on the real CNI.
+#
+# Every Deployment now runs off the ONE `food-delivery-api` base image (the
+# service it runs is selected at runtime by its `APP` env var, not by a
+# distinct image) — so a single `images:` entry below covers all 13 services
+# instead of 13 near-identical ones.
 #
 # `internal-identity-secret` (base/internal-identity/secret.yaml) carries the
 # placeholder dev value straight through here — this overlay does NOT patch
@@ -35,44 +40,8 @@ resources:
   - allow-external-infra-egress.yaml
 
 images:
-  - name: food-delivery/gateway
-    newName: ghcr.io/ndgkhoa/gateway
-    newTag: latest
-  - name: food-delivery/catalog
-    newName: ghcr.io/ndgkhoa/catalog
-    newTag: latest
-  - name: food-delivery/auth
-    newName: ghcr.io/ndgkhoa/auth
-    newTag: latest
-  - name: food-delivery/order
-    newName: ghcr.io/ndgkhoa/order
-    newTag: latest
-  - name: food-delivery/search
-    newName: ghcr.io/ndgkhoa/search
-    newTag: latest
-  - name: food-delivery/delivery
-    newName: ghcr.io/ndgkhoa/delivery
-    newTag: latest
-  - name: food-delivery/media
-    newName: ghcr.io/ndgkhoa/media
-    newTag: latest
-  - name: food-delivery/payment
-    newName: ghcr.io/ndgkhoa/payment
-    newTag: latest
-  - name: food-delivery/config
-    newName: ghcr.io/ndgkhoa/config
-    newTag: latest
-  - name: food-delivery/review
-    newName: ghcr.io/ndgkhoa/review
-    newTag: latest
-  - name: food-delivery/analytics
-    newName: ghcr.io/ndgkhoa/analytics
-    newTag: latest
-  - name: food-delivery/inventory
-    newName: ghcr.io/ndgkhoa/inventory
-    newTag: latest
-  - name: food-delivery/notification
-    newName: ghcr.io/ndgkhoa/notification
+  - name: food-delivery-api
+    newName: ghcr.io/ndgkhoa/food-delivery-api
     newTag: latest
 
 patches:
