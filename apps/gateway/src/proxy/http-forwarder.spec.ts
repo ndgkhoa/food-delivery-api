@@ -1,50 +1,16 @@
-import type { AuthenticatedRequest } from '@gateway/guards/authenticated-request';
-import type { CircuitBreakerRegistry } from '@gateway/proxy/circuit-breaker.registry';
-import type { ForwardTarget } from '@gateway/proxy/http-forwarder';
+import {
+  IDENTITY_SIG_HEADER,
+  IDENTITY_TS_HEADER,
+  signIdentity,
+} from '@food-delivery-api/shared-tenancy';
 import { HttpForwarder } from '@gateway/proxy/http-forwarder';
-import type { Response as ExpressResponse } from 'express';
-
-const TARGET: ForwardTarget = {
-  gatewayPrefix: '/api/v1/catalog',
-  baseUrl: 'http://catalog.internal:3001',
-  serviceName: 'catalog',
-};
-
-function reqStub(overrides: Partial<AuthenticatedRequest> = {}): AuthenticatedRequest {
-  return {
-    identity: { sub: 'user-1', tenantId: 'tenant-1', roles: [] },
-    originalUrl: '/api/v1/catalog/restaurants',
-    method: 'GET',
-    headers: {},
-    body: undefined,
-    ...overrides,
-  } as unknown as AuthenticatedRequest;
-}
-
-function resStub(): { res: ExpressResponse; state: Record<string, unknown> } {
-  const state: Record<string, unknown> = { headers: {} };
-  const res = {
-    status: jest.fn(function status(this: unknown, code: number) {
-      state.status = code;
-      return res;
-    }),
-    setHeader: jest.fn((key: string, value: string) => {
-      (state.headers as Record<string, string>)[key] = value;
-    }),
-    json: jest.fn((body: unknown) => {
-      state.body = body;
-    }),
-    send: jest.fn((body: unknown) => {
-      state.sent = body;
-    }),
-  } as unknown as ExpressResponse;
-  return { res, state };
-}
-
-/** Fake registry: `run` is mocked per test to resolve/reject as the scenario needs. */
-function breakersStub(run: jest.Mock): CircuitBreakerRegistry {
-  return { run, resetTimeoutMs: 10_000 } as unknown as CircuitBreakerRegistry;
-}
+import {
+  breakersStub,
+  configStub,
+  reqStub,
+  resStub,
+  TARGET,
+} from '@gateway/testing/http-forwarder-test-fixtures';
 
 describe('HttpForwarder', () => {
   const originalFetch = global.fetch;
@@ -59,7 +25,7 @@ describe('HttpForwarder', () => {
     global.fetch = fetchSpy as unknown as typeof fetch;
     const openError = Object.assign(new Error('Breaker is open'), { code: 'EOPENBREAKER' });
     const run = jest.fn().mockRejectedValue(openError);
-    const forwarder = new HttpForwarder(breakersStub(run));
+    const forwarder = new HttpForwarder(breakersStub(run), configStub());
     const { res, state } = resStub();
 
     await forwarder.forward(reqStub(), res, TARGET);
@@ -76,7 +42,7 @@ describe('HttpForwarder', () => {
       name: 'AbortError',
     });
     const run = jest.fn().mockRejectedValue(abortError);
-    const forwarder = new HttpForwarder(breakersStub(run));
+    const forwarder = new HttpForwarder(breakersStub(run), configStub());
     const { res, state } = resStub();
 
     await forwarder.forward(reqStub(), res, TARGET);
@@ -87,7 +53,7 @@ describe('HttpForwarder', () => {
 
   it('maps any other rejection (network error) to 502', async () => {
     const run = jest.fn().mockRejectedValue(new Error('ECONNREFUSED'));
-    const forwarder = new HttpForwarder(breakersStub(run));
+    const forwarder = new HttpForwarder(breakersStub(run), configStub());
     const { res, state } = resStub();
 
     await forwarder.forward(reqStub(), res, TARGET);
@@ -104,7 +70,7 @@ describe('HttpForwarder', () => {
       }),
     ) as unknown as typeof fetch;
     const run = jest.fn((_service: string, action: () => Promise<unknown>) => action());
-    const forwarder = new HttpForwarder(breakersStub(run));
+    const forwarder = new HttpForwarder(breakersStub(run), configStub());
     const { res, state } = resStub();
 
     await forwarder.forward(reqStub(), res, TARGET);
@@ -120,7 +86,7 @@ describe('HttpForwarder', () => {
         new Response(JSON.stringify({ data: [] }), { status: 200 }),
       ) as unknown as typeof fetch;
     const run = jest.fn((_service: string, action: () => Promise<unknown>) => action());
-    const forwarder = new HttpForwarder(breakersStub(run));
+    const forwarder = new HttpForwarder(breakersStub(run), configStub());
     const { res, state } = resStub();
 
     await forwarder.forward(reqStub(), res, TARGET);
@@ -145,7 +111,7 @@ describe('HttpForwarder', () => {
     };
     global.fetch = jest.fn().mockResolvedValue(upstream) as unknown as typeof fetch;
     const run = jest.fn((_service: string, action: () => Promise<unknown>) => action());
-    const forwarder = new HttpForwarder(breakersStub(run));
+    const forwarder = new HttpForwarder(breakersStub(run), configStub());
     const { res, state } = resStub();
 
     await forwarder.forward(reqStub(), res, TARGET);
@@ -161,7 +127,7 @@ describe('HttpForwarder', () => {
     global.fetch = fetchSpy as unknown as typeof fetch;
     // Pass-through run: invokes the action exactly as CircuitBreakerRegistry would when disabled.
     const run = jest.fn((_service: string, action: () => Promise<unknown>) => action());
-    const forwarder = new HttpForwarder(breakersStub(run));
+    const forwarder = new HttpForwarder(breakersStub(run), configStub());
     const { res } = resStub();
 
     await forwarder.forward(reqStub(), res, TARGET);
@@ -170,5 +136,43 @@ describe('HttpForwarder', () => {
       'http://catalog.internal:3001/api/v1/restaurants',
       expect.objectContaining({ method: 'GET' }),
     );
+  });
+
+  it('stamps a verifiable identity signature when a signing key is configured', async () => {
+    const upstream = new Response('ok', { status: 200 });
+    const fetchSpy = jest.fn().mockResolvedValue(upstream);
+    global.fetch = fetchSpy as unknown as typeof fetch;
+    const run = jest.fn((_service: string, action: () => Promise<unknown>) => action());
+    const key = 'a-test-signing-key-at-least-32-chars-long';
+    const forwarder = new HttpForwarder(
+      breakersStub(run),
+      configStub({ INTERNAL_IDENTITY_SIGNING_KEY: key }),
+    );
+    const req = reqStub();
+    const { res } = resStub();
+
+    await forwarder.forward(req, res, TARGET);
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    expect(headers[IDENTITY_TS_HEADER]).toMatch(/^\d+$/);
+    const expectedSig = signIdentity(key, req.identity!, Number(headers[IDENTITY_TS_HEADER]));
+    expect(headers[IDENTITY_SIG_HEADER]).toBe(expectedSig);
+  });
+
+  it('stamps no signature headers when no signing key is configured (unsigned/local dev)', async () => {
+    const upstream = new Response('ok', { status: 200 });
+    const fetchSpy = jest.fn().mockResolvedValue(upstream);
+    global.fetch = fetchSpy as unknown as typeof fetch;
+    const run = jest.fn((_service: string, action: () => Promise<unknown>) => action());
+    const forwarder = new HttpForwarder(breakersStub(run), configStub());
+    const { res } = resStub();
+
+    await forwarder.forward(reqStub(), res, TARGET);
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    expect(headers[IDENTITY_TS_HEADER]).toBeUndefined();
+    expect(headers[IDENTITY_SIG_HEADER]).toBeUndefined();
   });
 });

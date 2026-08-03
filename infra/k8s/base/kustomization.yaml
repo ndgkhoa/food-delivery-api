@@ -4,6 +4,7 @@
 namespace: food-delivery
 resources:
   - namespace.yaml
+  - internal-identity
   - gateway
   - catalog
   - auth
@@ -60,3 +61,18 @@ patches:
       - op: add
         path: /spec/template/spec/terminationGracePeriodSeconds
         value: 30
+  # Wires the shared internal-identity Secret (internal-identity/secret.yaml)
+  # into EVERY Deployment's container — the gateway signs the trusted identity
+  # headers with this key and every service verifies them against it, so it
+  # must reach all of them identically. `envFrom/-` appends regardless of how
+  # many entries a given service's envFrom already has (some have only a
+  # configMapRef, others already have a secretRef too), so one patch covers
+  # every shape without 14 near-identical edits.
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/envFrom/-
+        value:
+          secretRef:
+            name: internal-identity-secret

@@ -1,8 +1,9 @@
 import { CORRELATION_ID_HEADER } from '@food-delivery-api/shared-logging';
-import { applyTrustedIdentityHeaders } from '@food-delivery-api/shared-tenancy';
+import { applyTrustedIdentityHeaders, signIdentity } from '@food-delivery-api/shared-tenancy';
 import type { AuthenticatedRequest } from '@gateway/guards/authenticated-request';
 import { CircuitBreakerRegistry } from '@gateway/proxy/circuit-breaker.registry';
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 
 const BODYLESS_METHODS = new Set(['GET', 'HEAD']);
@@ -48,7 +49,10 @@ interface UpstreamResult {
  */
 @Injectable()
 export class HttpForwarder {
-  constructor(private readonly breakers: CircuitBreakerRegistry) {}
+  constructor(
+    private readonly breakers: CircuitBreakerRegistry,
+    private readonly config: ConfigService,
+  ) {}
 
   async forward(req: AuthenticatedRequest, res: Response, target: ForwardTarget): Promise<void> {
     if (!req.identity) {
@@ -77,7 +81,16 @@ export class HttpForwarder {
       }
     }
     // Only the verified identity is forwarded — nothing the client supplied.
-    applyTrustedIdentityHeaders(headers, req.identity);
+    // When a signing key is configured (unset only for a local one-off run —
+    // never in prod), the identity is also HMAC-signed so every downstream
+    // service can reject a caller that reaches it directly without going
+    // through this forwarder.
+    const signingKey = this.config.get<string>('INTERNAL_IDENTITY_SIGNING_KEY');
+    applyTrustedIdentityHeaders(
+      headers,
+      req.identity,
+      signingKey ? (identity, ts) => signIdentity(signingKey, identity, ts) : undefined,
+    );
 
     const init: RequestInit = { method: req.method, headers };
     if (!BODYLESS_METHODS.has(req.method)) {
