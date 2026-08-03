@@ -132,4 +132,11 @@ WORKDIR /app
 COPY --from=deps /app/ ./
 COPY infra/docker/launcher.js ./launcher.js
 
+# The distroless `:nonroot` base already defaults to uid 65532, but state it
+# explicitly (numeric, so it's resolvable without /etc/passwd) so a Dockerfile
+# scanner sees a non-root USER directive — the builder/deps stages must stay
+# root for apt/npm. k8s still overrides this via the pod securityContext at
+# runtime; this is only the image's own default.
+USER 65532:65532
+
 CMD ["launcher.js"]

@@ -115,5 +115,10 @@
     "webpack": "^5.101.3",
     "webpack-cli": "^7.0.0",
     "webpack-dev-server": "^5.2.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "uuid@<14": "^14.0.0"
+    }
   }
 }
