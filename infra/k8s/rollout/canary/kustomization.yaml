@@ -1,0 +1,8 @@
+namespace: food-delivery
+resources:
+  - rollout.yaml
+  - analysis-template.yaml
+  - service-stable.yaml
+  - service-canary.yaml
+  - traefik-service.yaml
+  - ingressroute.yaml

@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: order-config
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: order
+    app.kubernetes.io/part-of: food-delivery
+    food-delivery.io/config-kind: app-env
+data:
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.food-delivery:4318"
+  TELEMETRY_ENABLED: "true"
+  PORT: "3003"
+  DB_HOST: "postgres.food-delivery"
+  DB_PORT: "5432"
+  DB_NAME: "order"
+  DB_REPLICA_PORT: "5433"
+  CATALOG_GRPC_URL: "catalog.food-delivery:50051"
+  INVENTORY_GRPC_URL: "inventory.food-delivery:50052"
+  KAFKA_BROKERS: "kafka.food-delivery:9092"
+  KAFKA_CLIENT_ID: "order"
+  SAGA_REAPER_TIMEOUT_MS: "60000"
+  SAGA_REAPER_INTERVAL_MS: "30000"
+  CONFIG_SERVICE_URL: "http://config.food-delivery:3008"
+  CONFIG_CACHE_TTL_MS: "30000"

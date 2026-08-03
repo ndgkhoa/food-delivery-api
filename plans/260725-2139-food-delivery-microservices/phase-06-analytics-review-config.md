@@ -4,7 +4,7 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 
 ## Overview
 - **Priority**: P2
-- **Status**: Not started
+- **Status**: ✅ Done — **6a** [config service + client](./phase-06a-config-service-and-client.md) (#21 config+client · #22 order fee/VAT/discount); **6b** [review → rating → search](./phase-06b-review-rating-search.md) (#23 order restaurantId · #24 review→rating→search/catalog); **6c** [analytics ClickHouse](./phase-06c-analytics-clickhouse.md) (#25). Each verified live + adversarially reviewed → merged.
 - **Brief**: Three event-consuming services that complete the domain: `analytics` (Kafka→ClickHouse→dashboard), `review` (rating→Kafka→restaurant score→ES ranking), `config` (delivery fee/VAT/discount values + feature-flag toggles). All build on the P3 event backbone. Independent tracks — parallelizable.
 
 ## Key insights
@@ -38,12 +38,12 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 6. E2E: change delivery fee in config → new orders use it; submit rating → restaurant score changes → search ranks by it; place/pay orders → analytics dashboard reflects revenue+top items.
 
 ## Todo
-- [ ] config service (values + tenant override) + feature flags + change events
-- [ ] shared/config-client with cache + invalidation; order uses it
-- [ ] review submit + emit + rating recompute → read model + ES
-- [ ] search ranking/filter uses rating
-- [ ] analytics consumers → ClickHouse + dashboard API (`analytics` profile)
-- [ ] E2E: config change, rating→search, revenue dashboard
+- [x] config service (values + tenant override) + feature flags + change events
+- [x] shared/config-client with cache + invalidation; order uses it
+- [x] review submit + emit + rating recompute → read model + ES
+- [x] search ranking/filter uses rating
+- [x] analytics consumers → ClickHouse + dashboard API (`analytics` profile)
+- [x] E2E: config change, rating→search, revenue dashboard
 
 ## Success criteria
 - Changing delivery fee/VAT in config immediately affects new order totals; feature flag toggles a behavior without redeploy.

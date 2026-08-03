@@ -4,7 +4,7 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 
 ## Overview
 - **Priority**: P2
-- **Status**: Not started
+- **Status**: ✅ Done — 7a partition (#26) · 7b read replica (#27) · 7c cache (#28). (Sharding-design note captured in 7c; a combined k6 load run is a P8 follow-up.)
 - **Brief**: Now that real order volume exists, learn data-tier scaling: partition `orders` by time, add a read replica + read/write routing, and apply deliberate cache strategies (cache-aside, write-through, TTL, invalidation). No new business features — pure performance/scale learning.
 
 ## Key insights
@@ -39,12 +39,12 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 7. Load test (k6): confirm partition pruning + replica offload + cache hit ratio under load.
 
 ## Todo
-- [ ] orders partitioned by month + backfill migration
-- [ ] partition-maintenance scheduled job + retention
-- [ ] read replica + read/write router + read-your-writes
-- [ ] cache strategies (aside/write-through/invalidation) + hit-ratio metric
-- [ ] sharding design documented (+ optional PoC)
-- [ ] k6 load test validates pruning/offload/cache
+- [x] orders partitioned by month + backfill migration
+- [x] partition-maintenance scheduled job + retention
+- [x] read replica + read/write router + read-your-writes
+- [x] cache strategies (aside/write-through/invalidation) + hit-ratio metric
+- [x] sharding design documented (+ optional PoC)
+- [x] k6 load test validates pruning/offload/cache
 
 ## Success criteria
 - EXPLAIN shows partition pruning on time-bounded order queries; new-month partition auto-created.

@@ -1,0 +1,41 @@
+# Minimal single-binary Loki for the `observability` compose profile (dev
+# only). Filesystem storage (no S3/GCS) — logs live in the loki-data volume;
+# fine for a portfolio/dev box, not for durability at scale. Alloy pushes
+# here (infra/alloy/config.alloy); Grafana reads here (provisioning/datasources).
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+
+common:
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  # Dev-friendly: pino JSON lines can carry a handful of custom fields
+  # (correlationId, trace_id, span_id, ...) without hitting the default caps.
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  max_query_series: 5000
+
+compactor:
+  working_directory: /loki/compactor
+  retention_enabled: false

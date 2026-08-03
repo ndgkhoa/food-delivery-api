@@ -1,0 +1,18 @@
+meta {
+  name: Order - get by id
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{gateway}}/orders/:orderId
+  auth: bearer
+}
+
+params:path {
+  orderId: 
+}
+
+auth:bearer {
+  token: {{token}}
+}

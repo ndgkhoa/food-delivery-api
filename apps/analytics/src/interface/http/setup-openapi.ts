@@ -1,0 +1,23 @@
+import type { INestApplication } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { apiReference } from '@scalar/nestjs-api-reference';
+import type { Request, Response } from 'express';
+
+/**
+ * Publishes the analytics OpenAPI spec at `/api/v1/openapi.json` and a Scalar
+ * reference UI at `/api/v1/reference` (mirrors every other service's setup).
+ */
+export function setupOpenApi(app: INestApplication): void {
+  const config = new DocumentBuilder()
+    .setTitle('Analytics Service API')
+    .setDescription('Tenant-scoped dashboards (revenue, order counts, top restaurants).')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+
+  app.use('/api/v1/openapi.json', (_req: Request, res: Response) => {
+    res.json(document);
+  });
+  app.use('/api/v1/reference', apiReference({ url: '/api/v1/openapi.json' }));
+}

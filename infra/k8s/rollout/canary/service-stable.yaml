@@ -1,0 +1,21 @@
+# Selector deliberately has no `track:` — the Rollout's pod template
+# (rollout.yaml) no longer sets that label; Argo Rollouts owns stable/canary
+# routing by patching `rollouts-pod-template-hash` onto this selector itself
+# once the controller reconciles the Rollout named as this Service's
+# canaryService/stableService.
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-stable
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: gateway
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: gateway
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http

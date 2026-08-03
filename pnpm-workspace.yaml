@@ -1,0 +1,11 @@
+packages:
+  - apps/*
+  - libs/shared/*
+
+autoInstallPeers: true
+onlyBuiltDependencies:
+  - nx
+  - '@biomejs/biome'
+  - '@swc/core'
+  - esbuild
+  - '@confluentinc/kafka-javascript'

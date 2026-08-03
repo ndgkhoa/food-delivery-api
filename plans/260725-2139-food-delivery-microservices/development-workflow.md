@@ -17,14 +17,15 @@ Work in small **vertical slices** (one feature = one branch = one PR). No big-ba
 4. Local gate (Lefthook pre-commit runs automatically):
       biome check --write  ·  commitlint (commit-msg)
 5. Self-check:  test  ·  cruiser boundaries  ·  knip  (all green)
-6. Push → open PR (fill .github/pull_request_template.md)
-7. CI must pass (see §4)
-8. Code review (code-reviewer) → address feedback
-9. All green + approved → squash-merge into develop → delete branch (local + remote)
-10. Renovate keeps deps/images current via its own PRs
+6. **Update the plan BEFORE pushing**: tick the completed todos + set phase/slice status in `plans/…` (commit it on the branch). Push must never run ahead of the plan.
+7. Push → open PR (fill .github/pull_request_template.md)
+8. CI must pass (see §4)
+9. Code review (code-reviewer) → address feedback
+10. All green + approved → squash-merge into develop → delete branch (local + remote)
+11. Renovate keeps deps/images current via its own PRs
 ```
 
-Never commit directly to `main` or `develop`. Never merge red CI or unreviewed code.
+Never commit directly to `main` or `develop`. Never merge red CI or unreviewed code. **Never push before the plan + todos reflect what the push contains.**
 
 ## 3. Definition of Done (DoD)
 
@@ -37,6 +38,7 @@ A slice is DONE only when ALL hold:
 - [ ] No secrets committed; `.env.example` updated if new env added
 - [ ] OpenAPI spec updated if API changed (Scalar UI reflects it)
 - [ ] Audit-log / soft-delete / tenant-scope respected on new writes
+- [ ] **Plan updated BEFORE push**: todos ticked + phase/slice status set in `plans/…`
 - [ ] PR reviewed and approved; CI green
 - [ ] Docs updated if behavior/contract changed
 

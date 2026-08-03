@@ -1,0 +1,42 @@
+// Grafana Alloy for the `observability` compose profile (dev only). Scrapes
+// every Docker container's stdout/stderr (json-file log driver, the compose
+// default) and ships it to Loki, labelled by container name so a log line
+// can be filtered per service. Chosen over Promtail — Promtail is in
+// maintenance mode/deprecated in favour of Alloy as of the current Grafana
+// stack; Alloy is the actively developed log shipper.
+//
+// pino already emits structured JSON with `trace_id`/`span_id`
+// (libs/shared/logging's mixin) and `correlationId` baked into every line —
+// Grafana's Loki datasource extracts `trace_id` straight out of the raw line
+// via a derived field (see infra/grafana/provisioning/datasources), so no
+// extra parsing stage is needed here (YAGNI): Alloy ships the line as-is.
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Maps the container name (Docker prefixes it with a leading "/") onto the
+// `service_name` label Grafana/Loki queries filter on.
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "service_name"
+  }
+}
+
+loki.source.docker "containers" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.containers.targets
+  relabel_rules = discovery.relabel.containers.rules
+  labels        = { platform = "docker" }
+  forward_to    = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

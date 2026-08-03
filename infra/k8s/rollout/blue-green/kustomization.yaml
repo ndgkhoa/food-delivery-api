@@ -1,0 +1,5 @@
+namespace: food-delivery
+resources:
+  - rollout.yaml
+  - service.yaml
+  - service-preview.yaml

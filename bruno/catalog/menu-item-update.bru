@@ -1,0 +1,27 @@
+meta {
+  name: Menu item - update
+  type: http
+  seq: 9
+}
+
+patch {
+  url: {{gateway}}/catalog/restaurants/:restaurantId/menu-items/:menuItemId
+  body: json
+  auth: bearer
+}
+
+params:path {
+  restaurantId: 
+  menuItemId: 
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "priceCents": 5500,
+    "isAvailable": false
+  }
+}

@@ -1,0 +1,26 @@
+# config is an east-west dependency of the gateway AND other services
+# (order/payment/... read CONFIG_SERVICE_URL), so its ingress admits any app
+# pod in the namespace — `part-of: food-delivery` covers every service and the
+# gateway alike.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress-config-http
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: ingress-config-http
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: config
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: food-delivery
+      ports:
+        - protocol: TCP
+          port: 3008

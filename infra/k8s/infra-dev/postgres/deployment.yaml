@@ -1,0 +1,87 @@
+# Single-replica Postgres for LOCAL k3d verification only — used exclusively
+# by the dev overlay (see infra/k8s/overlays/dev). Prod has no in-cluster
+# infra; the prod overlay points every app's DB_HOST at an external managed
+# instance instead. Runs as the official image's own entrypoint user (it
+# needs root at first init to chown the data dir) — a lighter security
+# posture than the app Deployments is acceptable here since this is
+# throwaway dev tooling, never shipped as one of our own images.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/part-of: food-delivery
+    spec:
+      # postgres:18 defaults its data dir (PGDATA) to /var/lib/postgresql/18/docker,
+      # NOT the conventional /var/lib/postgresql/data — so the PVC (mounted at the
+      # latter) must be paired with an explicit PGDATA under it, or the data never
+      # lands on the volume. `fsGroup` makes the mounted PVC writable by the
+      # postgres group so the entrypoint can initialise it.
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: postgres:18.4
+          ports:
+            - name: postgres
+              containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: postgres-secret
+          env:
+            # Point PGDATA at a subdir of the mounted volume (PG refuses a mount
+            # root as PGDATA, and PG18's default path is off-volume otherwise).
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          # No dropped capabilities here (unlike the app Deployments): the official
+          # image's entrypoint runs as root to chown/initdb the data dir on first
+          # boot, then drops to the postgres user itself — dropping CHOWN/SETUID
+          # breaks that. Acceptable: this is throwaway dev-only infra, never shipped.
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+              subPath: postgres
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgres-data
+        - name: init
+          configMap:
+            name: postgres-init
+            defaultMode: 0755

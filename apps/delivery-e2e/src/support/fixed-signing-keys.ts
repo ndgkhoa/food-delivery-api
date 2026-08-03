@@ -1,0 +1,48 @@
+/**
+ * A FIXED RSA key pair (and `kid`) shared by every delivery e2e suite. The
+ * delivery service caches the JWKS it fetches keyed by `kid`, and jest isolates
+ * each test file's module registry — so if every suite minted a random key
+ * under the same kid, only the first suite's tokens would verify. Pinning the
+ * key material makes every suite's JWKS byte-identical, so the service's cache
+ * stays valid across all of them. Test-only; never a real credential.
+ */
+export const FIXED_SIGNING_KID = 'delivery-e2e-fixed';
+
+export const FIXED_PRIVATE_KEY_PEM = `-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC0zuqFB67V3Akc
+I6geVFPX3BQUTOruLIsFCNVqTgacTLmqVoEA952mQk/P4LJr2Vo7Rtmr08+E0cUO
+2ve0MzImrNPVe2ue8cgY7EzN+8cef0uE7y9JKD0GVp882+xuFdCZRPSMTLY+/XJv
+QWxCsmKeqtnYR3BvBsPyoDD1xg4j2/3Nt7babcsOB2b+SDwCZhAmbLSdBdexKjZ5
+ZJM9IFVFwv52ttKWWf9FjldGIWK7wMHXqtECLxDAjk/uQ3Dw2tBWjbTY7WNy9KXF
+4aXVQJnud7fcqEs7CYDd0kJ0B7jmRi3Uxb3sIvrElL2WX8TLfOxUnOVXvkeQM51x
+gmtwOvhHAgMBAAECggEAaciRjylSkg69SbhW2P/PWgCJwuLJpHVtFJH5gsuJtJJz
+IgSgTzeQBcDQPzggS1cMIpguLAitZfDw0OMtf0Fgux3shf9ClOiygFpoCS+gbOhe
+/7SMvsmLApVVbt7gsfuTYsjkJt2O1sWj2RG2zELfziL5dz88uciEhgRRAMpSZYmI
+K+o7UvcZsXgs6BJ0NBMujYIV4kOawEF3hDW+T/eB8TSIAwTDNmQxsCxmeDOkg34y
+cw/fURZErDjuHKg9aoGMJX6yOl4zmX0DzowzB449R/3CfQvencHhf8oTgT05r4f9
+uAGXP0/G8Tg90kFRI3TkKnGFrAuu1P6Z+SDcnkSfsQKBgQDt6Bv9aUeO5hfAPfgX
+GSN/L8WAARuxUsbNVFsG+dIbMAaYet2/DfVddPP7SgMd4+yL12Kl3q0OfiFvzmQN
+qmTZKacr98VoRkoX2CR8jREM5VUdXFKVqnjYWVaKw4EvuebXusjAVoV4OgU8SAIA
+lIfZRidERIBQeZkvplkquYP7GQKBgQDCjyMjGqvm/8cD5P3kwlOKZVOV3v9lB4Er
+dIwC68Up/wu29CGfWJDpHkVgI+xZnO4cGdZzVTKc0adkuV1hiMr3pHjvEGj9vz1d
+GxRafyVBuOwo1XjdGWXwl+bO0KsanF/IMN3nGS8Jny02VpPZzTM8Y5FiCa3HVThP
+Y+iy2wpaXwKBgBBZm1LXIWvYtFkp6RrtR1s+VTxu1xBgt/j0iyz3jlEAA/QGvaab
+tvktSHdEpuIu/9q8erMbkpkkYfflH0sxIq0qB6sl5BM+gWkSGa/Vog5Y1HioF6Th
+ilyUBzaSKRa2l/7Lf3B4gcO5eRKjgD+59XwhLiGq84aUVMrJi+c7yK5BAoGALCpM
+AqMCVMzJQ6QO0ogeaLM5tzLI7Qk4FEI/qkYVGsRvx1dB7qcvNgwOGZXuCCWsk6p1
+2PaFJ74b7qx5ezOPR4oJfdNO0hNAfcsw4p4sOfAdg+N5rU8fqe8BkP8jaEYJJCub
+o+M+n0OIAubCZ1XChLnhfczOqwo4XyVB5J/+iKcCgYEAwzNDvx6OJB+pU338SEj2
+h37x15CmUJU3/Hv/f43oQOGqVw9WIM5yLlFAhw9C3YNpnioDEJPN6j8vMfRp2QX0
+yRsI+s4fYB2jHXPAsIJVYWr6ZkdYciLY0IdEzJpLecBwtcKUL3mh++SXaoSUToLI
+w/wuiLuJ3CY8hV5fZcrAGQc=
+-----END PRIVATE KEY-----`;
+
+export const FIXED_PUBLIC_KEY_PEM = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtM7qhQeu1dwJHCOoHlRT
+19wUFEzq7iyLBQjVak4GnEy5qlaBAPedpkJPz+Cya9laO0bZq9PPhNHFDtr3tDMy
+JqzT1XtrnvHIGOxMzfvHHn9LhO8vSSg9BlafPNvsbhXQmUT0jEy2Pv1yb0FsQrJi
+nqrZ2EdwbwbD8qAw9cYOI9v9zbe22m3LDgdm/kg8AmYQJmy0nQXXsSo2eWSTPSBV
+RcL+drbSlln/RY5XRiFiu8DB16rRAi8QwI5P7kNw8NrQVo202O1jcvSlxeGl1UCZ
+7ne33KhLOwmA3dJCdAe45kYt1MW97CL6xJS9ll/Ey3zsVJzlV75HkDOdcYJrcDr4
+RwIDAQAB
+-----END PUBLIC KEY-----`;

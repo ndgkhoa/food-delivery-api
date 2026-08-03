@@ -1,0 +1,32 @@
+meta {
+  name: Tenant - provision user
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{gateway}}/auth/tenants/:tenantId/users
+  body: json
+  auth: bearer
+}
+
+params:path {
+  tenantId: 
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "username": "new-owner",
+    "email": "new-owner@example.com",
+    "role": "restaurant-owner",
+    "password": "Passw0rd!"
+  }
+}
+
+docs {
+  Admin only. Creates a Keycloak user and maps them to the tenant. Role is one of restaurant-owner, customer, or driver.
+}

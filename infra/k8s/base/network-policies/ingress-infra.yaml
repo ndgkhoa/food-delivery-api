@@ -1,0 +1,134 @@
+# Shared in-namespace infra, one policy per dependency. kafka, temporal, and
+# keycloak have no base Deployment yet (infra-dev only ships postgres+redis;
+# temporal/keycloak/kafka are provisioned elsewhere or not yet at all) — their
+# policies select by label and stay inert (match zero pods) until such a
+# Deployment exists in this namespace. Harmless and forward-looking rather
+# than deleted, so the ingress rule ships with the service instead of being
+# an afterthought.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress-postgres
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: ingress-postgres
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: food-delivery
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress-redis
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: ingress-redis
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: food-delivery
+      ports:
+        - protocol: TCP
+          port: 6379
+# NOTE: the OpenTelemetry collector runs in the `observability` namespace, not
+# here, so its ingress protection ships with the observability manifests — not
+# in this file. App pods reach it via the cross-namespace OTLP egress carve-out
+# (03-allow-otlp-egress-to-observability.yaml), the one legitimate flow out of
+# this namespace besides DNS.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress-kafka
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: ingress-kafka
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kafka
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: food-delivery
+      ports:
+        - protocol: TCP
+          port: 9092
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress-temporal
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: ingress-temporal
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: temporal
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Only payment talks to Temporal (TEMPORAL_ADDRESS is set on payment alone).
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: payment
+      ports:
+        - protocol: TCP
+          port: 7233
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress-keycloak
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: ingress-keycloak
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # gateway, auth, and delivery each carry KEYCLOAK_URL.
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: gateway
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: auth
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: delivery
+      ports:
+        - protocol: TCP
+          port: 8080

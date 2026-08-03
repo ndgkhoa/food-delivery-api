@@ -1,0 +1,138 @@
+# Prod overlay: NO in-cluster infra (unlike dev, infra-dev is not a resource
+# here) — every app's DB/Redis/Kafka/ES/ClickHouse/Temporal/MinIO/Keycloak
+# endpoints are patched to point at external managed services instead
+# (placeholder hostnames; real values come from a secret manager/GitOps
+# pipeline in 8d, never committed here). Registry images replace the local
+# `food-delivery/<app>:dev` tags, replicas go to 2 for every stateless app,
+# and resource requests/limits move from dev-modest to production-real.
+#
+# NetworkPolicy enforcement needs a stack that implements the NetworkPolicy API.
+# k3s/k3d DO enforce out of the box — they bundle a kube-router-based policy
+# controller (verified on this repo's k3d: a non-order pod is refused on the
+# catalog gRPC port while order connects). The prod requirement is only that the
+# target cluster is NOT running without policy enforcement — do NOT start k3s
+# with `--disable-network-policy`, and on a managed cluster confirm the CNI
+# (Calico/Cilium/cloud-native) enforces NetworkPolicy. Plain flannel with no
+# policy controller does NOT enforce; k3s's flannel does because of the bundled
+# controller. One more prod check: k3s/kube-router exempts node-origin traffic
+# so kubelet httpGet probes survive default-deny (verified on k3d), but a CNI
+# running a host firewall / HostEndpoints may filter probe traffic — confirm
+# liveness/readiness still pass after applying these policies on the real CNI.
+#
+# `internal-identity-secret` (base/internal-identity/secret.yaml) carries the
+# placeholder dev value straight through here — this overlay does NOT patch
+# it, matching every other Secret. A real rollout MUST replace it with a
+# freshly generated, sufficiently random value (>=32 chars, matching the
+# `INTERNAL_IDENTITY_SIGNING_KEY` schema minimum) injected by the target
+# environment's secret manager, and that exact value must reach the gateway
+# AND every service — any mismatch 401s every request.
+namespace: food-delivery
+resources:
+  - ../../base
+  # Prod repoints infra to EXTERNAL managed services, so the base default-deny
+  # egress needs a prod-only carve-out to reach them (else every app fails to
+  # start). See the file header for the template-CIDR caveat.
+  - allow-external-infra-egress.yaml
+
+images:
+  - name: food-delivery/gateway
+    newName: ghcr.io/ndgkhoa/gateway
+    newTag: latest
+  - name: food-delivery/catalog
+    newName: ghcr.io/ndgkhoa/catalog
+    newTag: latest
+  - name: food-delivery/auth
+    newName: ghcr.io/ndgkhoa/auth
+    newTag: latest
+  - name: food-delivery/order
+    newName: ghcr.io/ndgkhoa/order
+    newTag: latest
+  - name: food-delivery/search
+    newName: ghcr.io/ndgkhoa/search
+    newTag: latest
+  - name: food-delivery/delivery
+    newName: ghcr.io/ndgkhoa/delivery
+    newTag: latest
+  - name: food-delivery/media
+    newName: ghcr.io/ndgkhoa/media
+    newTag: latest
+  - name: food-delivery/payment
+    newName: ghcr.io/ndgkhoa/payment
+    newTag: latest
+  - name: food-delivery/config
+    newName: ghcr.io/ndgkhoa/config
+    newTag: latest
+  - name: food-delivery/review
+    newName: ghcr.io/ndgkhoa/review
+    newTag: latest
+  - name: food-delivery/analytics
+    newName: ghcr.io/ndgkhoa/analytics
+    newTag: latest
+  - name: food-delivery/inventory
+    newName: ghcr.io/ndgkhoa/inventory
+    newTag: latest
+  - name: food-delivery/notification
+    newName: ghcr.io/ndgkhoa/notification
+    newTag: latest
+
+patches:
+  # Replicas, pull policy, and resources for every app Deployment in one shot
+  # via a labelSelector target — avoids 13 near-identical patch blocks.
+  - target:
+      kind: Deployment
+      labelSelector: app.kubernetes.io/part-of=food-delivery
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 250m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+  # Every HPA's floor moves from 1 (dev) to 2 in one shot, same labelSelector
+  # trick — a single ready pod is a single point of failure during a node
+  # drain or a slow rolling update; `/spec/replicas` above only sets the
+  # Deployment's initial count, the HPA controller reconciles it right back
+  # down to `minReplicas` on its next sync unless that floor moves too.
+  - target:
+      kind: HorizontalPodAutoscaler
+      labelSelector: app.kubernetes.io/part-of=food-delivery
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 10
+  # External managed infra endpoints — placeholder hostnames only. A real
+  # rollout wires these (and the matching Secret credentials) from the
+  # target environment's secret manager, never hardcoded here. Harmless no-op
+  # for apps that don't read a given key (extra env vars are ignored by zod).
+  - target:
+      kind: ConfigMap
+      labelSelector: food-delivery.io/config-kind=app-env
+    patch: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: placeholder
+      data:
+        NODE_ENV: "production"
+        DB_HOST: "prod-postgres.internal.example.com"
+        REDIS_URL: "redis://prod-redis.internal.example.com:6379"
+        KAFKA_BROKERS: "prod-kafka.internal.example.com:9092"
+        ELASTICSEARCH_NODE: "https://prod-elasticsearch.internal.example.com:9200"
+        CLICKHOUSE_URL: "https://prod-clickhouse.internal.example.com:8123"
+        TEMPORAL_ADDRESS: "prod-temporal.internal.example.com:7233"
+        MINIO_ENDPOINT: "prod-minio.internal.example.com"
+        KEYCLOAK_URL: "https://auth.example.com"
+        SMTP_HOST: "prod-smtp.internal.example.com"
+        OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability:4318"

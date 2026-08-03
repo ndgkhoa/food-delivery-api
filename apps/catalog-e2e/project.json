@@ -1,0 +1,20 @@
+{
+  "name": "catalog-e2e",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "implicitDependencies": ["catalog"],
+  "tags": ["scope:catalog", "type:e2e"],
+  "targets": {
+    "test": {
+      "executor": "nx:noop"
+    },
+    "e2e": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/apps/catalog-e2e"],
+      "options": {
+        "jestConfig": "apps/catalog-e2e/jest.config.cts",
+        "passWithNoTests": true
+      }
+    }
+  }
+}

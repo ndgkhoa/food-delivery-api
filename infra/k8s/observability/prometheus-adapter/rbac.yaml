@@ -1,0 +1,116 @@
+# Least-privilege wiring for prometheus-adapter as an aggregated API server
+# (mirrors the upstream kubernetes-sigs/prometheus-adapter deploy manifests
+# for v0.12.0, trimmed to only what this cluster's custom-metrics path needs
+# — no resourceRules/metrics.k8s.io registration since k3d's metrics-server
+# already serves that API; only custom.metrics.k8s.io is registered below).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus-adapter
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: prometheus-adapter
+    app.kubernetes.io/part-of: food-delivery
+automountServiceAccountToken: false
+---
+# Read-only discovery the adapter needs to resolve a Prometheus series'
+# namespace/pod/service labels back to real k8s objects when building the
+# custom-metrics API response.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-adapter
+  labels:
+    app.kubernetes.io/name: prometheus-adapter
+    app.kubernetes.io/part-of: food-delivery
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "namespaces", "pods", "services"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-adapter
+  labels:
+    app.kubernetes.io/name: prometheus-adapter
+    app.kubernetes.io/part-of: food-delivery
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus-adapter
+subjects:
+  - kind: ServiceAccount
+    name: prometheus-adapter
+    namespace: observability
+---
+# Required for any aggregated API server: lets the main API server delegate
+# auth decisions on requests it proxies to the adapter.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-adapter-auth-delegator
+  labels:
+    app.kubernetes.io/name: prometheus-adapter
+    app.kubernetes.io/part-of: food-delivery
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: prometheus-adapter
+    namespace: observability
+---
+# Lets the adapter read the aggregation layer's client-CA/requestheader
+# config from kube-system, required to authenticate the API server's
+# proxied requests.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometheus-adapter-auth-reader
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: prometheus-adapter
+    app.kubernetes.io/part-of: food-delivery
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: extension-apiserver-authentication-reader
+subjects:
+  - kind: ServiceAccount
+    name: prometheus-adapter
+    namespace: observability
+---
+# Grants read access to the registered custom.metrics.k8s.io API itself —
+# without this, k8s's built-in HPA controller (running as the
+# `horizontal-pod-autoscaler` ServiceAccount in kube-system) is authenticated
+# but not AUTHORIZED to query the custom metric, so the order HPA would sit
+# stuck on "unable to get metric" even though the adapter is healthy.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: custom-metrics-server-resources
+  labels:
+    app.kubernetes.io/name: prometheus-adapter
+    app.kubernetes.io/part-of: food-delivery
+rules:
+  - apiGroups: ["custom.metrics.k8s.io"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: hpa-controller-custom-metrics
+  labels:
+    app.kubernetes.io/name: prometheus-adapter
+    app.kubernetes.io/part-of: food-delivery
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: custom-metrics-server-resources
+subjects:
+  - kind: ServiceAccount
+    name: horizontal-pod-autoscaler
+    namespace: kube-system

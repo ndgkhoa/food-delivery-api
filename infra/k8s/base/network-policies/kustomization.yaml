@@ -1,0 +1,13 @@
+# Every NetworkPolicy manifest in this directory, reviewed as one set. Wired
+# into infra/k8s/base/kustomization.yaml as a single `network-policies`
+# resource entry.
+resources:
+  - 00-default-deny-all.yaml
+  - 01-allow-dns-egress.yaml
+  - 02-allow-egress-within-namespace.yaml
+  - 03-allow-otlp-egress-to-observability.yaml
+  - ingress-gateway.yaml
+  - ingress-backends.yaml
+  - ingress-config.yaml
+  - ingress-grpc.yaml
+  - ingress-infra.yaml

@@ -1,0 +1,94 @@
+import { CreateMenuItemHandler } from '@catalog/application/menu-item/commands/create-menu-item.handler';
+import { DeleteMenuItemHandler } from '@catalog/application/menu-item/commands/delete-menu-item.handler';
+import { UpdateMenuItemHandler } from '@catalog/application/menu-item/commands/update-menu-item.handler';
+import { GetMenuItemHandler } from '@catalog/application/menu-item/queries/get-menu-item.handler';
+import { ListMenuItemsHandler } from '@catalog/application/menu-item/queries/list-menu-items.handler';
+import { CreateMenuItemRequest } from '@catalog/interface/http/dto/create-menu-item.request';
+import type { MenuItemResponse } from '@catalog/interface/http/dto/menu-item.response';
+import type { PaginatedResponse } from '@catalog/interface/http/dto/paginated.response';
+import { PaginationRequest } from '@catalog/interface/http/dto/pagination.request';
+import { UpdateMenuItemRequest } from '@catalog/interface/http/dto/update-menu-item.request';
+import { IF_MATCH_HEADER, parseIfMatchVersion } from '@catalog/interface/http/if-match-header.util';
+import { MenuItemResponseMapper } from '@catalog/interface/http/mappers/menu-item-response.mapper';
+import { Roles } from '@food-delivery-api/shared-tenancy';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
+
+/** Only owners/admins may mutate the catalog; reads stay open to any authenticated tenant. */
+const CATALOG_WRITE_ROLES = ['restaurant-owner', 'admin'] as const;
+
+@Controller('restaurants/:restaurantId/menu-items')
+export class MenuItemsController {
+  constructor(
+    private readonly createMenuItem: CreateMenuItemHandler,
+    private readonly updateMenuItem: UpdateMenuItemHandler,
+    private readonly deleteMenuItem: DeleteMenuItemHandler,
+    private readonly listMenuItems: ListMenuItemsHandler,
+    private readonly getMenuItem: GetMenuItemHandler,
+  ) {}
+
+  @Post()
+  @Roles(...CATALOG_WRITE_ROLES)
+  async create(
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Body() dto: CreateMenuItemRequest,
+  ): Promise<MenuItemResponse> {
+    const menuItem = await this.createMenuItem.execute(restaurantId, dto);
+    return MenuItemResponseMapper.toResponse(menuItem);
+  }
+
+  @Get()
+  async findAll(
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Query() pagination: PaginationRequest,
+  ): Promise<PaginatedResponse<MenuItemResponse>> {
+    const result = await this.listMenuItems.execute(restaurantId, pagination);
+    return { ...result, data: result.data.map(MenuItemResponseMapper.toResponse) };
+  }
+
+  @Get(':id')
+  async findOne(
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<MenuItemResponse> {
+    const menuItem = await this.getMenuItem.execute(restaurantId, id);
+    return MenuItemResponseMapper.toResponse(menuItem);
+  }
+
+  @Patch(':id')
+  @Roles(...CATALOG_WRITE_ROLES)
+  async update(
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateMenuItemRequest,
+    @Headers(IF_MATCH_HEADER) ifMatch?: string,
+  ): Promise<MenuItemResponse> {
+    const menuItem = await this.updateMenuItem.execute(restaurantId, id, {
+      ...dto,
+      expectedVersion: parseIfMatchVersion(ifMatch),
+    });
+    return MenuItemResponseMapper.toResponse(menuItem);
+  }
+
+  @Delete(':id')
+  @Roles(...CATALOG_WRITE_ROLES)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<void> {
+    await this.deleteMenuItem.execute(restaurantId, id);
+  }
+}

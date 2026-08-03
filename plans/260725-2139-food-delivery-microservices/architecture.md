@@ -6,6 +6,8 @@ Consolidated design reference. All planning docs point here for the layering, se
 
 Nginx is L7 load balancer + TLS termination ONLY. It is NOT the application gateway. The API Gateway (NestJS) owns app cross-cutting concerns.
 
+**Trust-boundary invariant (deployment):** the gateway is the SOLE ingress that verifies JWTs and stamps trusted identity headers (`x-tenant-id`/`x-user-id`/`x-roles`). Downstream services trust those headers and therefore MUST NOT be publicly reachable — they live on the internal network behind Nginx→gateway only. Dev enforces this by convention; prod enforces it (K8s NetworkPolicy / never publishing service ports). Hardening backlog: cryptographically-signed internal identity (HMAC/JWT) or mTLS so a directly-reachable service can't be spoofed on network position alone.
+
 ```
 Internet
    │  HTTPS
@@ -125,8 +127,8 @@ Bring up only what a phase needs. Never run everything at once on 16GB.
 | Profile | Contains | Phases | Approx RAM |
 |---------|----------|--------|-----------|
 | `core` (default) | Postgres 18, Redis 8, the app services, Nginx | all | ~1.5-2 GB |
-| `auth` | Keycloak 27 + its Postgres | P1+ | ~0.7 GB |
-| `messaging` | Kafka 4.x (KRaft, no ZooKeeper), Kafka Connect + Debezium 3.5 (quay.io) | P3+ | ~1.5-2 GB |
+| `auth` | Keycloak 26.7 + its Postgres | P1+ | ~0.7 GB |
+| `messaging` | Kafka 4.3.1 (KRaft, no ZooKeeper), Kafka Connect + Debezium 3.6.0.Final (quay.io) | P3+ | ~1.5-2.2 GB (broker ~0.3-1 + Connect ~0.7-1.2) |
 | `search` | Elasticsearch 9.4 (single node) | P4+ | ~1.5 GB |
 | `workflow` | Temporal server + its Postgres, Temporal UI | P5+ | ~1 GB |
 | `analytics` | ClickHouse (single node) | P6+ | ~1 GB |
@@ -147,10 +149,12 @@ Package manager: **pnpm**. Full audit + sources: `plans/reports/researcher-26072
 | RDBMS | PostgreSQL | 18.4 | `postgres:18.4` (Debian bookworm — NOT alpine) | ⚠️ alpine=musl → collation/sort differs from glibc; moving data alpine↔debian can corrupt index order. Pin exact patch; Renovate bumps |
 | Cache/lock/GEO | Redis | 8.8.0 (latest) | `redis:8.8.0-alpine` | alpine OK here (no native-module risk). Pin exact latest; Renovate auto-bumps to newest. ⚠️ RSALv2/SSPL license; OSS drop-in = Valkey 9.1 |
 | Jobs/scheduler | BullMQ + node-cron | 5.81.x + 4.6.x | — | — |
-| Broker | Apache Kafka | 4.x (KRaft) | `apache/kafka:4.0.0` | Use OFFICIAL `apache/kafka` (avoid bitnami — catalog changed). 4.1 available. No ZooKeeper |
-| CDC | Debezium (Kafka Connect) | 3.5.x Final | `quay.io/debezium/connect:3.5` | 🔴 MOVED to quay.io — Docker Hub image is stale |
+| Broker | Apache Kafka | 4.3.1 (KRaft) | `apache/kafka:4.3.1` | ⬆️ live-verified 2026-07-28 (latest stable, 2026-06-25; was 4.0.0). Use OFFICIAL `apache/kafka` (avoid bitnami). No ZooKeeper. Heap cap `-Xmx512m` |
+| CDC | Debezium (Kafka Connect) | 3.6.0.Final | `quay.io/debezium/connect:3.6.0.Final` | ⬆️ live-verified 2026-07-28 (latest Final, 2026-07-01; was 3.5). 🔴 quay.io only. Postgres connector bundled; Outbox Event Router SMT. Needs Postgres `wal_level=logical` |
+| Kafka client (Node) | @confluentinc/kafka-javascript | 1.10.0 | — | ✅ chosen over kafkajs (dead — last 2023) + @nestjs/microservices (couples to kafkajs). librdkafka native addon; fine on glibc `bookworm-slim` (repo avoids musl for native modules). Wrapped in `libs/shared/messaging` |
+| Kafka e2e | @testcontainers/kafka | 12.0.4 | — | live-verified 2026-07-28. KRaft-native; pass explicit `apache/kafka:4.3.1` to mirror prod. Debezium path uses compose (no Node Debezium testcontainer) |
 | Search | Elasticsearch | 9.4.4 | `docker.elastic.co/elasticsearch/elasticsearch:9.4.4` | Heap cap: `ES_JAVA_OPTS=-Xms256m -Xmx512m` |
-| IdP | Keycloak | 27.0.0 (greenfield → latest) | `quay.io/keycloak/keycloak:27.0.0` | 26.7 LTS = conservative fallback if 27 friction |
+| IdP | Keycloak | 26.7 | `quay.io/keycloak/keycloak:26.7` | ⚠️ `27.0.0` tag does NOT exist on quay.io (earlier research wrong) — 26.7 verified. Client `defaultClientScopes` MUST include `basic` (Keycloak 24+ moved the `sub` claim there) |
 | Workflow | Temporal server + `@temporalio/*` SDK | SDK 1.21.x | `temporalio/auto-setup:<verify>` | 🔴 SDK jumped 1.11→1.21 — read changelog for breaking changes; verify server tag at install |
 | Analytics DB | ClickHouse | 26.4.x | `clickhouse/clickhouse-server:26.4` | Behind `analytics` profile, off by default |
 | Object store | MinIO | ⚠️ upstream ARCHIVED 2026-04-25 | `cgr.dev/chainguard/minio:latest` (or `ghcr.io/minio/minio`) | 🔴 `minio/minio` Docker Hub no longer gets builds — use community image; verify licensing |

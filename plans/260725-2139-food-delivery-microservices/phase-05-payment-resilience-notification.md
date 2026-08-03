@@ -4,8 +4,8 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 
 ## Overview
 - **Priority**: P1
-- **Status**: Not started
-- **Brief**: Replace the P3 payment-stub with a durable Temporal workflow (retry, webhook reconciliation, DLQ, idempotency, Outbox). Add resilience: circuit breaker at gateway. Build `notification` (Kafka consumer + BullMQ, retry, DLQ, email via MailHog / SMS+push via stub adapters).
+- **Status**: ✅ Done — **5a** [payment durable Temporal workflow](./phase-05a-payment-temporal-workflow.md) (#18); **5b** [notification service](./phase-05b-notification-service.md) (#19); **5c** [gateway circuit breaker](./phase-05c-gateway-circuit-breaker.md) (#20). Each built → verified live → adversarially reviewed (Critical/High fixed) → merged. NOTE: MailHog replaced by its maintained successor **Mailpit** (same SMTP :1025 + UI/API :8025).
+- **Brief**: Replace the P3 payment-stub with a durable Temporal workflow (retry, webhook reconciliation, DLQ, idempotency, Outbox). Add resilience: circuit breaker at gateway. Build `notification` (Kafka consumer + BullMQ, retry, DLQ, email via Mailpit / SMS+push via stub adapters).
 
 ## Key insights
 - Temporal makes payment durable: crash mid-charge resumes exactly where it left off. Retries + backoff + timers are declarative, not hand-rolled. This is the phase's headline learning.
@@ -39,12 +39,12 @@ Context: [plan.md](./plan.md) · [architecture.md](./architecture.md)
 6. E2E: successful charge confirms order + sends email; provider timeout → Temporal retries → webhook reconciles; permanent fail → payment.failed → Saga compensates + failure notification; kill payment worker mid-charge → resumes on restart; failing SMS stub → retries → DLQ.
 
 ## Todo
-- [ ] Temporal + UI + MailHog under `workflow` profile
-- [ ] ChargeWorkflow + activities + retry + idempotency + webhook signal + Outbox
-- [ ] Saga awaits durable payment reply
-- [ ] notification consumer + BullMQ + channel adapter interface (MailHog + stubs) + DLQ
-- [ ] gateway circuit breaker + fallback
-- [ ] E2E: success, retry+webhook, permanent-fail compensation, worker-restart resume, DLQ
+- [x] Temporal + UI under `workflow` profile · Mailpit under `notification` profile
+- [x] ChargeWorkflow + activities + retry + idempotency (REJECT_DUPLICATE) + webhook signal + Outbox
+- [x] Saga awaits durable payment reply (unchanged `payment.replies` contract)
+- [x] notification consumer + BullMQ per-channel + channel adapter interface (Mailpit + sms/push stubs) + DLQ
+- [x] gateway per-downstream circuit breaker (opossum) + 503/Retry-After fast-fail + per-service isolation (5c)
+- [x] E2E: charge success + decline (5a), notification success + idempotent + DLQ (5b), breaker fast-fail + isolation + recovery (5c); worker-restart resume remains manual/UI
 
 ## Success criteria
 - Charge succeeds → order CONFIRMED + email in MailHog. Duplicate charge command → single payment (idempotent).

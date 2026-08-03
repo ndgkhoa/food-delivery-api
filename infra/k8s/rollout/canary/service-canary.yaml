@@ -1,0 +1,19 @@
+# Selector deliberately has no `track:` — see service-stable.yaml's comment;
+# Argo Rollouts patches this Service's selector with `rollouts-pod-template-hash`
+# to steer it at the canary ReplicaSet as the Rollout progresses.
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-canary
+  namespace: food-delivery
+  labels:
+    app.kubernetes.io/name: gateway
+    app.kubernetes.io/part-of: food-delivery
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: gateway
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http

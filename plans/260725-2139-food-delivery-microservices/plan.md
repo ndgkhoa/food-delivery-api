@@ -19,15 +19,15 @@ See [architecture.md](./architecture.md) for the layering diagram, 13-service ma
 
 | # | Phase | E2E slice delivered | Status |
 |---|-------|---------------------|--------|
-| 0 | [Foundation — monorepo, catalog, minimal gateway](./phase-00-foundation-monorepo-catalog.md) | List restaurants/menu over HTTP | Not started |
-| 1 | [Auth & Gateway hardening](./phase-01-auth-gateway-hardening.md) | Login (Keycloak) → JWT-guarded catalog | Not started |
-| 2 | [Order core + Inventory](./phase-02-order-core-inventory.md) | Place order → reserve stock (gRPC) | Not started |
-| 3 | [Event-driven backbone](./phase-03-event-driven-backbone.md) | Order Saga via Kafka + Outbox + CDC; catalog CQRS read model | Not started |
-| 4 | [Search & Real-time & Media](./phase-04-search-realtime-media.md) | Search restaurants (ES), live driver location (WS), image upload (MinIO) | Not started |
-| 5 | [Payment workflow & resilience](./phase-05-payment-resilience-notification.md) | Pay order (Temporal) → notification (email/SMS) | Not started |
-| 6 | [Analytics, Review, Config](./phase-06-analytics-review-config.md) | Rating → restaurant score; revenue dashboard; dynamic fees | Not started |
-| 7 | [Data scaling](./phase-07-data-scaling.md) | Partitioned orders, read replica, cache strategies | Not started |
-| 8 | [Ops & Observability](./phase-08-ops-observability.md) | K8s deploy + tracing/metrics/logs across a request | Not started |
+| 0 | [Foundation — monorepo + catalog](./phase-00-foundation-monorepo-catalog.md) | Catalog CRUD (hexagonal) over HTTP | ✅ Done (PR #1) — gateway/Nginx/OpenAPI moved to P1 |
+| 1 | [Auth & Gateway hardening](./phase-01-auth-gateway-hardening.md) | Login (Keycloak) → JWT-guarded catalog | ✅ Done (PR #2–#5) |
+| 2 | [Order core + Inventory](./phase-02-order-core-inventory.md) | Place order → reserve stock (gRPC) | ✅ Done (PR #6–#7) |
+| 3 | [Event-driven backbone](./phase-03-event-driven-backbone.md) | Order Saga via Kafka + Outbox + CDC; catalog CQRS read model | ✅ Done (3a #10 · 3b #11 · 3c #12 · 3d) |
+| 4 | [Search & Real-time & Media](./phase-04-search-realtime-media.md) | Search restaurants (ES), live driver location (WS), image upload (MinIO) | ✅ Done (4a #15 · 4b #16 · 4c #17) |
+| 5 | [Payment workflow & resilience](./phase-05-payment-resilience-notification.md) | Pay order (Temporal) → notification (email/SMS) → gateway circuit breaker | ✅ Done (5a #18 · 5b #19 · 5c #20) |
+| 6 | [Analytics, Review, Config](./phase-06-analytics-review-config.md) | Rating → restaurant score; revenue dashboard; dynamic fees | ✅ Done (6a #21/#22 · 6b #23/#24 · 6c #25) |
+| 7 | [Data scaling](./phase-07-data-scaling.md) | Partitioned orders, read replica, cache strategies | ✅ Done (7a #26 · 7b #27 · 7c #28) |
+| 8 | [Ops & Observability](./phase-08-ops-observability.md) | K8s deploy + tracing/metrics/logs across a request | ✅ Done (8a #29 · 8b #30 · 8c-A #31 · 8c-B #32 · 8d CI/CD ✅ verified, PR #33) |
 
 ## Key dependencies
 
@@ -48,3 +48,13 @@ Audit log · soft delete · multi-tenant · correlation ID · feature flags · O
 ## Guiding principles
 
 YAGNI / KISS / DRY. Simplest tech that teaches each concept. Latest stable library versions (see architecture.md tech table). Enterprise business logic and code quality throughout — this is a portfolio piece.
+
+## Deferred (tracked backlog)
+
+- **Global error envelope**: a shared `GlobalExceptionFilter` giving every response (400/401/403/404/500) one consistent JSON shape. Currently only `EntityNotFoundError → 404` is mapped. Do it when the gateway/auth work lands so all services + edge stay consistent — don't one-off individual codes.
+- **Optimistic locking** on updates (version column) to prevent lost updates + misleading audit on concurrent PATCH. Introduce in the `order` service work (where concurrency matters); apply back to catalog then.
+- Audit on cascade: a restaurant DELETE keeps a single audit entry covering its menu-item cascade (decided — not per-item).
+- **Internal identity trust hardening**: services trust gateway-stamped identity headers on network isolation alone; add signed internal headers (HMAC/JWT) or mTLS so a directly-reachable service can't be spoofed. Enforce network isolation (K8s NetworkPolicy) in the ops phase. (Invariant documented in architecture.md §1.)
+- **Production Keycloak realm** (tighten redirectUris/webOrigins, sslRequired=external, disable direct-grant, real client secrets) — dev realm-export is not prod-safe.
+- Fully transactional user provisioning (Keycloak + registry) via Saga/Outbox — current impl is create-then-compensate best-effort.
+- **Order saga reconciler**: the synchronous place-order saga (P2) can leave an order `PENDING` with a stock hold but no active order when a client abandons retries after a mid-saga failure (or a narrow concurrent-same-key/replenishment interleave). Discoverable via `status = PENDING`. P3's Kafka Saga + Outbox must reconcile/sweep these (release the hold or complete the order). No oversell/double-charge until then.

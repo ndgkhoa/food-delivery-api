@@ -1,0 +1,29 @@
+meta {
+  name: Login (owner)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{keycloak}}/realms/{{realm}}/protocol/openid-connect/token
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  grant_type: password
+  client_id: {{client}}
+  username: owner-user
+  password: owner-pass
+}
+
+script:post-response {
+  if (res.body && res.body.access_token) {
+    bru.setEnvVar("token", res.body.access_token);
+    bru.setEnvVar("refreshToken", res.body.refresh_token);
+  }
+}
+
+docs {
+  Seeded restaurant-owner. Saves access + refresh tokens; run first.
+}

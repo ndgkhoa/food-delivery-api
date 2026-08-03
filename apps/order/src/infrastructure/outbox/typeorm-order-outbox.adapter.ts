@@ -1,0 +1,159 @@
+import { randomUUID } from 'node:crypto';
+import {
+  encodeHeaders,
+  type OutboxPort,
+  type OutboxRecord,
+} from '@food-delivery-api/shared-messaging';
+import { captureActiveTraceContext } from '@food-delivery-api/shared-observability';
+import { withAdvisoryLock } from '@food-delivery-api/shared-persistence';
+import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
+import { Inject, Injectable } from '@nestjs/common';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import type { OutboxCommandEntry, OutboxWriter } from '@order/domain/shared/outbox.port';
+import { OrderOutboxOrmEntity } from '@order/infrastructure/persistence/entities/order-outbox.orm-entity';
+import { getTransactionalEntityManager } from '@order/infrastructure/persistence/transaction/transactional-entity-manager';
+import { type DataSource, In, IsNull, type Repository } from 'typeorm';
+
+interface UnpublishedRow {
+  id: string;
+  aggregate_id: string;
+  topic: string;
+  event_type: string;
+  payload: Record<string, unknown>;
+  tenant_id: string;
+  correlation_id: string;
+  created_at: Date;
+  trace_parent: string | null;
+}
+
+/**
+ * Distinct per-service Postgres advisory-lock key so the order relay's drain
+ * serializes across HPA replicas. Only needs to be unique within order's own
+ * database (each service owns its database), but kept distinct from the other
+ * services' keys (payment 4002, inventory 4003, review 4004) for clarity.
+ */
+const OUTBOX_RELAY_LOCK_KEY = 4001;
+
+/**
+ * Two roles over the same `order_outbox` table:
+ * - `OutboxWriter.append` — enlists in the caller's transaction so a command
+ *   row commits atomically with the order/saga change that emitted it. Tenant is
+ *   read from the tenant context (never the entry) so no call site can spoof it;
+ *   the entry's `correlationId` threads the saga's trace id from the triggering
+ *   event, and only when absent (the saga's first command) is a root id minted —
+ *   the header is always non-null.
+ * - `OutboxPort.fetchUnpublished` / `markPublished` — the relay's drain. Claims
+ *   a batch with `FOR UPDATE SKIP LOCKED` so overlapping ticks pick DIFFERENT
+ *   rows, maps each to a keyed Kafka record (key = order id) with the six
+ *   envelope headers, then marks them published. At-least-once: consumers dedupe
+ *   by event id (the row `id`).
+ * - `OutboxPort.runExclusively` — wraps the relay's whole drain in a session-held
+ *   advisory lock so only one HPA replica drains at a time, keeping duplicate
+ *   publishes at the inherent crash-between-publish-and-mark-done rate instead
+ *   of amplifying with replica count.
+ */
+@Injectable()
+export class TypeOrmOrderOutboxAdapter implements OutboxWriter, OutboxPort {
+  constructor(
+    @InjectRepository(OrderOutboxOrmEntity)
+    private readonly outboxRepository: Repository<OrderOutboxOrmEntity>,
+    @InjectDataSource() private readonly dataSource: DataSource,
+    @Inject(TENANT_CONTEXT_PORT) private readonly tenantContext: TenantContextPort,
+  ) {}
+
+  /** Enlists in the active transaction so the outbox row commits with its emitter's write. */
+  private get repository(): Repository<OrderOutboxOrmEntity> {
+    return (
+      getTransactionalEntityManager()?.getRepository(OrderOutboxOrmEntity) ?? this.outboxRepository
+    );
+  }
+
+  async append(entry: OutboxCommandEntry): Promise<void> {
+    const tenantId = this.tenantContext.getTenantIdOrThrow();
+    const row = this.repository.create({
+      aggregateId: entry.aggregateId,
+      topic: entry.topic,
+      eventType: entry.eventType,
+      payload: entry.payload,
+      tenantId,
+      correlationId: entry.correlationId ?? randomUUID(),
+      publishedAt: null,
+      traceParent: captureActiveTraceContext().traceparent ?? null,
+    });
+    await this.repository.save(row);
+  }
+
+  /** Bumps `attempts` for rows whose relay publish just failed — poison-row visibility. */
+  async incrementAttempts(ids: string[]): Promise<void> {
+    if (ids.length === 0) {
+      return;
+    }
+    await this.outboxRepository.increment({ id: In(ids) }, 'attempts', 1);
+  }
+
+  async fetchUnpublished(limit: number): Promise<OutboxRecord[]> {
+    // Claim + read in one short transaction: the row lock (SKIP LOCKED) is held
+    // only for this select, letting a second relay tick grab a different batch.
+    const rows = await this.dataSource.transaction<UnpublishedRow[]>((manager) =>
+      manager
+        .getRepository(OrderOutboxOrmEntity)
+        .createQueryBuilder('outbox')
+        .select([
+          'outbox.id AS id',
+          'outbox.aggregate_id AS aggregate_id',
+          'outbox.topic AS topic',
+          'outbox.event_type AS event_type',
+          'outbox.payload AS payload',
+          'outbox.tenant_id AS tenant_id',
+          'outbox.correlation_id AS correlation_id',
+          'outbox.created_at AS created_at',
+          'outbox.trace_parent AS trace_parent',
+        ])
+        .where('outbox.published_at IS NULL')
+        .orderBy('outbox.created_at', 'ASC')
+        .limit(limit)
+        .setLock('pessimistic_write')
+        .setOnLocked('skip_locked')
+        .getRawMany<UnpublishedRow>(),
+    );
+
+    return rows.map((row) => {
+      const headers = encodeHeaders({
+        eventId: row.id,
+        eventType: row.event_type,
+        aggregateId: row.aggregate_id,
+        tenantId: row.tenant_id,
+        correlationId: row.correlation_id,
+        occurredAt: new Date(row.created_at).toISOString(),
+      });
+      // Forwards the ORIGINAL request's trace context captured at append time;
+      // the producer's `!headers.traceparent` guard only injects its own
+      // (disconnected) span when this is absent — see `kafka-producer.ts`.
+      if (row.trace_parent) {
+        headers.traceparent = row.trace_parent;
+      }
+      return {
+        id: row.id,
+        topic: row.topic,
+        key: row.aggregate_id,
+        headers,
+        value: row.payload,
+      };
+    });
+  }
+
+  async markPublished(ids: string[]): Promise<void> {
+    if (ids.length === 0) {
+      return;
+    }
+    await this.outboxRepository.update(
+      { id: In(ids), publishedAt: IsNull() },
+      { publishedAt: new Date() },
+    );
+  }
+
+  async runExclusively<T>(drain: () => Promise<T>): Promise<{ ran: boolean; result?: T }> {
+    const outcome = await withAdvisoryLock(this.dataSource, OUTBOX_RELAY_LOCK_KEY, drain);
+    return outcome.ran ? { ran: true, result: outcome.result } : { ran: false };
+  }
+}
