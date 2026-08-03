@@ -104,4 +104,6 @@ patches:
         MINIO_ENDPOINT: "prod-minio.internal.example.com"
         KEYCLOAK_URL: "https://auth.example.com"
         SMTP_HOST: "prod-smtp.internal.example.com"
-        OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability:4318"
+        # OTEL endpoint now lives in the base (otel-collector.observability:4318),
+        # matching where the collector actually runs + the NetworkPolicy OTLP
+        # egress carve-out — no prod-specific patch needed.
