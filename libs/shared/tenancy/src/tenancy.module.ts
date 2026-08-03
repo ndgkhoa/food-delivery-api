@@ -1,5 +1,6 @@
 import { Global, Logger, Module } from '@nestjs/common';
 import { AlsTenantContextAdapter } from './als-tenant-context.adapter';
+import { GRPC_TENANT_VERIFIER, GrpcTenantVerifier } from './grpc-identity-signature';
 import {
   IDENTITY_SIGNATURE_VERIFIER,
   IdentitySignatureVerifier,
@@ -36,12 +37,31 @@ import { TrustedIdentityInterceptor } from './trusted-identity.interceptor';
         return new IdentitySignatureVerifier(options);
       },
     },
+    {
+      provide: GRPC_TENANT_VERIFIER,
+      // Same env-driven enforcement decision as `IDENTITY_SIGNATURE_VERIFIER`
+      // above (same signing key / skew window — `resolveIdentityEnforcement`
+      // is the single source of truth, not duplicated here). Re-resolved
+      // rather than shared via an intermediate token, keeping both providers
+      // independently constructible; the startup warning is only logged once,
+      // by the factory above, to avoid a duplicate log line.
+      useFactory: (): GrpcTenantVerifier => {
+        const { key, enforced, maxSkewMs } = resolveIdentityEnforcement(process.env);
+        return new GrpcTenantVerifier({ key, enforced, maxSkewMs });
+      },
+    },
     TrustedIdentityInterceptor,
   ],
-  // `IDENTITY_SIGNATURE_VERIFIER` is exported too: every service registers the
-  // interceptor as its own `APP_INTERCEPTOR` (useClass), so Nest re-instantiates
-  // it in the service's injector and must be able to resolve this dependency
-  // there — an un-exported provider would crash bootstrap.
-  exports: [TENANT_CONTEXT_PORT, TrustedIdentityInterceptor, IDENTITY_SIGNATURE_VERIFIER],
+  // `IDENTITY_SIGNATURE_VERIFIER`/`GRPC_TENANT_VERIFIER` are exported too:
+  // every service registers the interceptor as its own `APP_INTERCEPTOR`
+  // (useClass), so Nest re-instantiates it in the service's injector and must
+  // be able to resolve these dependencies there — an un-exported provider
+  // would crash bootstrap.
+  exports: [
+    TENANT_CONTEXT_PORT,
+    TrustedIdentityInterceptor,
+    IDENTITY_SIGNATURE_VERIFIER,
+    GRPC_TENANT_VERIFIER,
+  ],
 })
 export class TenancyModule {}
