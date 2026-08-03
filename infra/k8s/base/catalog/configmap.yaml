@@ -10,7 +10,7 @@ metadata:
 data:
   NODE_ENV: "production"
   LOG_LEVEL: "info"
-  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.food-delivery:4318"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability:4318"
   TELEMETRY_ENABLED: "true"
   PORT: "3001"
   DB_HOST: "postgres.food-delivery"
