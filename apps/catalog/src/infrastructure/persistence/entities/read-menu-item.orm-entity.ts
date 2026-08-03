@@ -31,6 +31,17 @@ export class ReadMenuItemOrmEntity {
   @Column({ name: 'is_available', type: 'boolean', default: true })
   isAvailable!: boolean;
 
+  /**
+   * Optimistic-lock version projected from the write model's `menu_items.version`
+   * (see `AddVersionToRestaurantsAndMenuItems1754250000000`). Plain `integer`, not
+   * a TypeORM `@VersionColumn()` — this row is upserted via `Repository.upsert()`,
+   * not `save()`, so a version guard here would be inert; the column exists purely
+   * so `If-Match` reads (GET) see the same version the write aggregate enforces on
+   * PATCH.
+   */
+  @Column({ type: 'integer', default: 1 })
+  version!: number;
+
   @Column({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

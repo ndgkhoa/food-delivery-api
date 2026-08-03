@@ -54,7 +54,7 @@ class FakeTenantContext implements TenantContextPort {
   }
 }
 
-function restaurant(id: string, tenantId: string, name: string): Restaurant {
+function restaurant(id: string, tenantId: string, name: string, version = 1): Restaurant {
   const now = new Date('2026-07-01T00:00:00.000Z');
   return Restaurant.reconstitute({
     id,
@@ -67,6 +67,7 @@ function restaurant(id: string, tenantId: string, name: string): Restaurant {
     deletedAt: null,
     rating: 4.5,
     reviewCount: 10,
+    version,
   });
 }
 
@@ -97,6 +98,18 @@ describe('restaurant read cache-aside', () => {
       expect(repository.findByIdCalls).toBe(1);
       expect(cache.hits).toBe(1);
       expect(cache.misses).toBe(1);
+    });
+
+    it('returns the real projected version — not the constant `?? 1` domain default', async () => {
+      repository.seed(restaurant(restaurantId, tenantA, 'Pho 24', 5));
+      const tenantContext = new FakeTenantContext({ tenantId: tenantA, actor: 'test', roles: [] });
+      const handler = new GetRestaurantViewHandler(repository, tenantContext, cache.asRedisCache());
+
+      const miss = await handler.execute(restaurantId);
+      const hit = await handler.execute(restaurantId);
+
+      expect(miss.version).toBe(5);
+      expect(hit.version).toBe(5);
     });
 
     it("never serves tenant A's cached restaurant to tenant B", async () => {
@@ -136,6 +149,18 @@ describe('restaurant read cache-aside', () => {
       await handler.execute({ page: 2, limit: 20 });
 
       expect(repository.findAndCountCalls).toBe(2);
+    });
+
+    it('a listed restaurant carries the real projected version — not the constant `?? 1` domain default', async () => {
+      repository.seed(restaurant(restaurantId, tenantA, 'Pho 24', 8));
+      const tenantContext = new FakeTenantContext({ tenantId: tenantA, actor: 'test', roles: [] });
+      const handler = new ListRestaurantsHandler(repository, tenantContext, cache.asRedisCache());
+
+      const miss = await handler.execute({ page: 1, limit: 20 });
+      const hit = await handler.execute({ page: 1, limit: 20 });
+
+      expect(miss.data[0]?.version).toBe(8);
+      expect(hit.data[0]?.version).toBe(8);
     });
   });
 });

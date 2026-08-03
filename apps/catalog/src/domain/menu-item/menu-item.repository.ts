@@ -2,7 +2,15 @@ import type { MenuItem } from '@catalog/domain/menu-item/menu-item';
 import type { PageResult, Pagination } from '@catalog/domain/shared/pagination';
 
 export interface MenuItemRepository {
+  /** Inserts a brand-new aggregate (`MenuItem.create()`'d, never persisted before). */
   save(menuItem: MenuItem): Promise<MenuItem>;
+  /**
+   * Optimistic-lock conditional update: succeeds only if the row's version in
+   * the DB still matches `menuItem.version` (the version this aggregate was
+   * loaded at), atomically bumping it by 1. Throws `ConcurrencyConflictError`
+   * when a concurrent writer already moved the version on since the load.
+   */
+  updateVersioned(menuItem: MenuItem): Promise<MenuItem>;
   findById(id: string, restaurantId: string, tenantId: string): Promise<MenuItem | null>;
   /**
    * Bulk lookup by id within a tenant, for east-west callers (order/inventory

@@ -9,6 +9,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  VersionColumn,
 } from 'typeorm';
 
 @Entity('menu_items')
@@ -44,6 +45,10 @@ export class MenuItemOrmEntity {
 
   @Column({ name: 'is_available', type: 'boolean', default: true })
   isAvailable!: boolean;
+
+  /** Backs optimistic-lock updates — see `TypeOrmMenuItemRepository.updateVersioned`. */
+  @VersionColumn()
+  version!: number;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;

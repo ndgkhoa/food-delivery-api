@@ -2,11 +2,19 @@ import type { ReadMenuItemRepository } from '@catalog/domain/read-model/read-men
 import type { ReadRestaurantRepository } from '@catalog/domain/read-model/read-restaurant.repository';
 import type { EventEnvelopeHeaders } from '@food-delivery-api/shared-messaging';
 
-/** Snapshot shape emitted by the outbox factory (dates arrive as ISO strings over JSON). */
+/**
+ * Snapshot shape emitted by the outbox factory (dates arrive as ISO strings
+ * over JSON). `version` is the write aggregate's optimistic-lock version at
+ * the moment the event was emitted (`Restaurant.toSnapshot()`/
+ * `MenuItem.toSnapshot()` spread the aggregate's props, which already include
+ * it) — projecting it here is what lets a `GET` return the same version a
+ * concurrent `PATCH`'s `If-Match` check compares against.
+ */
 interface RestaurantSnapshot {
   name: string;
   description: string | null;
   isActive: boolean;
+  version: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -17,6 +25,7 @@ interface MenuItemSnapshot {
   description: string | null;
   priceCents: number;
   isAvailable: boolean;
+  version: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -55,6 +64,7 @@ export async function applyCatalogEvent(
         name: snapshot.name,
         description: snapshot.description,
         isActive: snapshot.isActive,
+        version: snapshot.version,
         createdAt: new Date(snapshot.createdAt),
         updatedAt: new Date(snapshot.updatedAt),
       });
@@ -76,6 +86,7 @@ export async function applyCatalogEvent(
         description: snapshot.description,
         priceCents: snapshot.priceCents,
         isAvailable: snapshot.isAvailable,
+        version: snapshot.version,
         createdAt: new Date(snapshot.createdAt),
         updatedAt: new Date(snapshot.updatedAt),
       });

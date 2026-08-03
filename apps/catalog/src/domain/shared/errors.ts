@@ -20,3 +20,22 @@ export class EntityNotFoundError extends DomainException {
     super(message ?? `${entity} "${entityId}" not found`);
   }
 }
+
+/**
+ * Domain-layer error signalling an optimistic-lock conflict: the aggregate's
+ * version at write time no longer matches what was loaded (or what the
+ * caller's `If-Match` header specified), because another request modified it
+ * first. The write is rejected — never silently clobbered — so the caller
+ * must reload and retry.
+ */
+export class ConcurrencyConflictError extends DomainException {
+  readonly code = 'CATALOG_CONCURRENCY_CONFLICT';
+  readonly httpStatus = 409;
+
+  constructor(
+    readonly entity: string,
+    readonly entityId: string,
+  ) {
+    super(`${entity} "${entityId}" was modified by another request; reload and retry`);
+  }
+}

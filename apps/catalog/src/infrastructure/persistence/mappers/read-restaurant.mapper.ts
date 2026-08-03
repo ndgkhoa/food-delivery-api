@@ -16,6 +16,7 @@ export class ReadRestaurantMapper {
       deletedAt: null,
       rating: orm.rating,
       reviewCount: orm.reviewCount,
+      version: orm.version,
     });
   }
 
@@ -27,6 +28,7 @@ export class ReadRestaurantMapper {
     orm.name = row.name;
     orm.description = row.description;
     orm.isActive = row.isActive;
+    orm.version = row.version;
     orm.createdAt = row.createdAt;
     orm.updatedAt = row.updatedAt;
     return orm;

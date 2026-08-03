@@ -6,7 +6,17 @@ describe('CatalogEventFactory', () => {
   const tenantId = '11111111-1111-4111-8111-111111111111';
   const restaurantId = '22222222-2222-4222-8222-222222222222';
 
-  const restaurant = Restaurant.create({ id: restaurantId, tenantId, name: 'Pho House' });
+  const restaurant = Restaurant.reconstitute({
+    id: restaurantId,
+    tenantId,
+    name: 'Pho House',
+    description: null,
+    isActive: true,
+    createdAt: new Date('2026-07-28T00:00:00.000Z'),
+    updatedAt: new Date('2026-07-28T00:00:00.000Z'),
+    deletedAt: null,
+    version: 3,
+  });
   const menuItem = MenuItem.create({
     id: '33333333-3333-4333-8333-333333333333',
     tenantId,
@@ -30,6 +40,12 @@ describe('CatalogEventFactory', () => {
     expect(entry.aggregateId).toBe(restaurantId);
     expect(entry.type).toBe('RestaurantUpdated');
     expect(entry.payload).toMatchObject({ id: restaurantId, tenantId, name: 'Pho House' });
+  });
+
+  it('carries the aggregate optimistic-lock version in the event payload — the read-model projector relies on this to keep GET in sync with PATCH', () => {
+    const entry = CatalogEventFactory.restaurantUpdated(restaurant);
+
+    expect(entry.payload).toMatchObject({ version: 3 });
   });
 
   it('keys a menu-item event by the menu-item id and carries its snapshot', () => {

@@ -12,6 +12,7 @@ export class RestaurantMapper {
       createdAt: orm.createdAt,
       updatedAt: orm.updatedAt,
       deletedAt: orm.deletedAt,
+      version: orm.version,
     });
   }
 
@@ -25,6 +26,7 @@ export class RestaurantMapper {
     orm.createdAt = domain.createdAt;
     orm.updatedAt = domain.updatedAt;
     orm.deletedAt = domain.deletedAt;
+    orm.version = domain.version;
     return orm;
   }
 }

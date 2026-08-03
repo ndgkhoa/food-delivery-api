@@ -8,6 +8,13 @@ export interface RestaurantProps {
   updatedAt: Date;
   deletedAt: Date | null;
   /**
+   * Optimistic-lock version. Undefined on an aggregate `create()`d but not yet
+   * persisted (TypeORM assigns the real value 1 on insert); `reconstitute()`
+   * always supplies the real persisted value. Backs
+   * `RestaurantRepository.updateVersioned`'s conditional write.
+   */
+  version?: number;
+  /**
    * Denormalized aggregate rating fed by the review service's recompute events.
    * Read-model only — the write model (this class doubles as both) never sets
    * these on `create`/`update`, so they stay `undefined` there and the getters
@@ -101,6 +108,11 @@ export class Restaurant {
 
   get deletedAt(): Date | null {
     return this.props.deletedAt;
+  }
+
+  /** Defaults to 1 pre-persistence — matches TypeORM's own insert-time default for a fresh row. */
+  get version(): number {
+    return this.props.version ?? 1;
   }
 
   /** 0 on the write model (no reviews concept there); the real aggregate on a read-model reconstitution. */

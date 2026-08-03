@@ -11,6 +11,7 @@ export class MenuItemResponseMapper {
       description: menuItem.description,
       priceCents: menuItem.priceCents,
       isAvailable: menuItem.isAvailable,
+      version: menuItem.version,
       createdAt: menuItem.createdAt,
       updatedAt: menuItem.updatedAt,
     };

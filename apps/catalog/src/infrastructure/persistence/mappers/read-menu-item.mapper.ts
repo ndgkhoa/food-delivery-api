@@ -16,6 +16,7 @@ export class ReadMenuItemMapper {
       createdAt: orm.createdAt,
       updatedAt: orm.updatedAt,
       deletedAt: null,
+      version: orm.version,
     });
   }
 
@@ -28,6 +29,7 @@ export class ReadMenuItemMapper {
     orm.description = row.description;
     orm.priceCents = row.priceCents;
     orm.isAvailable = row.isAvailable;
+    orm.version = row.version;
     orm.createdAt = row.createdAt;
     orm.updatedAt = row.updatedAt;
     return orm;

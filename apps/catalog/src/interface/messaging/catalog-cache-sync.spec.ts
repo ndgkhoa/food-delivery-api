@@ -34,7 +34,7 @@ const tenantId = '11111111-1111-4111-8111-111111111111';
 const restaurantId = '22222222-2222-4222-8222-222222222222';
 
 function restaurant(
-  overrides: Partial<{ name: string; rating: number; reviewCount: number }> = {},
+  overrides: Partial<{ name: string; rating: number; reviewCount: number; version: number }> = {},
 ): Restaurant {
   const now = new Date('2026-07-01T00:00:00.000Z');
   return Restaurant.reconstitute({
@@ -48,6 +48,7 @@ function restaurant(
     deletedAt: null,
     rating: overrides.rating ?? 0,
     reviewCount: overrides.reviewCount ?? 0,
+    version: overrides.version ?? 1,
   });
 }
 
@@ -101,6 +102,31 @@ describe('syncRestaurantCache', () => {
       throw new Error('should not miss');
     });
     expect(cached).toMatchObject({ name: 'New Name' });
+  });
+
+  it('write-throughs the bumped version on RestaurantUpdated — a cache hit reflects the new version, not the pre-update one', async () => {
+    repository.seed(restaurant({ version: 1 }));
+    await syncRestaurantCache(
+      'RestaurantCreated',
+      restaurantId,
+      tenantId,
+      cache.asRedisCache(),
+      repository,
+    );
+
+    repository.seed(restaurant({ version: 2 }));
+    await syncRestaurantCache(
+      'RestaurantUpdated',
+      restaurantId,
+      tenantId,
+      cache.asRedisCache(),
+      repository,
+    );
+
+    const cached = await cache.cacheAside(key, 1000, async () => {
+      throw new Error('should not miss — write-through already warmed the cache');
+    });
+    expect(cached).toMatchObject({ version: 2 });
   });
 
   it('write-throughs the recomputed rating on RestaurantRatingChanged', async () => {

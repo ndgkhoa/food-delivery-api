@@ -8,6 +8,7 @@ import type { MenuItemResponse } from '@catalog/interface/http/dto/menu-item.res
 import type { PaginatedResponse } from '@catalog/interface/http/dto/paginated.response';
 import { PaginationRequest } from '@catalog/interface/http/dto/pagination.request';
 import { UpdateMenuItemRequest } from '@catalog/interface/http/dto/update-menu-item.request';
+import { IF_MATCH_HEADER, parseIfMatchVersion } from '@catalog/interface/http/if-match-header.util';
 import { MenuItemResponseMapper } from '@catalog/interface/http/mappers/menu-item-response.mapper';
 import { Roles } from '@food-delivery-api/shared-tenancy';
 import {
@@ -15,6 +16,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -71,8 +73,12 @@ export class MenuItemsController {
     @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateMenuItemRequest,
+    @Headers(IF_MATCH_HEADER) ifMatch?: string,
   ): Promise<MenuItemResponse> {
-    const menuItem = await this.updateMenuItem.execute(restaurantId, id, dto);
+    const menuItem = await this.updateMenuItem.execute(restaurantId, id, {
+      ...dto,
+      expectedVersion: parseIfMatchVersion(ifMatch),
+    });
     return MenuItemResponseMapper.toResponse(menuItem);
   }
 

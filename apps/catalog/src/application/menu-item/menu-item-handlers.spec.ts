@@ -16,6 +16,7 @@ import type { Restaurant } from '@catalog/domain/restaurant/restaurant';
 import type { RestaurantRepository } from '@catalog/domain/restaurant/restaurant.repository';
 import type { AuditEntry, AuditPort } from '@catalog/domain/shared/audit.port';
 import { AuditAction } from '@catalog/domain/shared/audit-action';
+import { ConcurrencyConflictError } from '@catalog/domain/shared/errors';
 import type { OutboxEntry, OutboxWriter } from '@catalog/domain/shared/outbox.port';
 import type { PageResult, Pagination } from '@catalog/domain/shared/pagination';
 import type { TransactionPort } from '@catalog/domain/shared/transaction.port';
@@ -25,6 +26,12 @@ class FakeRestaurantRepository implements RestaurantRepository {
   private readonly rows = new Map<string, Restaurant>();
 
   async save(restaurant: Restaurant): Promise<Restaurant> {
+    this.rows.set(restaurant.id, restaurant);
+    return restaurant;
+  }
+
+  /** Not exercised by this suite (no restaurant-update tests here) — present only to satisfy the interface. */
+  async updateVersioned(restaurant: Restaurant): Promise<Restaurant> {
     this.rows.set(restaurant.id, restaurant);
     return restaurant;
   }
@@ -58,6 +65,34 @@ class FakeMenuItemRepository implements MenuItemRepository, ReadMenuItemReposito
   async save(menuItem: MenuItem): Promise<MenuItem> {
     this.rows.set(menuItem.id, menuItem);
     return menuItem;
+  }
+
+  /**
+   * Mimics the real repository's atomic conditional update: rejects when the
+   * stored row's version has already moved past `menuItem.version` (the
+   * version the caller loaded), then bumps it by 1 — so a concurrent-save
+   * race can be simulated in-memory without a DB.
+   */
+  async updateVersioned(menuItem: MenuItem): Promise<MenuItem> {
+    const current = this.rows.get(menuItem.id);
+    if (!current || current.version !== menuItem.version) {
+      throw new ConcurrencyConflictError('MenuItem', menuItem.id);
+    }
+    const saved = MenuItem.reconstitute({
+      id: menuItem.id,
+      tenantId: menuItem.tenantId,
+      restaurantId: menuItem.restaurantId,
+      name: menuItem.name,
+      description: menuItem.description,
+      priceCents: menuItem.priceCents,
+      isAvailable: menuItem.isAvailable,
+      createdAt: menuItem.createdAt,
+      updatedAt: menuItem.updatedAt,
+      deletedAt: menuItem.deletedAt,
+      version: menuItem.version + 1,
+    });
+    this.rows.set(menuItem.id, saved);
+    return saved;
   }
 
   async findById(id: string, restaurantId: string, tenantId: string): Promise<MenuItem | null> {
@@ -303,5 +338,62 @@ describe('menu-item application handlers', () => {
     const updateEntry = auditPort.entries.find((e) => e.action === AuditAction.UPDATE);
     expect(updateEntry?.before).toMatchObject({ priceCents: 8500 });
     expect(updateEntry?.after).toMatchObject({ priceCents: 9000 });
+  });
+
+  it('increments the version and returns it on a normal update', async () => {
+    const restaurant = await createRestaurantHandler.execute({ name: 'Pho House' });
+    const menuItem = await createMenuItem.execute(restaurant.id, {
+      name: 'Pho Bo',
+      priceCents: 8500,
+    });
+    expect(menuItem.version).toBe(1);
+
+    const updated = await updateMenuItem.execute(restaurant.id, menuItem.id, { priceCents: 9000 });
+    expect(updated.version).toBe(2);
+  });
+
+  it('rejects a PATCH carrying a stale If-Match version before writing or auditing', async () => {
+    const restaurant = await createRestaurantHandler.execute({ name: 'Pho House' });
+    const menuItem = await createMenuItem.execute(restaurant.id, {
+      name: 'Pho Bo',
+      priceCents: 8500,
+    });
+
+    await expect(
+      updateMenuItem.execute(restaurant.id, menuItem.id, {
+        priceCents: 9000,
+        expectedVersion: 999,
+      }),
+    ).rejects.toThrow(ConcurrencyConflictError);
+
+    const stored = await menuItemRepository.findById(menuItem.id, restaurant.id, tenantA);
+    expect(stored?.priceCents).toBe(8500);
+    expect(auditPort.entries.filter((e) => e.action === AuditAction.UPDATE)).toHaveLength(0);
+  });
+
+  it('resolves a concurrent double-write race with exactly one winner, no lost update', async () => {
+    const restaurant = await createRestaurantHandler.execute({ name: 'Pho House' });
+    const menuItem = await createMenuItem.execute(restaurant.id, {
+      name: 'Pho Bo',
+      priceCents: 8500,
+    });
+
+    // Both writers load the SAME version before either commits.
+    const firstView = await getMenuItem.execute(restaurant.id, menuItem.id);
+    const secondView = await getMenuItem.execute(restaurant.id, menuItem.id);
+
+    const firstUpdated = firstView.update({ priceCents: 9000 });
+    const secondUpdated = secondView.update({ priceCents: 7000 });
+
+    const winner = await menuItemRepository.updateVersioned(firstUpdated);
+    expect(winner.priceCents).toBe(9000);
+
+    await expect(menuItemRepository.updateVersioned(secondUpdated)).rejects.toThrow(
+      ConcurrencyConflictError,
+    );
+
+    const stored = await menuItemRepository.findById(menuItem.id, restaurant.id, tenantA);
+    expect(stored?.priceCents).toBe(9000);
+    expect(stored?.version).toBe(2);
   });
 });

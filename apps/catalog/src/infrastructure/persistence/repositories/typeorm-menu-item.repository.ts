@@ -1,5 +1,6 @@
 import type { MenuItem } from '@catalog/domain/menu-item/menu-item';
 import type { MenuItemRepository } from '@catalog/domain/menu-item/menu-item.repository';
+import { ConcurrencyConflictError, EntityNotFoundError } from '@catalog/domain/shared/errors';
 import type { PageResult, Pagination } from '@catalog/domain/shared/pagination';
 import { MenuItemOrmEntity } from '@catalog/infrastructure/persistence/entities/menu-item.orm-entity';
 import { MenuItemMapper } from '@catalog/infrastructure/persistence/mappers/menu-item.mapper';
@@ -24,6 +25,52 @@ export class TypeOrmMenuItemRepository implements MenuItemRepository {
     const orm = MenuItemMapper.toOrm(menuItem);
     const saved = await this.repository.save(orm);
     return MenuItemMapper.toDomain(saved);
+  }
+
+  /**
+   * Atomic conditional `UPDATE ... SET version = version + 1 WHERE id = :id
+   * AND restaurant_id = :restaurantId AND tenant_id = :tenantId AND version =
+   * :version` — see `TypeOrmRestaurantRepository.updateVersioned` for why a
+   * raw conditional query is used instead of TypeORM's managed `save()`
+   * (whose automatic version check only engages via an explicit optimistic
+   * lock read, which has a load-then-write gap). Zero affected rows means a
+   * concurrent writer already moved the version on since this aggregate was
+   * loaded — a real conflict, not a missing row.
+   */
+  async updateVersioned(menuItem: MenuItem): Promise<MenuItem> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(MenuItemOrmEntity)
+      .set({
+        name: menuItem.name,
+        description: menuItem.description,
+        priceCents: menuItem.priceCents,
+        isAvailable: menuItem.isAvailable,
+        updatedAt: menuItem.updatedAt,
+        version: () => 'version + 1',
+      })
+      .where(
+        'id = :id AND restaurant_id = :restaurantId AND tenant_id = :tenantId AND version = :version',
+        {
+          id: menuItem.id,
+          restaurantId: menuItem.restaurantId,
+          tenantId: menuItem.tenantId,
+          version: menuItem.version,
+        },
+      )
+      .execute();
+
+    if ((result.affected ?? 0) === 0) {
+      throw new ConcurrencyConflictError('MenuItem', menuItem.id);
+    }
+
+    const reloaded = await this.repository.findOne({
+      where: { id: menuItem.id, restaurantId: menuItem.restaurantId, tenantId: menuItem.tenantId },
+    });
+    if (!reloaded) {
+      throw new EntityNotFoundError('MenuItem', menuItem.id);
+    }
+    return MenuItemMapper.toDomain(reloaded);
   }
 
   async findById(id: string, restaurantId: string, tenantId: string): Promise<MenuItem | null> {
