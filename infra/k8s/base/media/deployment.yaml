@@ -26,11 +26,14 @@ spec:
           type: RuntimeDefault
       containers:
         - name: media
-          image: food-delivery/media:dev
+          image: food-delivery-api:dev
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 3006
+          env:
+            - name: APP
+              value: media
           envFrom:
             - configMapRef:
                 name: media-config

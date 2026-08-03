@@ -1,5 +1,5 @@
-# Dev overlay: the base is already dev-shaped (1 replica, food-delivery/<app>:dev
-# images, IfNotPresent, modest resources) — see infra/k8s/base — so this overlay
+# Dev overlay: the base is already dev-shaped (1 replica, food-delivery-api:dev
+# image, IfNotPresent, modest resources) — see infra/k8s/base — so this overlay
 # only needs to (1) pull in the infra-dev component (Postgres + Redis, whose
 # in-cluster Service DNS the base ConfigMaps already point at) and (2) turn off
 # telemetry export, since the otel-collector isn't part of this minimal infra
