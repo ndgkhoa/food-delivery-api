@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/ndgkhoa/food-delivery-api/compare/v1.2.0...v1.2.1) (2026-08-03)
+
+
+### Bug Fixes
+
+* **infra:** remediate uuid CVE-2026-41907 and harden CI/CD image pipeline ([#60](https://github.com/ndgkhoa/food-delivery-api/issues/60)) ([6c1474e](https://github.com/ndgkhoa/food-delivery-api/commit/6c1474e5b1500489eb4143706551373124b4b3c4))
+
 ## [1.2.0](https://github.com/ndgkhoa/food-delivery-api/compare/v1.1.0...v1.2.0) (2026-08-03)
 
 
