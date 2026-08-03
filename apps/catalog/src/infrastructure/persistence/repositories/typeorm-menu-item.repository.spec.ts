@@ -1,5 +1,6 @@
 import { MenuItem } from '@catalog/domain/menu-item/menu-item';
 import { Restaurant } from '@catalog/domain/restaurant/restaurant';
+import { ConcurrencyConflictError } from '@catalog/domain/shared/errors';
 import { MenuItemOrmEntity } from '@catalog/infrastructure/persistence/entities/menu-item.orm-entity';
 import { RestaurantOrmEntity } from '@catalog/infrastructure/persistence/entities/restaurant.orm-entity';
 import { TypeOrmMenuItemRepository } from '@catalog/infrastructure/persistence/repositories/typeorm-menu-item.repository';
@@ -130,5 +131,62 @@ describe('TypeOrmMenuItemRepository (integration)', () => {
     await menuItemRepository.softDelete(menuItem.id, tenantA);
 
     expect(await menuItemRepository.findById(menuItem.id, restaurant.id, tenantA)).toBeNull();
+  });
+
+  describe('updateVersioned (optimistic locking)', () => {
+    it('increments the version on a normal update against real Postgres', async () => {
+      const restaurant = await createRestaurant();
+      const menuItem = await menuItemRepository.save(
+        MenuItem.create({
+          id: crypto.randomUUID(),
+          tenantId: tenantA,
+          restaurantId: restaurant.id,
+          name: 'Pho Bo',
+          priceCents: 8500,
+        }),
+      );
+      expect(menuItem.version).toBe(1);
+
+      const saved = await menuItemRepository.updateVersioned(menuItem.update({ priceCents: 9000 }));
+
+      expect(saved.priceCents).toBe(9000);
+      expect(saved.version).toBe(2);
+    });
+
+    it('rejects a stale write against real Postgres: the WHERE version guard genuinely blocks it', async () => {
+      const restaurant = await createRestaurant();
+      const created = await menuItemRepository.save(
+        MenuItem.create({
+          id: crypto.randomUUID(),
+          tenantId: tenantA,
+          restaurantId: restaurant.id,
+          name: 'Pho Bo',
+          priceCents: 8500,
+        }),
+      );
+
+      // Two concurrent PATCHes both load version 1 before either writes.
+      const firstLoad = await menuItemRepository.findById(created.id, restaurant.id, tenantA);
+      const secondLoad = await menuItemRepository.findById(created.id, restaurant.id, tenantA);
+      if (!firstLoad || !secondLoad) {
+        throw new Error('expected both loads to find the seeded menu item');
+      }
+
+      const winner = await menuItemRepository.updateVersioned(
+        firstLoad.update({ priceCents: 9000 }),
+      );
+      expect(winner.version).toBe(2);
+
+      // Second writer's version-1 view is stale — the atomic
+      // `WHERE ... version = 1` update affects 0 rows, so it's rejected
+      // instead of silently overwriting the winner's write.
+      await expect(
+        menuItemRepository.updateVersioned(secondLoad.update({ priceCents: 7000 })),
+      ).rejects.toThrow(ConcurrencyConflictError);
+
+      const final = await menuItemRepository.findById(created.id, restaurant.id, tenantA);
+      expect(final?.priceCents).toBe(9000);
+      expect(final?.version).toBe(2);
+    });
   });
 });

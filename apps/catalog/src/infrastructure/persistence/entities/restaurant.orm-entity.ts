@@ -8,6 +8,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  VersionColumn,
 } from 'typeorm';
 
 @Entity('restaurants')
@@ -27,6 +28,10 @@ export class RestaurantOrmEntity {
 
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive!: boolean;
+
+  /** Backs optimistic-lock updates — see `TypeOrmRestaurantRepository.updateVersioned`. */
+  @VersionColumn()
+  version!: number;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;

@@ -10,6 +10,8 @@ export interface ReadMenuItemRow {
   description: string | null;
   priceCents: number;
   isAvailable: boolean;
+  /** Projected from the write model's version — see `read-menu-item.orm-entity.ts`. */
+  version: number;
   createdAt: Date;
   updatedAt: Date;
 }

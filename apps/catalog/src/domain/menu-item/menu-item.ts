@@ -10,6 +10,13 @@ export interface MenuItemProps {
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+  /**
+   * Optimistic-lock version. Undefined on an aggregate `create()`d but not yet
+   * persisted (TypeORM assigns the real value 1 on insert); `reconstitute()`
+   * always supplies the real persisted value. Backs
+   * `MenuItemRepository.updateVersioned`'s conditional write.
+   */
+  version?: number;
 }
 
 export interface CreateMenuItemProps {
@@ -116,6 +123,11 @@ export class MenuItem {
 
   get deletedAt(): Date | null {
     return this.props.deletedAt;
+  }
+
+  /** Defaults to 1 pre-persistence — matches TypeORM's own insert-time default for a fresh row. */
+  get version(): number {
+    return this.props.version ?? 1;
   }
 
   /** Returns a new `MenuItem` instance with the changes applied (immutable update). */

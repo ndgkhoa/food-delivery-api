@@ -8,6 +8,7 @@ import type { PaginatedResponse } from '@catalog/interface/http/dto/paginated.re
 import { PaginationRequest } from '@catalog/interface/http/dto/pagination.request';
 import type { RestaurantResponse } from '@catalog/interface/http/dto/restaurant.response';
 import { UpdateRestaurantRequest } from '@catalog/interface/http/dto/update-restaurant.request';
+import { IF_MATCH_HEADER, parseIfMatchVersion } from '@catalog/interface/http/if-match-header.util';
 import { RestaurantResponseMapper } from '@catalog/interface/http/mappers/restaurant-response.mapper';
 import { Roles } from '@food-delivery-api/shared-tenancy';
 import {
@@ -15,6 +16,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -63,8 +65,12 @@ export class RestaurantsController {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateRestaurantRequest,
+    @Headers(IF_MATCH_HEADER) ifMatch?: string,
   ): Promise<RestaurantResponse> {
-    const restaurant = await this.updateRestaurant.execute(id, dto);
+    const restaurant = await this.updateRestaurant.execute(id, {
+      ...dto,
+      expectedVersion: parseIfMatchVersion(ifMatch),
+    });
     return RestaurantResponseMapper.toResponse(restaurant);
   }
 

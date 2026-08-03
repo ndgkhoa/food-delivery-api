@@ -17,6 +17,16 @@ export interface RestaurantCacheSnapshot {
   updatedAt: string;
   rating: number;
   reviewCount: number;
+  /**
+   * Optimistic-lock version, mirrored from the read model row. Not a schema
+   * rename (an additive field), so the cache key isn't bumped: a value cached
+   * before this field existed simply lacks it, `fromRestaurantCacheSnapshot`
+   * falls back to `Restaurant`'s `?? 1` default for that single entry until it
+   * naturally expires off the short (30s) TTL — bounded, self-healing, and
+   * consistent with this cache's existing "TTL is the staleness backstop"
+   * design (see `cache-keys.ts`).
+   */
+  version: number;
 }
 
 export function toRestaurantCacheSnapshot(restaurant: Restaurant): RestaurantCacheSnapshot {
@@ -30,6 +40,7 @@ export function toRestaurantCacheSnapshot(restaurant: Restaurant): RestaurantCac
     updatedAt: restaurant.updatedAt.toISOString(),
     rating: restaurant.rating,
     reviewCount: restaurant.reviewCount,
+    version: restaurant.version,
   };
 }
 
@@ -45,5 +56,6 @@ export function fromRestaurantCacheSnapshot(snapshot: RestaurantCacheSnapshot): 
     deletedAt: null,
     rating: snapshot.rating,
     reviewCount: snapshot.reviewCount,
+    version: snapshot.version,
   });
 }

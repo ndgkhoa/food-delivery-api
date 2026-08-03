@@ -35,6 +35,17 @@ export class ReadRestaurantOrmEntity {
   @Column({ name: 'review_count', type: 'integer', default: 0 })
   reviewCount!: number;
 
+  /**
+   * Optimistic-lock version projected from the write model's `restaurants.version`
+   * (see `AddVersionToRestaurantsAndMenuItems1754250000000`). Plain `integer`, not
+   * a TypeORM `@VersionColumn()` — this row is never saved via `Repository.save()`
+   * (only the explicit-column upsert), so a version guard here would be inert; the
+   * column exists purely so `If-Match` reads (GET) see the same version the write
+   * aggregate enforces on PATCH.
+   */
+  @Column({ type: 'integer', default: 1 })
+  version!: number;
+
   @Column({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

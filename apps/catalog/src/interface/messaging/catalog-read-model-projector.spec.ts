@@ -77,6 +77,7 @@ describe('applyCatalogEvent', () => {
         name: 'Pho House',
         description: null,
         isActive: true,
+        version: 1,
         createdAt: '2026-07-28T00:00:00.000Z',
         updatedAt: '2026-07-28T00:00:00.000Z',
       },
@@ -86,6 +87,23 @@ describe('applyCatalogEvent', () => {
     expect(restaurants.upserted).toHaveLength(1);
     expect(restaurants.upserted[0]).toMatchObject({ id: aggregateId, tenantId, name: 'Pho House' });
     expect(restaurants.upserted[0].createdAt).toBeInstanceOf(Date);
+  });
+
+  it('projects the write aggregate version into the restaurant read row, not a constant', async () => {
+    await applyCatalogEvent(
+      envelope('RestaurantUpdated'),
+      {
+        name: 'Pho House',
+        description: null,
+        isActive: true,
+        version: 4,
+        createdAt: '2026-07-28T00:00:00.000Z',
+        updatedAt: '2026-07-28T00:00:00.000Z',
+      },
+      repos(),
+    );
+
+    expect(restaurants.upserted[0]).toMatchObject({ version: 4 });
   });
 
   it('removes the restaurant read row and cascades to its menu items on RestaurantDeleted', async () => {
@@ -104,6 +122,7 @@ describe('applyCatalogEvent', () => {
         description: null,
         priceCents: 9000,
         isAvailable: true,
+        version: 3,
         createdAt: '2026-07-28T00:00:00.000Z',
         updatedAt: '2026-07-28T00:00:00.000Z',
       },
@@ -111,7 +130,7 @@ describe('applyCatalogEvent', () => {
     );
 
     expect(menuItems.upserted).toHaveLength(1);
-    expect(menuItems.upserted[0]).toMatchObject({ id: aggregateId, priceCents: 9000 });
+    expect(menuItems.upserted[0]).toMatchObject({ id: aggregateId, priceCents: 9000, version: 3 });
   });
 
   it('removes only the single menu-item read row on MenuItemDeleted', async () => {

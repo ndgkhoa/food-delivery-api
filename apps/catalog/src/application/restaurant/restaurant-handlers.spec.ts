@@ -13,6 +13,7 @@ import { Restaurant } from '@catalog/domain/restaurant/restaurant';
 import type { RestaurantRepository } from '@catalog/domain/restaurant/restaurant.repository';
 import type { AuditEntry, AuditPort } from '@catalog/domain/shared/audit.port';
 import { AuditAction } from '@catalog/domain/shared/audit-action';
+import { ConcurrencyConflictError } from '@catalog/domain/shared/errors';
 import type { OutboxEntry, OutboxWriter } from '@catalog/domain/shared/outbox.port';
 import type { PageResult, Pagination } from '@catalog/domain/shared/pagination';
 import type { TransactionPort } from '@catalog/domain/shared/transaction.port';
@@ -31,6 +32,32 @@ class FakeRestaurantRepository implements RestaurantRepository, ReadRestaurantRe
   async save(restaurant: Restaurant): Promise<Restaurant> {
     this.rows.set(restaurant.id, restaurant);
     return restaurant;
+  }
+
+  /**
+   * Mimics the real repository's atomic conditional update: rejects when the
+   * stored row's version has already moved past `restaurant.version` (the
+   * version the caller loaded), then bumps it by 1 — so a concurrent-save
+   * race can be simulated in-memory without a DB.
+   */
+  async updateVersioned(restaurant: Restaurant): Promise<Restaurant> {
+    const current = this.rows.get(restaurant.id);
+    if (!current || current.version !== restaurant.version) {
+      throw new ConcurrencyConflictError('Restaurant', restaurant.id);
+    }
+    const saved = Restaurant.reconstitute({
+      id: restaurant.id,
+      tenantId: restaurant.tenantId,
+      name: restaurant.name,
+      description: restaurant.description,
+      isActive: restaurant.isActive,
+      createdAt: restaurant.createdAt,
+      updatedAt: restaurant.updatedAt,
+      deletedAt: restaurant.deletedAt,
+      version: restaurant.version + 1,
+    });
+    this.rows.set(restaurant.id, saved);
+    return saved;
   }
 
   async findById(id: string, tenantId: string): Promise<Restaurant | null> {
@@ -253,5 +280,65 @@ describe('restaurant application handlers', () => {
     const updateEntry = auditPort.entries.find((e) => e.action === AuditAction.UPDATE);
     expect(updateEntry?.before).toMatchObject({ name: 'Original Name' });
     expect(updateEntry?.after).toMatchObject({ name: 'Updated Name' });
+  });
+
+  it('increments the version and returns it on a normal update', async () => {
+    const restaurant = await createRestaurant.execute({ name: 'Original Name' });
+    expect(restaurant.version).toBe(1);
+
+    const updated = await updateRestaurant.execute(restaurant.id, { name: 'Updated Name' });
+    expect(updated.version).toBe(2);
+  });
+
+  it('rejects a PATCH carrying a stale If-Match version before writing or auditing', async () => {
+    const restaurant = await createRestaurant.execute({ name: 'Original Name' });
+
+    await expect(
+      updateRestaurant.execute(restaurant.id, { name: 'Updated Name', expectedVersion: 999 }),
+    ).rejects.toThrow(ConcurrencyConflictError);
+
+    // Nothing persisted or audited — the check happens before the transaction.
+    const stored = await repository.findById(restaurant.id, tenantA);
+    expect(stored?.name).toBe('Original Name');
+    expect(auditPort.entries.filter((e) => e.action === AuditAction.UPDATE)).toHaveLength(0);
+  });
+
+  it('accepts a PATCH whose If-Match matches the loaded version', async () => {
+    const restaurant = await createRestaurant.execute({ name: 'Original Name' });
+
+    const updated = await updateRestaurant.execute(restaurant.id, {
+      name: 'Updated Name',
+      expectedVersion: restaurant.version,
+    });
+    expect(updated.name).toBe('Updated Name');
+    expect(updated.version).toBe(2);
+  });
+
+  it('resolves a concurrent double-write race with exactly one winner, no lost update', async () => {
+    const restaurant = await createRestaurant.execute({ name: 'Original Name' });
+
+    // Both writers load the SAME version before either commits — simulates
+    // two concurrent PATCHes racing on the read, each about to write.
+    const firstView = await getRestaurant.execute(restaurant.id);
+    const secondView = await getRestaurant.execute(restaurant.id);
+    expect(firstView.version).toBe(secondView.version);
+
+    const firstUpdated = firstView.update({ name: 'Winner' });
+    const secondUpdated = secondView.update({ name: 'Loser' });
+
+    const winner = await repository.updateVersioned(firstUpdated);
+    expect(winner.name).toBe('Winner');
+    expect(winner.version).toBe(firstView.version + 1);
+
+    // The second writer's version has already moved on in the DB — the
+    // atomic guard rejects it rather than silently clobbering the winner.
+    await expect(repository.updateVersioned(secondUpdated)).rejects.toThrow(
+      ConcurrencyConflictError,
+    );
+
+    // No lost update: the winner's write survives untouched.
+    const stored = await repository.findById(restaurant.id, tenantA);
+    expect(stored?.name).toBe('Winner');
+    expect(stored?.version).toBe(2);
   });
 });

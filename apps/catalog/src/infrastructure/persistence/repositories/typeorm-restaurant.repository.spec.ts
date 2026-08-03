@@ -1,4 +1,5 @@
 import { Restaurant } from '@catalog/domain/restaurant/restaurant';
+import { ConcurrencyConflictError } from '@catalog/domain/shared/errors';
 import { RestaurantOrmEntity } from '@catalog/infrastructure/persistence/entities/restaurant.orm-entity';
 import { TypeOrmRestaurantRepository } from '@catalog/infrastructure/persistence/repositories/typeorm-restaurant.repository';
 import {
@@ -102,5 +103,48 @@ describe('TypeOrmRestaurantRepository (integration)', () => {
     expect(await repository.findById(restaurant.id, tenantA)).toBeNull();
     const { data } = await repository.findAndCount(tenantA, { page: 1, limit: 20 });
     expect(data.find((r) => r.id === restaurant.id)).toBeUndefined();
+  });
+
+  describe('updateVersioned (optimistic locking)', () => {
+    it('increments the version on a normal update against real Postgres', async () => {
+      const restaurant = await repository.save(
+        Restaurant.create({ id: crypto.randomUUID(), tenantId: tenantA, name: 'Pho House' }),
+      );
+      expect(restaurant.version).toBe(1);
+
+      const saved = await repository.updateVersioned(restaurant.update({ name: 'Pho House 2' }));
+
+      expect(saved.name).toBe('Pho House 2');
+      expect(saved.version).toBe(2);
+    });
+
+    it('rejects a stale write against real Postgres: the WHERE version guard genuinely blocks it', async () => {
+      const created = await repository.save(
+        Restaurant.create({ id: crypto.randomUUID(), tenantId: tenantA, name: 'Pho House' }),
+      );
+
+      // Two concurrent PATCHes both load version 1 before either writes.
+      const firstLoad = await repository.findById(created.id, tenantA);
+      const secondLoad = await repository.findById(created.id, tenantA);
+      if (!firstLoad || !secondLoad) {
+        throw new Error('expected both loads to find the seeded restaurant');
+      }
+
+      // First writer commits — the row is now at version 2 in Postgres.
+      const winner = await repository.updateVersioned(firstLoad.update({ name: 'Winner' }));
+      expect(winner.version).toBe(2);
+
+      // Second writer still holds the version-1 view — the atomic
+      // `WHERE ... version = 1` update affects 0 rows in the real DB, so the
+      // guard rejects it instead of silently overwriting the winner's write.
+      await expect(
+        repository.updateVersioned(secondLoad.update({ name: 'Loser' })),
+      ).rejects.toThrow(ConcurrencyConflictError);
+
+      // No lost update: the winner's write is what's actually in Postgres.
+      const final = await repository.findById(created.id, tenantA);
+      expect(final?.name).toBe('Winner');
+      expect(final?.version).toBe(2);
+    });
   });
 });

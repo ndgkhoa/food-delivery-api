@@ -14,6 +14,7 @@ export class MenuItemMapper {
       createdAt: orm.createdAt,
       updatedAt: orm.updatedAt,
       deletedAt: orm.deletedAt,
+      version: orm.version,
     });
   }
 
@@ -29,6 +30,7 @@ export class MenuItemMapper {
     orm.createdAt = domain.createdAt;
     orm.updatedAt = domain.updatedAt;
     orm.deletedAt = domain.deletedAt;
+    orm.version = domain.version;
     return orm;
   }
 }

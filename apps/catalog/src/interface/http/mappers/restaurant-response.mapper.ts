@@ -11,6 +11,7 @@ export class RestaurantResponseMapper {
       isActive: restaurant.isActive,
       rating: restaurant.rating,
       reviewCount: restaurant.reviewCount,
+      version: restaurant.version,
       createdAt: restaurant.createdAt,
       updatedAt: restaurant.updatedAt,
     };

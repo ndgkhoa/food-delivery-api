@@ -8,6 +8,8 @@ export interface ReadRestaurantRow {
   name: string;
   description: string | null;
   isActive: boolean;
+  /** Projected from the write model's version — see `read-restaurant.orm-entity.ts`. */
+  version: number;
   createdAt: Date;
   updatedAt: Date;
 }
