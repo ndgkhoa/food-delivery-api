@@ -1,10 +1,10 @@
+import { applyReviewEvent } from '@catalog/application/projections/catalog-rating-projector';
 import {
   READ_RESTAURANT_REPOSITORY,
   type ReadRestaurantRepository,
 } from '@catalog/domain/read-model/read-restaurant.repository';
 import { TRANSACTION_PORT, type TransactionPort } from '@catalog/domain/shared/transaction.port';
 import { syncRestaurantCache } from '@catalog/interface/messaging/catalog-cache-sync';
-import { applyReviewEvent } from '@catalog/interface/messaging/catalog-rating-projector';
 import type { KafkaJS } from '@confluentinc/kafka-javascript';
 import { REDIS_CACHE, type RedisCache } from '@food-delivery-api/shared-cache';
 import {
