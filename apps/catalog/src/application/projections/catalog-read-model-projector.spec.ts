@@ -1,3 +1,4 @@
+import { applyCatalogEvent } from '@catalog/application/projections/catalog-read-model-projector';
 import type {
   ReadMenuItemRepository,
   ReadMenuItemRow,
@@ -6,7 +7,6 @@ import type {
   ReadRestaurantRepository,
   ReadRestaurantRow,
 } from '@catalog/domain/read-model/read-restaurant.repository';
-import { applyCatalogEvent } from '@catalog/interface/messaging/catalog-read-model-projector';
 import type { EventEnvelopeHeaders } from '@food-delivery-api/shared-messaging';
 
 class FakeReadRestaurantRepository implements ReadRestaurantRepository {

@@ -1,8 +1,3 @@
-import {
-  FakeConfigEventPublisher,
-  FakeFeatureFlagRepository,
-  FakeTenantContext,
-} from '@config/application/config/config-test-doubles';
 import { GetFeatureFlagHandler } from '@config/application/config/get-feature-flag.handler';
 import { UpsertFeatureFlagHandler } from '@config/application/config/upsert-feature-flag.handler';
 import { FeatureFlag } from '@config/domain/config/feature-flag';
@@ -10,6 +5,11 @@ import {
   FeatureFlagNotFoundError,
   GlobalWriteRequiresPlatformAdminError,
 } from '@config/domain/shared/errors';
+import {
+  FakeConfigEventPublisher,
+  FakeFeatureFlagRepository,
+  FakeTenantContext,
+} from '@config/testing/config-test-doubles';
 
 describe('feature flag handlers', () => {
   const tenantId = '22222222-2222-4222-8222-222222222222';

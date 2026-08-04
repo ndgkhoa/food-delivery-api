@@ -1,10 +1,10 @@
 import { HandleSendFailureHandler } from '@notification/application/handle-send-failure.handler';
+import type { NotificationJobPayload } from '@notification/domain/notification/notification-queue.port';
 import {
   FakeNotificationDlq,
   FakeNotificationRepository,
   fakeConfig,
-} from '@notification/application/notification-test-doubles';
-import type { NotificationJobPayload } from '@notification/domain/notification/notification-queue.port';
+} from '@notification/testing/notification-test-doubles';
 
 function jobPayload(overrides: Partial<NotificationJobPayload> = {}): NotificationJobPayload {
   return {

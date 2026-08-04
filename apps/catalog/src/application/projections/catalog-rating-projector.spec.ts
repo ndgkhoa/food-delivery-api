@@ -1,10 +1,10 @@
+import { applyReviewEvent } from '@catalog/application/projections/catalog-rating-projector';
 import type {
   ReadRestaurantRepository,
   ReadRestaurantRow,
 } from '@catalog/domain/read-model/read-restaurant.repository';
 import type { Restaurant } from '@catalog/domain/restaurant/restaurant';
 import type { PageResult } from '@catalog/domain/shared/pagination';
-import { applyReviewEvent } from '@catalog/interface/messaging/catalog-rating-projector';
 import type { EventEnvelopeHeaders } from '@food-delivery-api/shared-messaging';
 
 class FakeReadRestaurantRepository implements ReadRestaurantRepository {

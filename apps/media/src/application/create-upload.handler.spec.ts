@@ -1,12 +1,12 @@
 import { CreateUploadHandler } from '@media/application/create-upload.handler';
+import { InvalidUploadError } from '@media/domain/media/errors';
+import { MediaStatus } from '@media/domain/media/media-object';
 import {
   FakeMediaObjectRepository,
   FakeObjectStorage,
   FakeTenantContext,
   fakeConfig,
-} from '@media/application/media-test-doubles';
-import { InvalidUploadError } from '@media/domain/media/errors';
-import { MediaStatus } from '@media/domain/media/media-object';
+} from '@media/testing/media-test-doubles';
 
 describe('CreateUploadHandler', () => {
   const tenantId = '11111111-1111-4111-8111-111111111111';

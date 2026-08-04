@@ -1,3 +1,4 @@
+import { applyCatalogEvent } from '@catalog/application/projections/catalog-read-model-projector';
 import {
   READ_MENU_ITEM_REPOSITORY,
   type ReadMenuItemRepository,
@@ -8,7 +9,6 @@ import {
 } from '@catalog/domain/read-model/read-restaurant.repository';
 import { TRANSACTION_PORT, type TransactionPort } from '@catalog/domain/shared/transaction.port';
 import { syncRestaurantCache } from '@catalog/interface/messaging/catalog-cache-sync';
-import { applyCatalogEvent } from '@catalog/interface/messaging/catalog-read-model-projector';
 import type { KafkaJS } from '@confluentinc/kafka-javascript';
 import { REDIS_CACHE, type RedisCache } from '@food-delivery-api/shared-cache';
 import {

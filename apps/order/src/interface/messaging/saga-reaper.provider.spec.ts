@@ -1,4 +1,6 @@
 import type { TenantContextPort, TenantRequestContext } from '@food-delivery-api/shared-tenancy';
+import { OrderSaga, type SagaState } from '@order/domain/saga/order-saga';
+import { SagaStateChangedError } from '@order/domain/shared/errors';
 import {
   buildOrder,
   DEFAULT_CORRELATION_ID,
@@ -7,9 +9,7 @@ import {
   FakeSagaRepository,
   FakeTransaction,
   TENANT_ID,
-} from '@order/application/saga/saga-reply-test-doubles';
-import { OrderSaga, type SagaState } from '@order/domain/saga/order-saga';
-import { SagaStateChangedError } from '@order/domain/shared/errors';
+} from '@order/testing/saga-reply-test-doubles';
 import type { DataSource, QueryRunner } from 'typeorm';
 import { SagaReaperProvider } from './saga-reaper.provider';
 
