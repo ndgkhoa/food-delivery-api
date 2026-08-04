@@ -5,13 +5,13 @@ import {
   DEFAULT_TOPIC_REPLICATION_FACTOR,
   type KafkaClient,
 } from '@food-delivery-api/shared-messaging';
-import type { ConfigCache } from './config-cache';
-import type { ConfigEventsConsumerLogger } from './config-client-logger';
 import {
   CONFIG_EVENTS_TOPIC,
   type ConfigChangeMessage,
   evictForConfigChange,
 } from './config-events';
+import type { SettingsCache } from './settings-cache';
+import type { ConfigEventsConsumerLogger } from './settings-client-logger';
 
 export interface ConfigEventsConsumerOptions {
   /** `host:port` list for the Kafka broker(s), e.g. `['localhost:9092']`. */
@@ -32,12 +32,12 @@ export class ConfigEventsConsumer {
 
   constructor(
     options: ConfigEventsConsumerOptions,
-    private readonly valueCache: ConfigCache<number>,
-    private readonly flagCache: ConfigCache<boolean>,
+    private readonly valueCache: SettingsCache<number>,
+    private readonly flagCache: SettingsCache<boolean>,
     private readonly logger: ConfigEventsConsumerLogger,
   ) {
     this.client = createKafkaClient({
-      clientId: `config-client-${Math.random().toString(36).slice(2)}`,
+      clientId: `settings-client-${Math.random().toString(36).slice(2)}`,
       brokers: options.kafkaBrokers,
     });
   }
@@ -46,7 +46,7 @@ export class ConfigEventsConsumer {
     await this.ensureTopicExists();
     this.consumer = this.client.consumer({
       kafkaJS: {
-        groupId: `config-client-${Math.random().toString(36).slice(2)}`,
+        groupId: `settings-client-${Math.random().toString(36).slice(2)}`,
         autoCommit: true,
         // Read from the beginning: a fresh (random) group starting at `latest`
         // only sees events produced AFTER partition assignment completes, so a
@@ -64,7 +64,7 @@ export class ConfigEventsConsumer {
     await this.consumer.run({
       eachMessage: async ({ message }) => this.handleMessage(message.value),
     });
-    this.logger.log(`Subscribed to ${CONFIG_EVENTS_TOPIC} for config-client cache invalidation`);
+    this.logger.log(`Subscribed to ${CONFIG_EVENTS_TOPIC} for settings-client cache invalidation`);
   }
 
   async stop(): Promise<void> {
@@ -91,7 +91,7 @@ export class ConfigEventsConsumer {
   }
 
   /**
-   * Idempotently creates the topic before subscribing — a config-client
+   * Idempotently creates the topic before subscribing — a settings-client
    * consumer may be the FIRST process to reach the broker (the config
    * service itself never subscribes to its own topic).
    */

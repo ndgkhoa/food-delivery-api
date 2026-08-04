@@ -45,6 +45,6 @@ export const orderEnvSchema = baseEnvSchema.extend({
   SAGA_RECONCILER_MAX_ATTEMPTS: z.coerce.number().int().positive().default(10),
   /** Base URL of the config service — PlaceOrderHandler reads the tenant's delivery-fee/VAT/discount tunables from it. */
   CONFIG_SERVICE_URL: z.string().min(1).default('http://localhost:3008'),
-  /** config-client's read-through cache TTL (ms) — the self-healing backstop if a `config.events` invalidation is ever missed. */
+  /** settings-client's read-through cache TTL (ms) — the self-healing backstop if a `config.events` invalidation is ever missed. */
   CONFIG_CACHE_TTL_MS: z.coerce.number().int().positive().default(30_000),
 });

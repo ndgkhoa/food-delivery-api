@@ -34,7 +34,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
     TenancyModule,
     PersistenceModule,
     // Producer-only: config never consumes its own `config.events` topic — the
-    // shared config-client library (imported by every OTHER service) is the consumer.
+    // shared settings-client library (imported by every OTHER service) is the consumer.
     MessagingModule.forRoot({
       clientId: process.env.KAFKA_CLIENT_ID ?? 'config',
       brokers: (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(','),

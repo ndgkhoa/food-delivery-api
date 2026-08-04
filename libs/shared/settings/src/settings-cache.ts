@@ -10,11 +10,11 @@ interface CacheRecord<TValue> {
 
 /**
  * Minimal in-memory read-through TTL cache. Deliberately NOT namespaced per
- * value-type — `ConfigClient` uses one instance for both `getInt` and
+ * value-type — `SettingsClient` uses one instance for both `getInt` and
  * `isEnabled` results, since a config key and a flag key never collide (the
  * config service itself keeps them in separate tables/routes).
  */
-export class ConfigCache<TValue = unknown> {
+export class SettingsCache<TValue = unknown> {
   private readonly store = new Map<string, CacheRecord<TValue>>();
 
   get(cacheKey: string): TValue | undefined {

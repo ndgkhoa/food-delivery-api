@@ -1,5 +1,5 @@
-import { ConfigCache } from './config-cache';
-import { ConfigClient } from './config-client';
+import { SettingsCache } from './settings-cache';
+import { SettingsClient } from './settings-client';
 
 function jsonResponse(status: number, body?: unknown): Response {
   return {
@@ -9,21 +9,21 @@ function jsonResponse(status: number, body?: unknown): Response {
   } as unknown as Response;
 }
 
-describe('ConfigClient', () => {
+describe('SettingsClient', () => {
   const tenantId = '33333333-3333-4333-8333-333333333333';
   let fetchMock: jest.Mock;
-  let valueCache: ConfigCache<number>;
-  let flagCache: ConfigCache<boolean>;
+  let valueCache: SettingsCache<number>;
+  let flagCache: SettingsCache<boolean>;
   let warnings: string[];
-  let client: ConfigClient;
+  let client: SettingsClient;
 
   beforeEach(() => {
     fetchMock = jest.fn();
     (global as unknown as { fetch: typeof fetch }).fetch = fetchMock as unknown as typeof fetch;
-    valueCache = new ConfigCache<number>();
-    flagCache = new ConfigCache<boolean>();
+    valueCache = new SettingsCache<number>();
+    flagCache = new SettingsCache<boolean>();
     warnings = [];
-    client = new ConfigClient(
+    client = new SettingsClient(
       { configServiceUrl: 'http://config.test', ttlMs: 30_000 },
       valueCache,
       flagCache,

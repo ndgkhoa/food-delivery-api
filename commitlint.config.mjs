@@ -30,7 +30,7 @@ export default {
         'shared-cache',
         'shared-messaging',
         'shared-observability',
-        'shared-config-client',
+        'shared-settings',
         'shared-contracts',
         'shared-errors',
         'shared-persistence',

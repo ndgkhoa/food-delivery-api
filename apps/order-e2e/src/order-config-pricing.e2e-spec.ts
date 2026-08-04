@@ -26,7 +26,7 @@ import {
  * Calls the config service DIRECTLY (bypassing the gateway) with a
  * hand-stamped trusted identity, the same approach `config-e2e` uses. VAT
  * rate and discount are left un-set for this fresh tenant, so the assertion
- * also proves the config-client's per-key default fallback (a 404 for an
+ * also proves the settings-client's per-key default fallback (a 404 for an
  * unconfigured key, not an error).
  */
 const ORDER_BASE_URL = process.env.ORDER_BASE_URL ?? 'http://localhost:3003/api/v1';

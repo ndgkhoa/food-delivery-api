@@ -1,7 +1,7 @@
 {
-  "name": "shared-config-client",
+  "name": "shared-settings",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libs/shared/config-client/src",
+  "sourceRoot": "libs/shared/settings/src",
   "projectType": "library",
   "tags": ["scope:shared", "type:util"]
 }

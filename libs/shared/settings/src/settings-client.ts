@@ -1,7 +1,7 @@
-import { buildCacheKey, ConfigCache } from './config-cache';
-import type { ConfigClientLogger } from './config-client-logger';
+import { buildCacheKey, SettingsCache } from './settings-cache';
+import type { SettingsClientLogger } from './settings-client-logger';
 
-export interface ConfigClientOptions {
+export interface SettingsClientOptions {
   /** Base URL of the config service, e.g. `http://localhost:3008`. */
   configServiceUrl: string;
   /** How long a resolved value/flag is cached before a background re-fetch. */
@@ -9,8 +9,8 @@ export interface ConfigClientOptions {
 }
 
 const FETCH_TIMEOUT_MS = 3_000;
-/** Identity this internal caller stamps on its own request — config-client IS the trust boundary for this one hop, the same way a gRPC caller establishes tenant scope from call metadata rather than an HTTP header. */
-const SYSTEM_ACTOR = 'config-client';
+/** Identity this internal caller stamps on its own request — settings-client IS the trust boundary for this one hop, the same way a gRPC caller establishes tenant scope from call metadata rather than an HTTP header. */
+const SYSTEM_ACTOR = 'settings-client';
 
 /** A JSON body absent because the key isn't configured (404) vs a parsed body. */
 type ConfigResponse = { status: 404 } | { status: 200; body: unknown };
@@ -55,12 +55,12 @@ function identityHeaders(tenantId: string): Record<string, string> {
  * configured) is a normal state, not a failure, so it falls back to the
  * default silently (no WARN).
  */
-export class ConfigClient {
+export class SettingsClient {
   constructor(
-    private readonly options: ConfigClientOptions,
-    private readonly valueCache: ConfigCache<number>,
-    private readonly flagCache: ConfigCache<boolean>,
-    private readonly logger: ConfigClientLogger,
+    private readonly options: SettingsClientOptions,
+    private readonly valueCache: SettingsCache<number>,
+    private readonly flagCache: SettingsCache<boolean>,
+    private readonly logger: SettingsClientLogger,
   ) {}
 
   async getInt(key: string, tenantId: string, defaultValue: number): Promise<number> {

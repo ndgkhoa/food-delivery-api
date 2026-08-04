@@ -1,5 +1,4 @@
 import { SharedConfigModule } from '@food-delivery-api/shared-config';
-import { ConfigClientModule } from '@food-delivery-api/shared-config-client';
 import { HealthModule } from '@food-delivery-api/shared-health';
 import { SharedLoggingModule } from '@food-delivery-api/shared-logging';
 import {
@@ -7,6 +6,7 @@ import {
   KafkaTopicAdmin,
   MessagingModule,
 } from '@food-delivery-api/shared-messaging';
+import { SettingsClientModule } from '@food-delivery-api/shared-settings';
 import { TenancyModule, TrustedIdentityInterceptor } from '@food-delivery-api/shared-tenancy';
 import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
@@ -59,7 +59,7 @@ import { SagaReaperProvider } from '@order/interface/messaging/saga-reaper.provi
     // Read-through client for the tenant's delivery-fee/VAT/discount tunables
     // (PlaceOrderHandler). Never a hard dependency — a cold miss with the
     // config service unreachable falls back to the caller-supplied default.
-    ConfigClientModule.forRoot({
+    SettingsClientModule.forRoot({
       configServiceUrl: process.env.CONFIG_SERVICE_URL ?? 'http://localhost:3008',
       ttlMs: Number(process.env.CONFIG_CACHE_TTL_MS ?? 30_000),
       kafkaBrokers: (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(','),

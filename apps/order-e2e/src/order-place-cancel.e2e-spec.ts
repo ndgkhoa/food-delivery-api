@@ -74,7 +74,7 @@ describe('Order place (async saga contract) + cancel (e2e)', () => {
     expect(response.status).toBe(201);
     expect(response.body.status).toBe('PENDING');
     expect(response.body.restaurantId).toBe(restaurantId);
-    // subtotal 2400 (2 x 1200) + the config-client's fallback defaults (no
+    // subtotal 2400 (2 x 1200) + the settings-client's fallback defaults (no
     // config service running in this in-process stack): fee + VAT, discount 0.
     const subtotalCents = 2400;
     const vatCents = Math.floor((subtotalCents * DEFAULT_VAT_RATE_BPS) / 10000);
