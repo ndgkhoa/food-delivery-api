@@ -20,8 +20,6 @@ export class CreateTenantHandler {
       throw new ConflictError(`Tenant slug "${command.slug}" is already taken`);
     }
 
-    // A generated UUID id is the source of the tenant_id claim for every user
-    // later provisioned under this tenant — so M-2 holds by construction here.
     const tenant = Tenant.create({ id: randomUUID(), ...command });
     return this.tenantRepository.save(tenant);
   }

@@ -1,9 +1,3 @@
-# Blue-green demo for gateway — standalone from infra/k8s/base (kept out of
-# the base/overlay apply set per the plan; applied on its own to demonstrate
-# the mechanism). Replaces the former hand-rolled gateway-blue/gateway-green
-# Deployment pair + manual `kubectl patch svc` cutover: the Argo Rollouts
-# controller now owns the active/preview ReplicaSets and flips the `gateway`
-# Service's selector itself on promotion.
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:

@@ -22,13 +22,6 @@ function lockKey(tenantId: string, itemId: string): string {
   return `inventory:lock:${tenantId}:${itemId}`;
 }
 
-/**
- * Releases every active reservation for an order, returning the held units to
- * stock — under the same per-item locks + DB transaction as reserve, so a
- * concurrent reserve/release on the same item can't interleave. Idempotent: an
- * order with no active reservations (never reserved, or already released) is a
- * clean no-op.
- */
 @Injectable()
 export class ReleaseStockHandler {
   constructor(
@@ -41,8 +34,6 @@ export class ReleaseStockHandler {
   async execute(command: ReleaseStockCommand): Promise<ReleaseStockResult> {
     const { tenantId, orderId } = command;
 
-    // Item set of an order is immutable, so reading it before locking is safe;
-    // the tx re-reads under the lock to act on the authoritative current state.
     const active = await this.reservationRepository.findActiveByOrder(tenantId, orderId);
     if (active.length === 0) {
       return { ok: true };
@@ -61,10 +52,6 @@ export class ReleaseStockHandler {
       return;
     }
 
-    // Flip the hold first (the atomic ACTIVE→RELEASED gate); only the winner of
-    // that transition returns the units. This makes a concurrent double-release
-    // add stock exactly once — no phantom units even if the Redis lock was lost.
-    // Both writes run in the caller's transaction, so they commit together.
     for (const reservation of current) {
       const released = await this.reservationRepository.releaseIfActive(reservation);
       if (released) {

@@ -11,13 +11,6 @@ export interface InventoryTestDatabase {
   dataSource: DataSource;
 }
 
-/**
- * Spins up a real, throwaway Postgres via testcontainers and applies the
- * inventory migration, so integration tests (incl. the no-oversell concurrency
- * proof) assert against the same schema/CHECK constraints as production.
- * Migration is passed as a class reference (not a glob) so it loads inside
- * ts-jest without a separate ts-node step.
- */
 export async function startInventoryTestDatabase(): Promise<InventoryTestDatabase> {
   const container = await new PostgreSqlContainer('postgres:18.4').start();
 

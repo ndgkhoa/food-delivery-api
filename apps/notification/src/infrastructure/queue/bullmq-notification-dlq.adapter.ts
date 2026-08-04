@@ -8,13 +8,6 @@ import {
 import { Queue } from 'bullmq';
 import IORedis, { type Redis } from 'ioredis';
 
-/**
- * Producer-only queue for exhausted sends: parked here so the payload +
- * failure reason stay observable (inspect/replay via `queue.getJobs` or a Bull
- * dashboard) — no `Worker` is ever attached to `notify-dlq`. `pause()` right
- * after creation makes the "never consumed" intent explicit rather than
- * implicit in "nobody happened to add a worker".
- */
 @Injectable()
 export class BullMqNotificationDlq implements NotificationDlqPort, OnApplicationShutdown {
   private readonly logger = new Logger(BullMqNotificationDlq.name);

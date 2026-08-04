@@ -6,7 +6,6 @@ import {
 import { BullMqNotificationDlq } from '@notification/infrastructure/queue/bullmq-notification-dlq.adapter';
 import { BullMqNotificationQueue } from '@notification/infrastructure/queue/bullmq-notification-queue.adapter';
 
-/** Binds the notification queue + DLQ ports to their BullMQ producer adapters. */
 @Module({
   providers: [
     { provide: NOTIFICATION_QUEUE, useClass: BullMqNotificationQueue },

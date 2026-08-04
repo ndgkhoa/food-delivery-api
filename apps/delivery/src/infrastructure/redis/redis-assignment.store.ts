@@ -4,28 +4,16 @@ import { REDIS_CLIENT } from '@delivery/infrastructure/redis/redis.tokens';
 import { Inject, Injectable } from '@nestjs/common';
 import type Redis from 'ioredis';
 
-/** Hash of orderId → driverId (the authoritative one-driver-per-order record). */
 function assignHashKey(tenantId: string): string {
   return `assign:${tenantId}`;
 }
-/** Set of driver ids that currently hold an assignment (the busy roster). */
 function busyKey(tenantId: string): string {
   return `assign:${tenantId}:busy`;
 }
-/** Prefix for the per-driver order index (`<prefix><driverId>`), used by the Lua scripts + fan-out. */
 function driverOrdersPrefix(tenantId: string): string {
   return `assign:${tenantId}:driver:`;
 }
 
-/**
- * Claim the first non-busy candidate atomically. Redis runs the whole script
- * single-threaded, so two orders confirmed concurrently can never both bind the
- * same free driver: whichever script runs first adds the driver to the busy set,
- * and the second sees it busy and falls through to the next candidate.
- *   KEYS[1]=assign hash  KEYS[2]=busy set
- *   ARGV[1]=orderId  ARGV[2]=driver-orders key prefix  ARGV[3..]=candidate ids
- *   returns {driverId, '1'|'0'} — '0' = pre-existing incumbent, '1' = newly bound; nil = none free.
- */
 const CLAIM_FIRST_FREE = `
 local incumbent = redis.call('HGET', KEYS[1], ARGV[1])
 if incumbent then return {incumbent, '0'} end
@@ -40,12 +28,6 @@ for i = 3, #ARGV do
 end
 return nil`;
 
-/**
- * Release an order's assignment: drop the binding, remove the order from the
- * driver's index, and clear the driver's busy flag only when it holds no other
- * orders — all atomically.
- *   KEYS[1]=assign hash  KEYS[2]=busy set  ARGV[1]=orderId  ARGV[2]=driver-orders prefix
- */
 const RELEASE_ORDER = `
 local driver = redis.call('HGET', KEYS[1], ARGV[1])
 if not driver then return 0 end
@@ -56,12 +38,6 @@ if redis.call('SCARD', ARGV[2] .. driver) == 0 then
 end
 return 1`;
 
-/**
- * Redis adapter for order→driver assignments (ioredis). Every state change goes
- * through a Lua script so the one-driver-per-order AND one-order-per-driver
- * invariants hold atomically even under concurrent `order.events`. Keys are
- * tenant-prefixed, so assignments never cross tenant boundaries.
- */
 @Injectable()
 export class RedisAssignmentStore implements AssignmentStore {
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}

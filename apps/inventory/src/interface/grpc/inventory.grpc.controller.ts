@@ -19,13 +19,6 @@ import { readTenantFromMetadata } from '@inventory/interface/grpc/read-tenant-fr
 import { Controller, Inject, Logger } from '@nestjs/common';
 import { GrpcMethod, RpcException } from '@nestjs/microservices';
 
-/**
- * gRPC delivery edge for inventory. Reads the tenant from metadata (never the
- * request body), delegates to the reserve/release use cases, and maps domain
- * outcomes to gRPC status codes so callers can react (retry vs fail) instead of
- * seeing an opaque UNKNOWN. Thin: the no-oversell invariant lives in the DB +
- * the locked transaction, not here.
- */
 @Controller()
 export class InventoryGrpcController implements InventoryGrpcService {
   private readonly logger = new Logger(InventoryGrpcController.name);
@@ -70,11 +63,9 @@ export class InventoryGrpcController implements InventoryGrpcService {
     if (error instanceof IdempotencyConflictError) {
       return new RpcException({ code: GrpcStatus.ALREADY_EXISTS, message: error.message });
     }
-    // Lock contention is transient — tell the caller it's safe to retry.
     if (error instanceof LockContentionError) {
       return new RpcException({ code: GrpcStatus.ABORTED, message: error.message });
     }
-    // Anything else is an unexpected fault: log it, but don't leak internals.
     this.logger.error(
       'Unexpected inventory error',
       error instanceof Error ? error.stack : String(error),

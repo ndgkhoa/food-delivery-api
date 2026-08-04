@@ -1,24 +1,3 @@
-# Maps the golden-signal counter every service emits
-# (http_server_request_duration_seconds_count, see infra/otel-collector's
-# histogram -> Prometheus conversion) to a per-pod requests-per-second custom
-# metric. `resources.overrides` ties the Prometheus `namespace`/`pod` labels
-# back to k8s object identity, which is what lets `type: Pods` HPAs average
-# this metric across a Deployment's pods.
-#
-# TOPOLOGY-LABEL REQUIREMENT (important): this is the STANDARD adapter config,
-# and it works when Prometheus scrapes the app PODS directly (kubernetes_sd_config
-# stamps `namespace`/`pod` on every series). This project's Prometheus instead
-# scrapes the OTel Collector's exporter (the OTLP-native 8b pipeline:
-# app -> OTLP -> collector -> Prometheus), and those series carry `job`
-# (= OTel service.name) but NOT `namespace`/`pod` — so `seriesQuery`'s
-# `{namespace!="",pod!=""}` matches nothing and no custom metric is exposed until
-# the topology labels exist. To activate end-to-end, either (a) add a
-# `k8sattributes` processor to the collector (+ ServiceAccount RBAC to read pods)
-# and `resource_to_telemetry_conversion: enabled` on its prometheus exporter so
-# `k8s.pod.name`/`k8s.namespace.name` land as series labels (then map those here),
-# or (b) point Prometheus at a per-pod scrape. Verified so far: the adapter
-# registers `custom.metrics.k8s.io` (APIService Available=True) and Prometheus
-# ingests the source metric; CPU HPA is the fully-proven autoscaler.
 apiVersion: v1
 kind: ConfigMap
 metadata:

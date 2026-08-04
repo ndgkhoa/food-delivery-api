@@ -3,10 +3,6 @@ import { Module, type Provider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client } from 'minio';
 
-/**
- * Wraps a single MinIO S3 client (built from the MINIO_* env) in a Nest
- * provider — the storage adapter and the bucket bootstrap share it.
- */
 const minioClientProvider: Provider = {
   provide: MINIO_CLIENT,
   useFactory: (config: ConfigService): Client =>

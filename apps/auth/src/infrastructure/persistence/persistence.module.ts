@@ -9,10 +9,6 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-/**
- * Owns the auth registry Postgres connection + binds the domain repository
- * ports to their TypeORM adapters.
- */
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({

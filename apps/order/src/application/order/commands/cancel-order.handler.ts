@@ -15,15 +15,6 @@ export interface CancelOrderCommand {
   orderId: string;
 }
 
-/**
- * Cancels an order (PENDING/RESERVED → CANCELLED) and releases any inventory
- * hold. The state transition + optimistic-lock save happens first so the
- * order's terminal state is never in doubt; the inventory release follows and
- * is logged (not re-thrown) on failure — a downstream release fault must not
- * strand an already-cancelled order in an unrecoverable error response. This
- * best-effort gap is the same synchronous-coupling trade-off the phase plan
- * documents as the motivation for the future Saga (P3).
- */
 @Injectable()
 export class CancelOrderHandler {
   private readonly logger = new Logger(CancelOrderHandler.name);

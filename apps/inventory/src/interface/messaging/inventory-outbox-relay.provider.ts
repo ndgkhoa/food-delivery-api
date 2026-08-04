@@ -15,14 +15,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-/** Topics inventory interacts with (consumes commands, produces replies). */
 const INVENTORY_TOPICS = ['inventory.commands', 'inventory.replies'];
 
-/**
- * Owns inventory's polling-outbox relay lifecycle. Ensures its topics exist,
- * then drains `inventory_outbox` to Kafka (key = order id). Disabled under
- * NODE_ENV=test.
- */
 @Injectable()
 export class InventoryOutboxRelayProvider implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(InventoryOutboxRelayProvider.name);

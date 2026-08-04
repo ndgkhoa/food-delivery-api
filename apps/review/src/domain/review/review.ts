@@ -24,7 +24,6 @@ export interface CreateReviewProps {
   comment?: string | null;
 }
 
-/** Trims + bounds a comment (defense in depth behind the DTO's own `MaxLength`); a blank comment normalizes to `null`. */
 function normalizeComment(comment?: string | null): string | null {
   if (comment === undefined || comment === null) {
     return null;
@@ -39,13 +38,6 @@ function normalizeComment(comment?: string | null): string | null {
   return trimmed;
 }
 
-/**
- * Plain-class aggregate — no framework/ORM dependency. One review per order
- * (enforced by the `order_id` unique constraint at the persistence layer, not
- * here — the domain model has no way to see other rows). Constructed only via
- * `create()` (brand-new reviews) or `reconstitute()` (rehydrates from
- * persistence, already-validated data).
- */
 export class Review {
   private constructor(private readonly props: ReviewProps) {}
 

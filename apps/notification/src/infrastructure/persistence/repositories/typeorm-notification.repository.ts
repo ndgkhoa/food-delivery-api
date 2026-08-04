@@ -7,14 +7,6 @@ import { toDomain } from '@notification/infrastructure/persistence/mappers/notif
 import { getTransactionalEntityManager } from '@notification/infrastructure/persistence/transaction/transactional-entity-manager';
 import type { Repository } from 'typeorm';
 
-/**
- * TypeORM adapter for the `notifications` ledger. `createPendingBatch`
- * enlists in the caller's transaction (the same one `processed_events` is
- * written in) so a dispatched event's rows and its dedupe marker commit
- * atomically; the status-transition methods run from the worker outside any
- * transaction — each is a single-row update with no invariant spanning
- * multiple writes, so the base (non-transactional) repository is enough.
- */
 @Injectable()
 export class TypeOrmNotificationRepository implements NotificationRepository {
   constructor(

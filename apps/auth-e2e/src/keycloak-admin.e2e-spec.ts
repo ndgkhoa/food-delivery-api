@@ -12,7 +12,6 @@ import {
 
 const REALM = 'food-delivery';
 
-/** Minimal ConfigService stand-in — the adapter only calls `getOrThrow`. */
 function stubConfig(values: Record<string, string>): ConfigService {
   return {
     getOrThrow: (key: string) => {
@@ -25,12 +24,6 @@ function stubConfig(values: Record<string, string>): ConfigService {
   } as unknown as ConfigService;
 }
 
-/**
- * Integration test for the Keycloak admin adapter against a REAL Keycloak.
- *
- * NOTE: boots a Keycloak container (~30-60s) — run it explicitly, e.g.
- * `pnpm nx e2e auth-e2e --testFile=keycloak-admin.e2e-spec.ts`.
- */
 describe('KeycloakAdminHttpAdapter against real Keycloak (e2e)', () => {
   let keycloak: KeycloakHandle;
   let adapter: KeycloakAdminHttpAdapter;
@@ -67,9 +60,6 @@ describe('KeycloakAdminHttpAdapter against real Keycloak (e2e)', () => {
     });
     expect(userId).toBeTruthy();
 
-    // Mint the new user's token by direct grant and assert the claims Keycloak
-    // stamped: the tenant_id attribute became the tenant_id claim, and the realm
-    // role became a realm_access role.
     const token = await mintPasswordToken({ baseUrl: keycloak.baseUrl, username, password });
     const claims = decodeJwt(token);
     expect(claims.tenant_id).toBe(tenantId);

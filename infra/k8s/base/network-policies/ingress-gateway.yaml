@@ -1,10 +1,3 @@
-# Only the gateway is publicly reachable. On a default k3d cluster Traefik's
-# ingress controller runs in kube-system, so ingress is allowed from any pod
-# in that namespace on the gateway's http port. Tightening this to a
-# podSelector matching Traefik's own labels (e.g. app.kubernetes.io/name:
-# traefik) is a documented option once the exact Traefik labels in the
-# target cluster are known — left namespace-scoped here to stay portable
-# across k3d's default Traefik install.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

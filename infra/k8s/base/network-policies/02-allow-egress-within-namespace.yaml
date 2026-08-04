@@ -1,11 +1,3 @@
-# Egress is deliberately coarse: any pod in food-delivery may open a
-# connection to any other pod in food-delivery (covers app -> infra like
-# postgres/redis/kafka/temporal/keycloak, plus every east-west app -> app
-# call). The microsegmentation lives on the ingress side (see ingress-*.yaml)
-# — a receiver still refuses the connection unless the source is whitelisted
-# there, so this permissive egress does not weaken it. What this DOES block
-# is egress leaving the namespace entirely (except DNS, above) — the
-# anti-exfiltration boundary.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

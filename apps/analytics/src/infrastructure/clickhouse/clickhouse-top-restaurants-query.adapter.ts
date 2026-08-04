@@ -10,20 +10,12 @@ import {
 import type { ClickHouseClient } from '@clickhouse/client';
 import { Inject, Injectable } from '@nestjs/common';
 
-/** ClickHouse returns Int64/UInt64 aggregates as strings over JSONEachRow (avoids JS number precision loss). */
 interface TopRestaurantRow {
   restaurant_id: string;
   revenue_cents: string;
   order_count: string;
 }
 
-/**
- * `restaurant_id != ''` excludes a straggler order confirmed without a
- * restaurant attribution — it's still a real order (counted in revenue and
- * summary), just not attributable to any one restaurant here. `FINAL` keeps
- * this merge-independent; `{tenant}`/`{from}`/`{to}`/`{limit}` are always
- * bound via `query_params`, never string-interpolated.
- */
 const QUERY = `
   SELECT
     restaurant_id,

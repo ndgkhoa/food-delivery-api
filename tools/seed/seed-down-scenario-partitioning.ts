@@ -3,7 +3,6 @@ import { deleteBackdatedOrder, dropMonthPartition, withOrderDb } from './order-d
 import type { SeedConfig } from './seed-config';
 import type { SeedState } from './seed-state-store';
 
-/** Direct-DB carve-out teardown for the order-partitioning scenario (see `seed-up-scenario-partitioning.ts` / `order-db.ts`) — deletes exactly the backdated order rows this seeder inserted, `order_items` first. Never a table-wide delete. */
 export async function deletePartitionDemoOrders(
   config: SeedConfig,
   state: SeedState,
@@ -22,7 +21,6 @@ export async function deletePartitionDemoOrders(
   });
 }
 
-/** Drops only the monthly `orders` partitions the partitioning scenario itself created this run — never the DEFAULT partition or a month it merely reused. */
 export async function dropPartitionsCreated(config: SeedConfig, state: SeedState): Promise<void> {
   console.log(
     `\n[9/9] Dropping ${state.partitionsCreated.length} order partition(s) created for the demo...`,

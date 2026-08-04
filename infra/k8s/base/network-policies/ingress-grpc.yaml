@@ -1,9 +1,3 @@
-# The H2 backstop: 04a leaves the order -> catalog/inventory gRPC edge
-# unsigned, so network isolation is the control that stands in for it. Only
-# the order service may open a connection to either gRPC port — every other
-# pod, including the gateway, is refused. inventory gets no http ingress
-# rule at all (it is not gateway-proxied), so gRPC-from-order-only is its
-# complete ingress surface.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

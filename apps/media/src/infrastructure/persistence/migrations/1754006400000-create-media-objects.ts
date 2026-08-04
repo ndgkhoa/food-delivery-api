@@ -1,11 +1,5 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Creates the media schema: `media_objects`, the metadata row for every uploaded
- * image. Carries tenant_id (multi-tenant row filtering) + created_at/updated_at.
- * The object bytes themselves live in MinIO, keyed by object_key; thumbnail_key
- * is populated once the thumbnail worker completes.
- */
 export class CreateMediaObjects1754006400000 implements MigrationInterface {
   name = 'CreateMediaObjects1754006400000';
 

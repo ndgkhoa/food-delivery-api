@@ -19,13 +19,6 @@ import {
   stripJobTraceContext,
 } from './bullmq-trace-propagation';
 
-/**
- * A real (in-memory) tracer provider + W3C propagator + async-hooks context
- * manager registered as the global OTel API implementation, so the helpers
- * (which call the plain `@opentelemetry/api` globals, same as production
- * code) exercise real span contexts instead of the no-op default. No
- * Collector/network involved. Mirrors `kafka-trace-propagation.spec.ts`.
- */
 function registerTestTracing(): {
   exporter: InMemorySpanExporter;
   contextManager: AsyncHooksContextManager;
@@ -218,8 +211,6 @@ describe('runJobWithTrace', () => {
     await expect(runJobWithTrace({}, 'notify-push', failingFn)).rejects.toBe(rejection);
     expect(failingFn).toHaveBeenCalledTimes(1);
 
-    // Only reaches the exporter once `span.end()` has run — its presence here
-    // proves the span was ended even though fn rejected.
     const finishedSpans = exporter.getFinishedSpans();
     const processSpan = finishedSpans.find((s) => s.name === 'bullmq.process');
     expect(processSpan).toBeDefined();
@@ -264,7 +255,6 @@ describe('stripJobTraceContext', () => {
     const stripped = stripJobTraceContext(input);
     expect(stripped).toEqual({ notificationId: 'n1' });
     expect(BULLMQ_TRACEPARENT_KEY in stripped).toBe(false);
-    // input untouched (shallow copy returned)
     expect(input[BULLMQ_TRACEPARENT_KEY]).toBe('00-abc-def-01');
   });
 

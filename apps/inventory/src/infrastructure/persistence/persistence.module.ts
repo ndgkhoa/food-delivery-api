@@ -17,11 +17,6 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-/**
- * Owns the inventory Postgres connection + binds the domain repository ports
- * (stock, reservation, transaction, outbox writer, dedupe store) to their
- * TypeORM adapters. Any module needing these ports imports this module.
- */
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({

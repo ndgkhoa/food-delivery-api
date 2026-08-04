@@ -14,7 +14,6 @@ import {
 import { ConfigService } from '@nestjs/config';
 
 const ORDER_EVENTS_TOPIC = 'order.events';
-/** Delivery's own consumer group — tails `order.events` with independent offsets. */
 const CONSUMER_GROUP_ID = 'delivery-order-events';
 const ORDER_CONFIRMED = 'OrderConfirmed';
 const ORDER_CANCELLED = 'OrderCancelled';
@@ -23,15 +22,6 @@ interface OrderEventPayload {
   orderId?: string;
 }
 
-/**
- * Consumes `order.events` and assigns a driver when an order is CONFIRMED. The
- * shared subscriber runs the handler inside the tenant scope the envelope
- * carries; assignment is idempotent (HSETNX one-driver-per-order) so a
- * redelivered event is a safe no-op. Non-CONFIRMED events (e.g. OrderCancelled)
- * and malformed payloads are cleanly skipped — this consumer only reacts to
- * confirmations. On a successful assignment it broadcasts `assigned` to the
- * order room so a subscribed customer learns the driver immediately.
- */
 @Injectable()
 export class OrderEventsConsumer implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(OrderEventsConsumer.name);
@@ -45,8 +35,6 @@ export class OrderEventsConsumer implements OnApplicationBootstrap, OnModuleDest
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    // In-process tests boot the graph without a broker; the compose e2e + real
-    // runtime run outside NODE_ENV=test. Logged (not silent) so a mis-set env is visible.
     if (this.config.get<string>('NODE_ENV') === 'test') {
       this.logger.warn(
         `Delivery assignment disabled (NODE_ENV=test): ${ORDER_EVENTS_TOPIC} not consumed`,
@@ -75,15 +63,11 @@ export class OrderEventsConsumer implements OnApplicationBootstrap, OnModuleDest
     }
 
     if (envelope.eventType === ORDER_CANCELLED) {
-      // Free the driver a cancelled order was holding so the busy roster can't
-      // leak (idempotent — a redelivered cancel or an unassigned order is a no-op).
       await this.assignDriver.release(envelope.tenantId, orderId);
       return;
     }
 
     const claim = await this.assignDriver.execute(envelope.tenantId, orderId);
-    // Broadcast only on a NEW binding — a redelivered OrderConfirmed returns the
-    // incumbent and must not re-emit `assigned`.
     if (claim?.created) {
       this.gateway.broadcastAssignment(envelope.tenantId, orderId, claim.assignment.driverId);
     }

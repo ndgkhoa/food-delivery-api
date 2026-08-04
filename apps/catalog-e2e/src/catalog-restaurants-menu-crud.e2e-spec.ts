@@ -10,19 +10,12 @@ import { type INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 
-/**
- * Real end-to-end coverage of the catalog REST surface: a live Nest app
- * (full module graph, real ValidationPipe/interceptors) talking to a real,
- * migrated Postgres via testcontainers — no mocks.
- */
 describe('Catalog REST API (e2e)', () => {
   let app: INestApplication;
   let db: CatalogTestDatabase;
 
   const tenantId = '33333333-3333-4333-8333-333333333333';
   const otherTenantId = '44444444-4444-4444-8444-444444444444';
-  // Mimics what the gateway stamps after verifying an owner's token: tenant +
-  // subject + roles. Writes require a catalog-write role (RolesGuard).
   const ownerHeaders = {
     'x-tenant-id': tenantId,
     'x-user-id': 'owner-1',
@@ -40,9 +33,6 @@ describe('Catalog REST API (e2e)', () => {
     process.env.NODE_ENV = 'test';
     process.env.LOG_LEVEL = 'fatal';
 
-    // Import AppModule AFTER env is set: @nestjs/config validates and bakes config when
-    // ConfigModule.forRoot() runs, which happens at module-import time. A static top-of-file
-    // import would run it before these testcontainers credentials exist in process.env.
     const { AppModule } = await import('@catalog/app.module');
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
@@ -78,8 +68,6 @@ describe('Catalog REST API (e2e)', () => {
       .send({ name: 'Pho Bo', priceCents: 8500 })
       .expect(201);
 
-    // List/get endpoints serve the CQRS read model; stand in for the CDC
-    // projection so reads reflect the writes just made.
     await syncReadModelFromWriteModel(db.dataSource);
 
     const listRes = await request(app.getHttpServer())
@@ -97,8 +85,6 @@ describe('Catalog REST API (e2e)', () => {
   });
 
   it('rejects requests with no verified tenant identity (401)', async () => {
-    // No gateway-stamped identity header → the trusted-identity interceptor fails
-    // closed with 401 (unauthenticated), never trusting a client-supplied value.
     await request(app.getHttpServer()).get('/api/v1/restaurants').expect(401);
   });
 
@@ -151,7 +137,6 @@ describe('Catalog REST API (e2e)', () => {
       .expect(201);
     const menuItemId = createMenuItemRes.body.id;
 
-    // Tenant B cannot resolve the parent restaurant, so it can neither list nor read the menu item.
     await request(app.getHttpServer())
       .get(`/api/v1/restaurants/${restaurantId}/menu-items`)
       .set('x-tenant-id', otherTenantId)
@@ -182,7 +167,6 @@ describe('Catalog REST API (e2e)', () => {
       .set(ownerHeaders)
       .expect(204);
 
-    // Parent 404s and its menu items no longer live as reachable rows.
     await request(app.getHttpServer())
       .get(`/api/v1/restaurants/${restaurantId}/menu-items`)
       .set(ownerHeaders)
@@ -205,8 +189,6 @@ describe('Catalog REST API (e2e)', () => {
   });
 
   it('forbids a write from a verified identity without a catalog-write role (403)', async () => {
-    // A customer's stamped identity reaches the service, but RolesGuard rejects
-    // the write because `customer` is not in the required role set.
     await request(app.getHttpServer())
       .post('/api/v1/restaurants')
       .set({ 'x-tenant-id': tenantId, 'x-user-id': 'cust-1', 'x-roles': 'customer' })
@@ -215,8 +197,6 @@ describe('Catalog REST API (e2e)', () => {
   });
 
   it('rejects a write with a tenant header but no verified subject (401)', async () => {
-    // Tenant header alone would satisfy the interceptor, but a write with no
-    // stamped subject means no verified identity → RolesGuard fails closed with 401.
     await request(app.getHttpServer())
       .post('/api/v1/restaurants')
       .set('x-tenant-id', tenantId)

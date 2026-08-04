@@ -18,12 +18,6 @@ import {
 } from '@catalog/testing/catalog-test-database';
 import type { TenantContextPort, TenantRequestContext } from '@food-delivery-api/shared-tenancy';
 
-/**
- * Integration test (real Postgres via testcontainers, real handler + real
- * audit/outbox/transaction adapters): proves an optimistic-lock conflict
- * rolls back the WHOLE commit boundary — the caller's rejected write never
- * leaves a stray audit or outbox row, and the winning write is never clobbered.
- */
 describe('optimistic-lock conflict rollback (integration)', () => {
   let db: CatalogTestDatabase;
   let repository: TypeOrmRestaurantRepository;
@@ -77,23 +71,17 @@ describe('optimistic-lock conflict rollback (integration)', () => {
       Restaurant.create({ id: crypto.randomUUID(), tenantId: tenantA, name: 'Pho House' }),
     );
 
-    // A client that read the restaurant at version 1, then a concurrent
-    // request already bumped it to version 2 before this PATCH lands.
     const winner = await updateRestaurant.execute(restaurant.id, { name: 'Winner' });
     expect(winner.version).toBe(2);
 
-    // The stale client retries its PATCH still carrying its original version-1 `If-Match`.
     await expect(
       updateRestaurant.execute(restaurant.id, { name: 'Loser', expectedVersion: 1 }),
     ).rejects.toThrow(ConcurrencyConflictError);
 
-    // No lost update: Postgres still holds the winner's write.
     const finalRow = await repository.findById(restaurant.id, tenantA);
     expect(finalRow?.name).toBe('Winner');
     expect(finalRow?.version).toBe(2);
 
-    // Exactly one audit row and one outbox row for this restaurant's update —
-    // the rejected second PATCH never opened a transaction, so it committed nothing.
     const auditRows = await db.dataSource.query(
       'SELECT * FROM "audit_log" WHERE entity_id = $1 AND action = $2',
       [restaurant.id, 'UPDATE'],
@@ -112,8 +100,6 @@ describe('optimistic-lock conflict rollback (integration)', () => {
       Restaurant.create({ id: crypto.randomUUID(), tenantId: tenantA, name: 'Pho House' }),
     );
 
-    // Simulates two in-flight PATCHes that both loaded version 1 before either wrote —
-    // no `If-Match` sent, so only the save-time guard inside the transaction catches it.
     const firstView = await repository.findById(restaurant.id, tenantA);
     const secondView = await repository.findById(restaurant.id, tenantA);
     if (!firstView || !secondView) {
@@ -122,9 +108,6 @@ describe('optimistic-lock conflict rollback (integration)', () => {
 
     await repository.updateVersioned(firstView.update({ name: 'Winner' }));
 
-    // Runs the second writer's mutation through the SAME commit boundary the
-    // real handler uses, so a mid-transaction conflict genuinely rolls back
-    // the audit write alongside the rejected aggregate write.
     await expect(
       transaction.runInTransaction(async () => {
         const saved = await repository.updateVersioned(secondView.update({ name: 'Loser' }));
@@ -143,8 +126,6 @@ describe('optimistic-lock conflict rollback (integration)', () => {
       'SELECT * FROM "audit_log" WHERE entity_id = $1 AND action = $2',
       [restaurant.id, 'UPDATE'],
     );
-    // Zero, not one: the audit insert never committed because updateVersioned
-    // threw before it, and the whole transaction rolled back.
     expect(auditRows).toHaveLength(0);
 
     const finalRow = await repository.findById(restaurant.id, tenantA);

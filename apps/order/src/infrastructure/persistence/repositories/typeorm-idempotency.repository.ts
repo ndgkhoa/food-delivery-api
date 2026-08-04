@@ -25,9 +25,6 @@ export class TypeOrmIdempotencyRepository implements IdempotencyRepository {
   }
 
   async save(tenantId: string, userId: string, key: string, orderId: string): Promise<void> {
-    // A raw INSERT (not `.save()`, which would upsert on a matching primary
-    // key) — a duplicate (tenant, user, key) claim must raise a real
-    // unique_violation the caller can detect, not be silently overwritten.
     await this.repository.insert(IdempotencyKeyMapper.toOrm(tenantId, userId, key, orderId));
   }
 }

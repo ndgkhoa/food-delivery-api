@@ -6,14 +6,6 @@ import { type ClickHouseClient, createClient } from '@clickhouse/client';
 import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-/**
- * Fact table DDL: a `ReplacingMergeTree` versioned by `ingested_at` so a
- * redelivered `order.events` message (same `tenant_id`/`order_id`) collapses
- * to its latest insert on merge — dashboards read it back with `FINAL` or a
- * `GROUP BY`, never relying on merges having already happened. `restaurant_id`
- * is a plain `String` (never `Nullable`): the ingest handler writes `''` for a
- * straggler order with no restaurant attribution.
- */
 const CREATE_TABLE_SQL = `
   CREATE TABLE IF NOT EXISTS ${ORDERS_FACT_TABLE}
   (
@@ -30,14 +22,6 @@ const CREATE_TABLE_SQL = `
   ORDER BY (tenant_id, order_id)
 `;
 
-/**
- * Provisions the analytics database + `orders_fact` table (create-if-absent)
- * on boot — ClickHouse has no SQL migration tooling here, so the schema is
- * code-bootstrapped like search's Elasticsearch index. Skipped under
- * NODE_ENV=test: in-process integration tests boot the module graph without a
- * live ClickHouse node. Logged (not silent) so a mis-set NODE_ENV in a real
- * environment is visible rather than a ghost that leaves the table missing.
- */
 @Injectable()
 export class OrdersFactSchemaBootstrap implements OnApplicationBootstrap {
   private readonly logger = new Logger(OrdersFactSchemaBootstrap.name);
@@ -59,14 +43,6 @@ export class OrdersFactSchemaBootstrap implements OnApplicationBootstrap {
     this.logger.log(`Ensured ${ORDERS_FACT_TABLE} exists (ReplacingMergeTree)`);
   }
 
-  /**
-   * `CREATE DATABASE IF NOT EXISTS` must run against a connection that does
-   * NOT already select the target database — ClickHouse's HTTP interface
-   * switches to the request's `database` query param before the query body is
-   * even parsed, so the main (database-scoped) client would fail with
-   * "database doesn't exist" on its very first call. A short-lived,
-   * unscoped client sidesteps that chicken-and-egg problem.
-   */
   private async createDatabaseIfAbsent(): Promise<void> {
     const database = this.config.getOrThrow<string>('CLICKHOUSE_DATABASE');
     const bootstrapClient = createClient({

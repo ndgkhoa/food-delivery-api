@@ -18,7 +18,6 @@ import { OrderNotFoundError, SagaNotFoundError } from '@order/domain/shared/erro
 import { OUTBOX_WRITER, type OutboxWriter } from '@order/domain/shared/outbox.port';
 import { TRANSACTION_PORT, type TransactionPort } from '@order/domain/shared/transaction.port';
 
-/** Reply event types inventory emits on `inventory.replies`. */
 export const STOCK_RESERVED = 'StockReserved';
 export const STOCK_RESERVATION_FAILED = 'StockReservationFailed';
 const STOCK_RELEASED = 'StockReleased';
@@ -28,14 +27,6 @@ interface InventoryReplyPayload {
   reason?: string;
 }
 
-/**
- * Applies an inventory reply to the saga. Everything runs in ONE transaction
- * that first records the event id (`processed_events`): a re-delivered reply
- * hits the dedupe ledger and is skipped, and a stale reply that no longer
- * matches the saga's current state is a no-op — so redelivery never double-
- * transitions. The optimistic-locked saga update guards against a concurrent
- * racing reply. Order status changes reuse the order state machine.
- */
 @Injectable()
 export class HandleInventoryReplyHandler {
   private readonly logger = new Logger(HandleInventoryReplyHandler.name);
@@ -54,14 +45,11 @@ export class HandleInventoryReplyHandler {
         this.apply(envelope, payload),
       ),
     );
-    // Recorded AFTER the transaction commits (never inside it) so a metric is
-    // never emitted for a saga transition that ends up rolled back.
     if (outcome) {
       recordSagaOutcome(outcome);
     }
   }
 
-  /** Returns the saga outcome reached (`'cancelled'` on either cancel leg), or `undefined` when this reply caused no terminal transition. */
   private async apply(
     envelope: EventEnvelopeHeaders,
     payload: InventoryReplyPayload,
@@ -81,7 +69,6 @@ export class HandleInventoryReplyHandler {
         const order = await this.loadOrder(tenantId, orderId);
         await this.orderRepository.updateStatus(order.reserve());
         await this.sagaRepository.transition(saga.transition('STOCK_RESERVED', eventId));
-        // Carry the saga's correlation id from this reply onto the next command.
         await this.outbox.append(
           chargePaymentCommand(orderId, order.totalCents, envelope.correlationId),
         );
@@ -95,7 +82,6 @@ export class HandleInventoryReplyHandler {
         return this.cancelOrder(order, saga, eventId, envelope.correlationId);
       }
       case STOCK_RELEASED: {
-        // Terminal compensation leg: release confirms the hold is gone, cancel the order.
         if (saga.state !== 'COMPENSATING') {
           return undefined;
         }
@@ -110,13 +96,6 @@ export class HandleInventoryReplyHandler {
     }
   }
 
-  /**
-   * Cancels the order + saga and emits the `OrderCancelled` lifecycle event in
-   * the same transaction — shared by both cancel legs (reservation failed / stock
-   * released) so the emission can never diverge from the transition. Returns
-   * `'cancelled'` for the caller to record as the saga's outcome once the
-   * transaction commits.
-   */
   private async cancelOrder(
     order: Order,
     saga: OrderSaga,

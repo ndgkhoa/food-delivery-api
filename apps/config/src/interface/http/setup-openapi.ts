@@ -3,10 +3,6 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { apiReference } from '@scalar/nestjs-api-reference';
 import type { Request, Response } from 'express';
 
-/**
- * Publishes the config OpenAPI spec at `/api/v1/openapi.json` and a Scalar
- * reference UI at `/api/v1/reference`, mirroring the other services.
- */
 export function setupOpenApi(app: INestApplication): void {
   const config = new DocumentBuilder()
     .setTitle('Config Service API')

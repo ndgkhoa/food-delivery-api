@@ -21,39 +21,22 @@ export interface KafkaSubscribeOptions<TPayload = unknown> {
   groupId: string;
   topics: string[];
   handler: KafkaMessageHandler<TPayload>;
-  /** Attempts before dead-lettering + advancing past a poison message. @default 3 */
   maxAttempts?: number;
-  /** Base delay between retries in ms, multiplied by the attempt number. @default 200 */
   retryDelayMs?: number;
   fromBeginning?: boolean;
 }
 
 const DEFAULT_MAX_ATTEMPTS = 3;
 const DEFAULT_RETRY_DELAY_MS = 200;
-/** DLQ-publish retries before giving up and leaving the message uncommitted for redelivery. */
 const DLQ_PUBLISH_ATTEMPTS = 3;
 const DLQ_PUBLISH_RETRY_DELAY_MS = 200;
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-/**
- * Manual-commit subscribe helper: for each message, decodes the envelope
- * headers, runs the handler (with retry) inside the tenant scope the envelope
- * carries — never trusting the payload alone for tenant identity — then commits
- * the offset. An undecodable message and a handler that exhausts its retries are
- * BOTH routed to `<topic>.dlq` (original bytes + failure reason preserved) and
- * counted, then committed past: no saga command/reply is silently lost. The DLQ
- * publish retries transient faults; if it still can't be written the offset is
- * left UNCOMMITTED so the message redelivers (handlers are idempotent) rather
- * than vanishing — the DLQ shares the broker with the source topic, so a DLQ
- * outage means the broker is down and the partition is stalled regardless.
- */
 @Injectable()
 export class KafkaConsumerSubscriber implements OnModuleDestroy {
   private readonly logger = new Logger(KafkaConsumerSubscriber.name);
   private readonly dropCounter = new MessageDropCounter();
-  // A promise (not the resolved producer) so two consumers sharing this
-  // singleton subscriber can't each connect a producer in a lazy-init race.
   private dlqProducerPromise: Promise<ConfluentMessageProducer> | null = null;
 
   constructor(
@@ -61,17 +44,10 @@ export class KafkaConsumerSubscriber implements OnModuleDestroy {
     @Inject(TENANT_CONTEXT_PORT) private readonly tenantContext: TenantContextPort,
   ) {}
 
-  /** In-process count of messages dropped to a DLQ, tagged by topic + reason. */
   getDropCounts(): Record<string, number> {
     return this.dropCounter.snapshot();
   }
 
-  /**
-   * Idempotently create the topics this consumer subscribes to AND their
-   * dead-letter topics (3 partitions, RF=1 — the repo's single-broker dev
-   * shape) so neither the subscribe nor a DLQ publish ever stalls on a
-   * not-yet-created topic. A no-op for existing topics.
-   */
   private async ensureTopicsExist(topics: string[]): Promise<void> {
     if (topics.length === 0) {
       return;
@@ -91,7 +67,6 @@ export class KafkaConsumerSubscriber implements OnModuleDestroy {
     }
   }
 
-  /** Lazily connects one shared idempotent producer used only for DLQ publishes. */
   private deadLetterProducer(): Promise<ConfluentMessageProducer> {
     if (!this.dlqProducerPromise) {
       this.dlqProducerPromise = (async () => {
@@ -103,13 +78,6 @@ export class KafkaConsumerSubscriber implements OnModuleDestroy {
     return this.dlqProducerPromise;
   }
 
-  /**
-   * Publishes the message to `<topic>.dlq`, retrying transient broker faults.
-   * Resolves `true` once the DLQ write is durable, `false` if it could not be
-   * written after `DLQ_PUBLISH_ATTEMPTS` — never throws (throwing out of
-   * eachMessage would re-seek and stall the partition). On `false` the caller
-   * leaves the offset uncommitted so the message redelivers instead of vanishing.
-   */
   private async publishDeadLetter(
     raw: RawInboundMessage,
     reason: DropReason,
@@ -123,8 +91,6 @@ export class KafkaConsumerSubscriber implements OnModuleDestroy {
           `Dead-lettered ${raw.topic}[${raw.partition}]@${raw.message.offset} to ` +
             `${deadLetterTopic(raw.topic)} (${reason})`,
         );
-        // Labelled by the ORIGINAL source topic (bounded, fixed set) — never by
-        // message/order id.
         recordDlqMessage(raw.topic);
         return true;
       } catch (error) {
@@ -148,17 +114,11 @@ export class KafkaConsumerSubscriber implements OnModuleDestroy {
     const consumer = this.client.consumer({
       kafkaJS: {
         groupId: options.groupId,
-        // Manual commit: we only advance the offset after the handler ran, was
-        // dead-lettered, or was skipped — never on a fixed timer.
         autoCommit: false,
         fromBeginning: options.fromBeginning ?? false,
       },
     });
     await consumer.connect();
-    // Ensure the subscribed topics AND their DLQ topics exist BEFORE subscribing.
-    // librdkafka only refreshes topic metadata every ~5 min by default, so a
-    // consumer/producer targeting a not-yet-created topic would sit idle for
-    // minutes. createTopics is idempotent, so this is safe on every boot.
     await this.ensureTopicsExist([...options.topics, ...options.topics.map(deadLetterTopic)]);
     await consumer.subscribe({ topics: options.topics });
     const maxAttempts = options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
@@ -175,11 +135,6 @@ export class KafkaConsumerSubscriber implements OnModuleDestroy {
             headers: message.headers as RawKafkaHeaders | undefined,
           },
         };
-        // Extracts the producer's W3C trace context (if the message carries
-        // one) and runs the whole decode+retry+dead-letter+commit pipeline
-        // inside a CONSUMER span parented to it, so every handler's own
-        // spans (pg/redis/grpc/outbound produce) attach to the producing
-        // span's trace instead of starting a disconnected one.
         await runWithExtractedContext(raw.message.headers, `${topic} process`, () =>
           consumeOneMessage(raw, {
             handler: options.handler as KafkaMessageHandler,

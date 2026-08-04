@@ -12,14 +12,7 @@ import {
 import { AlsTenantContextAdapter } from '@food-delivery-api/shared-tenancy';
 import { KafkaContainer, type StartedKafkaContainer } from '@testcontainers/kafka';
 
-// The @testcontainers/kafka module auto-configures advertised listeners for the
-// Confluent cp-kafka image family (its supported convention); the raw apache/kafka
-// image isn't wired up the same way, so the broker never advertises the mapped
-// host port. This e2e proves the CLIENT round-trip, so a supported broker image is
-// what matters — local dev/compose still runs apache/kafka:4.3.1.
 const KAFKA_IMAGE = 'confluentinc/cp-kafka:7.9.1';
-// The testcontainers Kafka module always exposes the plaintext client listener on 9093
-// (a second, container-internal-only listener handles inter-broker traffic).
 const KAFKA_EXTERNAL_PORT = 9093;
 
 function bootstrapServers(container: StartedKafkaContainer): string[] {
@@ -40,16 +33,6 @@ async function waitUntil(
   }
 }
 
-/**
- * Proves `libs/shared/messaging`'s producer/consumer/header-codec/admin
- * wiring end-to-end against a real, throwaway Kafka broker: bootstrap a
- * topic, produce two keyed messages with an event envelope, consume them in
- * a group with manual offset commit, and assert the headers/value/ordering
- * survived the round trip — including that same-key messages land on the
- * same partition in produce order.
- *
- *   pnpm nx e2e messaging-e2e
- */
 describe('Kafka messaging round-trip (e2e)', () => {
   let container: StartedKafkaContainer;
   let client: KafkaClient;
@@ -123,7 +106,6 @@ describe('Kafka messaging round-trip (e2e)', () => {
     expect(received[1].envelope.eventId).toBe(secondEnvelope.eventId);
     expect(received[1].payload).toEqual({ orderId: aggregateId, sequence: 2 });
 
-    // Same partition key → same partition → produce order is preserved.
     expect(received[0].partition).toBe(received[1].partition);
     expect(Number(received[1].offset)).toBeGreaterThan(Number(received[0].offset));
   });
@@ -133,10 +115,6 @@ describe('Kafka messaging round-trip (e2e)', () => {
     await admin.ensureTopics([{ topic, partitions: 1, replicationFactor: 1 }]);
     const key = randomUUID();
 
-    // A message with NO envelope headers (e.g. a non-enveloped producer / a raw
-    // CDC message): decodeHeaders will throw. It sits BEFORE a valid one on the
-    // same partition — if decode failure stalled the partition, the valid
-    // message would never be delivered and this test would time out.
     await producer.publish({ topic, key, headers: {}, value: { poison: true } });
 
     const good = {
@@ -166,7 +144,6 @@ describe('Kafka messaging round-trip (e2e)', () => {
       await consumer.disconnect();
     }
 
-    // The poison message was skipped; only the valid one reached the handler.
     expect(received).toHaveLength(1);
     expect(received[0].envelope.eventId).toBe(good.eventId);
   });

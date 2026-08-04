@@ -14,17 +14,6 @@ import { REDIS_CACHE, type RedisCache } from '@food-delivery-api/shared-cache';
 import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable } from '@nestjs/common';
 
-/**
- * Serves `GET /restaurants/:id` from the CQRS read model (eventually consistent
- * with writes), cache-aside in front of Redis: a hit skips Postgres entirely; a
- * miss loads the read-model row, caches it, and returns it. The read-model
- * projector write-throughs this same key on create/update/rating-change and
- * evicts it on delete, so a cache hit is never stale-after-write. Distinct
- * from `GetRestaurantHandler`, which stays on the write model (uncached —
- * used by command handlers for strongly-consistent parent-existence checks,
- * where a stale cache hit could let a write proceed against a deleted/changed
- * restaurant).
- */
 @Injectable()
 export class GetRestaurantViewHandler {
   constructor(

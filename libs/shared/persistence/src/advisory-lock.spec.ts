@@ -56,7 +56,6 @@ describe('withAdvisoryLock', () => {
 
     expect(outcome).toEqual({ ran: false });
     expect(fn).not.toHaveBeenCalled();
-    // No unlock statement — the lock was never acquired by this caller.
     expect(queryCalls).toHaveLength(1);
     expect(queryRunner.release).toHaveBeenCalledTimes(1);
   });

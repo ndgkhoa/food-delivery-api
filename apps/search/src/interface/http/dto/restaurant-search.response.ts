@@ -1,4 +1,3 @@
-/** A single ranked search hit (score is the ES relevance score). */
 export class RestaurantSearchHitResponse {
   id!: string;
   name!: string;
@@ -8,7 +7,6 @@ export class RestaurantSearchHitResponse {
   score!: number;
 }
 
-/** Paginated search response — mirrors the catalog list-endpoint envelope. */
 export class RestaurantSearchResponse {
   data!: RestaurantSearchHitResponse[];
   total!: number;
@@ -16,7 +14,6 @@ export class RestaurantSearchResponse {
   limit!: number;
 }
 
-/** A single autocomplete suggestion (id + display name). */
 export class RestaurantAutocompleteResponse {
   id!: string;
   name!: string;

@@ -1,10 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm';
 
-/**
- * One review per order (`order_id` is UNIQUE — the constraint the submit
- * handler's duplicate check relies on). `restaurant_id` comes from the
- * eligibility record (derived from the order), never the client.
- */
 @Entity('reviews')
 @Index(['restaurantId', 'tenantId'])
 export class ReviewOrmEntity {

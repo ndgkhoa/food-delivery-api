@@ -9,7 +9,6 @@ import type {
   RestaurantSearchResult,
 } from '@search/domain/restaurant-search/restaurant-search-document';
 
-/** In-memory fake recording the effect the mapping chose, so no ES is needed. */
 class RecordingRepository implements RestaurantSearchRepository {
   upserts: RestaurantSearchDocument[] = [];
   removals: Array<{ id: string; tenantId: string; version: number }> = [];

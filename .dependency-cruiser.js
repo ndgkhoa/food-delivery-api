@@ -1,10 +1,3 @@
-/**
- * Enforces bounded-context isolation across the Nx monorepo:
- * - apps (services) may never import another app's internals directly (only via HTTP/gRPC contracts)
- * - libs may never import from apps (dependency direction must flow apps -> libs)
- * - no circular dependencies anywhere in the graph
- * This replaces `@nx/enforce-module-boundaries` per architecture.md §8 (Biome cannot express this).
- */
 module.exports = {
   forbidden: [
     {
@@ -12,7 +5,6 @@ module.exports = {
       severity: 'error',
       comment: 'Circular dependencies make services hard to reason about and break in isolation.',
       from: {},
-      // Type-only import cycles are erased at compile time (safe); only flag runtime cycles.
       to: { circular: true, viaOnly: { dependencyTypesNot: ['type-only'] } },
     },
     {

@@ -11,12 +11,6 @@ import {
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
-/**
- * Integration test: real Postgres via testcontainers, real migrated schema.
- * Exercises `TypeOrmRestaurantRepository` end-to-end (which internally uses
- * `RestaurantMapper`), so mapper correctness is covered by round-tripping
- * through the actual database rather than by a separate mock-based test.
- */
 describe('TypeOrmRestaurantRepository (integration)', () => {
   let db: CatalogTestDatabase;
   let repository: TypeOrmRestaurantRepository;
@@ -123,25 +117,19 @@ describe('TypeOrmRestaurantRepository (integration)', () => {
         Restaurant.create({ id: crypto.randomUUID(), tenantId: tenantA, name: 'Pho House' }),
       );
 
-      // Two concurrent PATCHes both load version 1 before either writes.
       const firstLoad = await repository.findById(created.id, tenantA);
       const secondLoad = await repository.findById(created.id, tenantA);
       if (!firstLoad || !secondLoad) {
         throw new Error('expected both loads to find the seeded restaurant');
       }
 
-      // First writer commits — the row is now at version 2 in Postgres.
       const winner = await repository.updateVersioned(firstLoad.update({ name: 'Winner' }));
       expect(winner.version).toBe(2);
 
-      // Second writer still holds the version-1 view — the atomic
-      // `WHERE ... version = 1` update affects 0 rows in the real DB, so the
-      // guard rejects it instead of silently overwriting the winner's write.
       await expect(
         repository.updateVersioned(secondLoad.update({ name: 'Loser' })),
       ).rejects.toThrow(ConcurrencyConflictError);
 
-      // No lost update: the winner's write is what's actually in Postgres.
       const final = await repository.findById(created.id, tenantA);
       expect(final?.name).toBe('Winner');
       expect(final?.version).toBe(2);

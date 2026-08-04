@@ -3,13 +3,6 @@ import 'reflect-metadata';
 import { buildDataSourceOptions } from '@payment/infrastructure/persistence/typeorm-options';
 import { DataSource } from 'typeorm';
 
-/**
- * Standalone DataSource for the TypeORM CLI (payment migration
- * generate/run/revert scripts). Reads straight from `process.env` since the CLI
- * runs outside Nest's DI container. Uses the shared core Postgres (host port
- * 5432) under its own `payment` database — override DB_NAME when the shared
- * `.env` points DB_* at another service.
- */
 const paymentDataSource = new DataSource(
   buildDataSourceOptions({
     DB_HOST: process.env.DB_HOST ?? 'localhost',

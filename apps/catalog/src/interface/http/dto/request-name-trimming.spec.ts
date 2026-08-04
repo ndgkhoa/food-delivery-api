@@ -4,11 +4,6 @@ import { UpdateRestaurantRequest } from '@catalog/interface/http/dto/update-rest
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
 
-/**
- * Guards H2: a whitespace-only `name` must fail validation (→ HTTP 400) rather
- * than trimming to '' inside the domain and surfacing as a 500. Trimming lives
- * on the create DTOs and is inherited by the PartialType update DTOs.
- */
 describe('request name trimming', () => {
   it('rejects a whitespace-only restaurant name', () => {
     const dto = plainToInstance(CreateRestaurantRequest, { name: '   ' });

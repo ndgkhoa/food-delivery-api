@@ -10,20 +10,6 @@ import {
   produceOrderLifecycleEvent,
 } from './support/order-lifecycle-event-producer';
 
-/**
- * Compose-run e2e for the analytics service's `order.events` ingest and
- * dashboard API. Real path: produce OrderConfirmed/OrderCancelled on
- * `order.events` → the analytics consumer writes `orders_fact` rows to
- * ClickHouse → the revenue/top-restaurants/summary endpoints reflect them
- * within seconds; a redelivered OrderConfirmed does not double revenue
- * (ReplacingMergeTree + FINAL); another tenant's orders never leak in.
- *
- * Requires the live stack, so it is gated behind RUN_ANALYTICS_E2E and run by
- * the orchestrator, NOT the offline unit sandbox. Bring up:
- *   docker compose --env-file .env -f infra/docker-compose.yml --profile core --profile messaging --profile analytics up -d
- *   pnpm nx serve analytics             # host ingest consumer + HTTP API
- *   RUN_ANALYTICS_E2E=1 pnpm nx e2e analytics-e2e
- */
 const gatedDescribe = process.env.RUN_ANALYTICS_E2E === '1' ? describe : describe.skip;
 
 const TENANT = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
@@ -109,8 +95,6 @@ gatedDescribe('analytics order.events ingest + dashboards (e2e)', () => {
       tenantId: OTHER_TENANT,
       totalCents: 50_000,
     });
-    // Poll the OTHER tenant's own summary until ingest catches up, proving the
-    // event was processed — then assert the CALLER's tenant never moved.
     await pollSummaryUntil(OTHER_TENANT, FROM, TO, (current) => current.confirmedCount >= 1);
 
     const callerSummary = await fetchSummary(TENANT, FROM, TO);

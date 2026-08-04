@@ -17,7 +17,6 @@ function stockKey(t: string, i: string): string {
 }
 
 class FakeStockRepository implements StockRepository {
-  /** Models the DB's atomic counter: key → available units. */
   private readonly available = new Map<string, number>();
 
   seed(stock: Stock): void {
@@ -98,14 +97,12 @@ class FakeReservationRepository implements ReservationRepository {
   }
 }
 
-/** Runs work directly — real rollback atomicity is proven in the integration suite. */
 class FakeTransaction implements TransactionPort {
   runInTransaction<T>(work: () => Promise<T>): Promise<T> {
     return work();
   }
 }
 
-/** No-op lock — sorted-order + compare-and-del are covered in the locking lib's own spec. */
 class FakeDistributedLock implements DistributedLock {
   async acquire(): Promise<string | null> {
     return 'token';

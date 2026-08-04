@@ -3,14 +3,6 @@ import { Worker } from '@temporalio/worker';
 import { chargeWorkflow, providerResultSignal } from './charge-workflow';
 import type { EmitReplyActivityInput, PaymentActivities } from './charge-workflow.types';
 
-/**
- * Durable-execution unit test for the charge workflow. It boots a real (local)
- * Temporal test server via `@temporalio/testing`, which downloads a test-server
- * binary on first run — so it is gated behind RUN_TEMPORAL_TESTS and executed by
- * the orchestrator, not in the offline unit sandbox. It proves the workflow
- * orchestration (charge → emit-reply, decline, and signal reconciliation) with
- * mocked activities, independent of Kafka/Postgres.
- */
 const gatedDescribe = process.env.RUN_TEMPORAL_TESTS === '1' ? describe : describe.skip;
 
 const TASK_QUEUE = 'payment-charges-test';
@@ -82,7 +74,6 @@ gatedDescribe('chargeWorkflow (durable orchestration)', () => {
     const emitted: EmitReplyActivityInput[] = [];
     const result = await runWith(
       {
-        // pending → the workflow awaits the webhook rather than replying at once.
         charge: async () => ({ ok: true, pending: true }),
         emitReply: async (input) => {
           emitted.push(input);
@@ -96,8 +87,6 @@ gatedDescribe('chargeWorkflow (durable orchestration)', () => {
 
   it('does not wait for a webhook when the decision is synchronous', async () => {
     const emitted: EmitReplyActivityInput[] = [];
-    // charge settles synchronously (no pending) and NO signal is sent; the
-    // workflow must still complete promptly with the synchronous outcome.
     const result = await runWith({
       charge: async () => ({ ok: true }),
       emitReply: async (input) => {

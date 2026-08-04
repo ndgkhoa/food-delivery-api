@@ -32,14 +32,11 @@ export class CreateMenuItemHandler {
   ) {}
 
   async execute(restaurantId: string, command: CreateMenuItemCommand): Promise<MenuItem> {
-    // Confirms the restaurant exists AND belongs to the caller's tenant before nesting a menu item under it.
     await this.getRestaurant.execute(restaurantId);
     const tenantId = this.tenantContext.getTenantIdOrThrow();
 
     const menuItem = MenuItem.create({ id: randomUUID(), tenantId, restaurantId, ...command });
 
-    // Write + audit + outbox share one commit boundary: the menu item and its
-    // emitted event are persisted atomically.
     return this.transaction.runInTransaction(async () => {
       const saved = await this.menuItemRepository.save(menuItem);
 

@@ -1,4 +1,3 @@
-/** Mirrors `PROVISIONABLE_ROLES` in `apps/auth/src/interface/http/dto/provision-user.request.ts`. */
 export type ProvisionableRole = 'admin' | 'restaurant-owner' | 'customer' | 'driver';
 
 export interface UserFixture {
@@ -23,20 +22,11 @@ export interface RestaurantFixture {
 export interface TenantFixture {
   slug: string;
   name: string;
-  /** Every seeded username is `${usernamePrefix}-${user.usernameSuffix}`, e.g. `demo-acme-owner`. */
   usernamePrefix: string;
   users: UserFixture[];
   restaurants: RestaurantFixture[];
 }
 
-/**
- * `admin` is provisioned per tenant IN ADDITION TO owner/customer/driver: a
- * config write (`PUT /config/:key`) without `global: true` always targets the
- * CALLER'S OWN tenant (`UpsertConfigValueHandler`), and a `global` write needs
- * `platform-admin`, a role no seeded user holds. So the only way to set a
- * tenant-scoped config override for a NEW tenant is to authenticate as an
- * `admin` belonging to that exact tenant.
- */
 function users(prefix: string): UserFixture[] {
   return [
     { usernameSuffix: 'admin', role: 'admin', password: `${prefix}-Admin1!` },
@@ -129,28 +119,20 @@ export const TENANT_FIXTURES: TenantFixture[] = [
   },
 ];
 
-/** Business tunables `PlaceOrderHandler` reads (`apps/order/.../place-order.handler.ts`). */
 export const CONFIG_VALUES: Array<{ key: string; value: number }> = [
   { key: 'order.delivery_fee_cents', value: 1200 },
   { key: 'order.vat_rate_bps', value: 800 },
   { key: 'order.discount_cents', value: 200 },
 ];
 
-/** Order service's hardcoded fallbacks — `down` restores these since no `DELETE /config/:key` route exists. */
 export const CONFIG_DEFAULTS: Record<string, number> = {
   'order.delivery_fee_cents': 1500,
   'order.vat_rate_bps': 1000,
   'order.discount_cents': 0,
 };
 
-/**
- * Rough Ho Chi Minh City center — anchors the plausible driver GEO seed
- * coordinates (`seed-up-delivery.ts`). No real restaurant geo exists yet to
- * anchor against, so this is a fixed, deliberately fictional demo point.
- */
 export const DEMO_CITY_ORIGIN = { lat: 10.7769, lng: 106.7009 };
 
-/** Rotated across seeded demo reviews (`seed-up-reviews.ts`) — flavor text only, never interpolated into a query. */
 export const REVIEW_COMMENTS: string[] = [
   'Great food, arrived warm and right on time!',
   'Tasty and well packaged — would order again.',

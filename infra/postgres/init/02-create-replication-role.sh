@@ -1,14 +1,4 @@
 #!/bin/bash
-# Creates a least-privilege streaming-replication role and opens pg_hba for it,
-# so `postgres-replica` can clone + stream from this primary.
-#
-# Runs ONCE, only on a FRESH data volume (see the sibling
-# 01-create-service-databases.sh header for the reset caveat). The role has
-# ONLY the REPLICATION attribute — no database access beyond the replication
-# protocol itself. The pg_hba line is appended (not overwritten) so the
-# image's default rules for normal client connections are untouched; it takes
-# effect on the entrypoint's post-init restart into the final serving process,
-# so no manual reload is needed here.
 set -euo pipefail
 
 REPLICATION_USERNAME="${REPLICATION_USERNAME:-replicator}"

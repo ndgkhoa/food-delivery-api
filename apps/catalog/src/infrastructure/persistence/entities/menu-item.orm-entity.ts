@@ -39,14 +39,12 @@ export class MenuItemOrmEntity {
   @Column({ type: 'text', nullable: true })
   description!: string | null;
 
-  /** Price stored as integer cents to avoid floating-point rounding errors. */
   @Column({ name: 'price_cents', type: 'integer' })
   priceCents!: number;
 
   @Column({ name: 'is_available', type: 'boolean', default: true })
   isAvailable!: boolean;
 
-  /** Backs optimistic-lock updates — see `TypeOrmMenuItemRepository.updateVersioned`. */
   @VersionColumn()
   version!: number;
 

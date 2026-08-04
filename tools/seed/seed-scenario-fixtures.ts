@@ -4,7 +4,6 @@ export const SCENARIO_RESTAURANT_NAME = 'Demo Edge Cases';
 export const SCENARIO_RESTAURANT_DESCRIPTION =
   'Dedicated menu items driving the saga-compensation, idempotency, and no-oversell demo scenarios (see tools/seed/README.md).';
 
-/** Units of stock seeded for the no-oversell concurrency demo — deliberately far below the concurrency below. */
 export const LOW_STOCK_QTY = 3;
 
 function configValue(key: string): number {
@@ -15,14 +14,6 @@ function configValue(key: string): number {
   return found.value;
 }
 
-/**
- * Solves for an integer subtotal `S` (a single line item's price, at qty 1)
- * such that `Order.create`'s pricing formula —
- *   `total = subtotal + deliveryFee + floor(subtotal * vatRateBps / 10000) - discount`
- * (`apps/order/src/domain/order/order.ts`) — lands EXACTLY on
- * `targetTotalCents`. A closed-form estimate is refined by a small bounded
- * local search since `floor()` makes the formula non-linear in `subtotal`.
- */
 export function solveSubtotalForExactTotal(
   targetTotalCents: number,
   deliveryFeeCents: number,
@@ -50,20 +41,11 @@ export function solveSubtotalForExactTotal(
 }
 
 export interface ScenarioMenuItems {
-  /** Priced so a single-item order totals exactly `paymentStubFailAtCents` — the payment stub's configured decline amount. */
   compensation: MenuItemFixture;
-  /** Ordinary item used to demo `Idempotency-Key` replay. */
   idempotency: MenuItemFixture;
-  /** Seeded with only `LOW_STOCK_QTY` units to demo no-oversell concurrency. */
   lowStock: MenuItemFixture;
 }
 
-/**
- * Builds the 3 dedicated menu items the edge-case scenarios place orders
- * against, using the SAME `CONFIG_VALUES` tunables (`demo-data-fixtures.ts`)
- * the main seeder already applies to every tenant's config, so the
- * compensation item's solved price stays correct even if those values change.
- */
 export function scenarioMenuItems(paymentStubFailAtCents: number): ScenarioMenuItems {
   const compensationSubtotal = solveSubtotalForExactTotal(
     paymentStubFailAtCents,

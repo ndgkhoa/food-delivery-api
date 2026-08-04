@@ -17,11 +17,6 @@ export interface GatewayHandle {
   url: string;
 }
 
-/**
- * Boots a real auth service (full module graph) on a testcontainers Postgres,
- * pointed at a real Keycloak for provisioning. Mirrors the catalog harness in
- * apps/gateway-e2e/src/support/service-harness.ts.
- */
 export async function startAuth(config: {
   keycloakBaseUrl: string;
   realm: string;
@@ -53,11 +48,6 @@ export async function startAuth(config: {
   return { app, url: await app.getUrl(), db };
 }
 
-/**
- * Boots the gateway pointed at the auth service + a real Keycloak (issuer/JWKS
- * derived from KEYCLOAK_URL + realm). Verifies real Keycloak tokens against live
- * JWKS and forwards `/api/v1/auth/*` to the auth service with trusted headers.
- */
 export async function startGateway(config: {
   authUrl: string;
   keycloakBaseUrl: string;
@@ -66,7 +56,6 @@ export async function startGateway(config: {
 }): Promise<GatewayHandle> {
   process.env.NODE_ENV = 'test';
   process.env.LOG_LEVEL = 'fatal';
-  // Catalog URL is required by the gateway schema even though this e2e only hits auth.
   process.env.CATALOG_SERVICE_URL = config.authUrl;
   process.env.AUTH_SERVICE_URL = config.authUrl;
   process.env.KEYCLOAK_URL = config.keycloakBaseUrl;

@@ -28,16 +28,6 @@ export class DeleteRestaurantHandler {
   async execute(id: string): Promise<void> {
     const before = await this.getRestaurant.execute(id);
 
-    // Soft-deleting a restaurant cascades a soft-delete to its menu items so no
-    // child rows are left dangling (live in the table yet unreachable via the
-    // 404-ing parent). We emit RestaurantDeleted AND a MenuItemDeleted per item:
-    // restaurant and item are separate aggregates on separate Kafka partitions,
-    // so a bulk "remove all items of this restaurant" on the restaurant event
-    // can't be ordered against an in-flight item update on the item's partition
-    // — that update would re-insert an orphan read row. Keying a delete event to
-    // each item id puts its terminal event on the item's own partition, after
-    // any earlier update, so the read model converges with no orphans. All
-    // effects commit or roll back together.
     await this.transaction.runInTransaction(async () => {
       const items = await this.menuItemRepository.findAllByRestaurant(before.id, before.tenantId);
 

@@ -1,6 +1,3 @@
-# Grafana dashboard provisioning (as-code) — loads every JSON file under
-# infra/grafana/dashboards on boot; editing a file here and restarting
-# Grafana is the update path (`allowUiUpdates: false` — no click-ops drift).
 apiVersion: 1
 
 providers:

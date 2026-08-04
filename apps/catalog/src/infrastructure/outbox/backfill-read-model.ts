@@ -3,18 +3,6 @@ import 'reflect-metadata';
 import { buildDataSourceOptions } from '@catalog/infrastructure/persistence/typeorm-options';
 import { DataSource } from 'typeorm';
 
-/**
- * One-off backfill: re-emits every live restaurant + menu item into the outbox
- * as a *Created event, so Debezium replays them and the read model is seeded
- * for rows that predate the CDC pipeline (the connector uses snapshot.mode
- * `no_data`, so it never snapshots historical domain rows itself).
- *
- * Idempotent-ish: safe to run repeatedly — duplicate events are deduped by the
- * projection's `processed_events` guard, and read upserts converge by PK. The
- * `payload` mirrors the aggregate snapshot shape (camelCase) the projector reads.
- *
- *   pnpm --filter catalog exec ts-node src/infrastructure/outbox/backfill-read-model.ts
- */
 async function backfill(): Promise<void> {
   const dataSource = new DataSource(
     buildDataSourceOptions({

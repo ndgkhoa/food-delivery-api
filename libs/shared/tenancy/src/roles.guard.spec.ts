@@ -45,7 +45,6 @@ describe('RolesGuard', () => {
   });
 
   it('returns 401 when no verified identity reached the service', () => {
-    // Role required, but no gateway-stamped subject header → unauthenticated.
     const context = contextWith({ [ROLES_HEADER]: 'restaurant-owner' }, ['restaurant-owner']);
     expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
   });

@@ -16,7 +16,6 @@ export class TypeOrmRestaurantRepository implements RestaurantRepository {
     private readonly ormRepository: Repository<RestaurantOrmEntity>,
   ) {}
 
-  /** Enlists in the active transaction when one is open, else uses the default connection. */
   private get repository(): Repository<RestaurantOrmEntity> {
     return (
       getTransactionalEntityManager()?.getRepository(RestaurantOrmEntity) ?? this.ormRepository
@@ -29,19 +28,6 @@ export class TypeOrmRestaurantRepository implements RestaurantRepository {
     return RestaurantMapper.toDomain(saved);
   }
 
-  /**
-   * Atomic conditional `UPDATE ... SET version = version + 1 WHERE id = :id
-   * AND tenant_id = :tenantId AND version = :version` — TypeORM's managed
-   * `save()` does not itself guard a plain update against a moved version
-   * (its automatic version check only engages via an explicit `findOne(...,
-   * { lock: { mode: 'optimistic' } })` read, which has a load-then-write gap
-   * a concurrent writer can still slip through). This raw conditional query
-   * is atomic in the DB, so it genuinely rejects a stale write. Mirrors
-   * `TypeOrmOrderRepository.updateStatus`. Zero affected rows means a
-   * concurrent writer already moved the version on since this aggregate was
-   * loaded — a real conflict, not a missing row (the row was loaded moments
-   * earlier in the same use case).
-   */
   async updateVersioned(restaurant: Restaurant): Promise<Restaurant> {
     const result = await this.repository
       .createQueryBuilder()

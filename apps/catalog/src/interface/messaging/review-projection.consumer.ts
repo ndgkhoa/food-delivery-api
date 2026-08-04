@@ -23,16 +23,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 
 const REVIEW_EVENTS_TOPIC = 'review.events';
-/** Independent of `catalog-projection`'s group — this tails a different topic with its own offsets. */
 const PROJECTION_GROUP_ID = 'catalog-review-projection';
 
-/**
- * Consumes `review.events` and folds `RestaurantRatingChanged` into the
- * restaurant read model, alongside (not replacing) `CatalogProjectionConsumer`'s
- * `catalog.events` projection. Same dedupe-in-transaction shape as that
- * consumer: `processed_events` is shared across both topics since event ids
- * are globally unique, so one dedupe ledger safely covers each.
- */
 @Injectable()
 export class ReviewProjectionConsumer implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(ReviewProjectionConsumer.name);
@@ -65,8 +57,6 @@ export class ReviewProjectionConsumer implements OnApplicationBootstrap, OnModul
             applyReviewEvent(envelope, payload, this.readRestaurants),
           );
         });
-        // Write-through AFTER the commit — see catalog-projection.consumer's
-        // matching call for why this never runs inside the transaction.
         await syncRestaurantCache(
           envelope.eventType,
           envelope.aggregateId,

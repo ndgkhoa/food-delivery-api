@@ -17,13 +17,6 @@ import { InventoryCommandConsumer } from '@inventory/interface/messaging/invento
 import { InventoryOutboxRelayProvider } from '@inventory/interface/messaging/inventory-outbox-relay.provider';
 import { Module } from '@nestjs/common';
 
-/**
- * Composition root: wires ports (domain) to adapters (infrastructure), pulls in
- * the distributed-lock module (Redis) + tenancy (for the consume-time tenant
- * scope), and registers the reserve/release use cases, the gRPC controller
- * (used by order's manual cancel/release), and the Kafka messaging edge
- * (command consumer + reply outbox relay).
- */
 @Module({
   imports: [
     SharedConfigModule.forRoot(inventoryEnvSchema),
@@ -41,7 +34,6 @@ import { Module } from '@nestjs/common';
   providers: [
     ReserveStockHandler,
     ReleaseStockHandler,
-    // Kafka edge: subscriber/admin helpers + command consumer + reply relay
     KafkaConsumerSubscriber,
     KafkaTopicAdmin,
     InventoryCommandConsumer,

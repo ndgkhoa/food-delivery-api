@@ -18,7 +18,6 @@ export class TypeOrmReadRestaurantRepository implements ReadRestaurantRepository
     private readonly ormRepository: Repository<ReadRestaurantOrmEntity>,
   ) {}
 
-  /** Enlists in the active transaction (the projection upsert) when one is open. */
   private get repository(): Repository<ReadRestaurantOrmEntity> {
     return (
       getTransactionalEntityManager()?.getRepository(ReadRestaurantOrmEntity) ?? this.ormRepository
@@ -40,18 +39,6 @@ export class TypeOrmReadRestaurantRepository implements ReadRestaurantRepository
     return { data: rows.map(ReadRestaurantMapper.toDomain), total };
   }
 
-  /**
-   * Idempotent upsert by PK so re-delivered `catalog.events` converge to the
-   * same row. Raw SQL with an EXPLICIT overwrite column list (name/description/
-   * is_active/version/updated_at only) rather than `Repository.upsert()` —
-   * TypeORM's upsert helper would include EVERY mapped column (including
-   * rating/review_count) in its `ON CONFLICT DO UPDATE SET`, which would reset
-   * the rating to its column default on every restaurant edit. `rating`/
-   * `review_count` are owned exclusively by `updateRating`. `version` IS
-   * overwritten here (unlike rating) — it comes from the write aggregate's
-   * `RestaurantCreated`/`RestaurantUpdated` event payload, so the read row
-   * always reflects the version the write model just committed.
-   */
   async upsert(row: ReadRestaurantRow): Promise<void> {
     const orm = ReadRestaurantMapper.toOrm(row);
     await this.repository.manager.query(
@@ -81,7 +68,6 @@ export class TypeOrmReadRestaurantRepository implements ReadRestaurantRepository
     await this.repository.delete({ id, tenantId });
   }
 
-  /** Sole writer of rating/reviewCount — a plain column update, tenant-scoped, idempotent last-write-wins. */
   async updateRating(
     id: string,
     tenantId: string,

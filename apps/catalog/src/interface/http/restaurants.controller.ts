@@ -26,7 +26,6 @@ import {
   Query,
 } from '@nestjs/common';
 
-/** Only owners/admins may mutate the catalog; reads stay open to any authenticated tenant. */
 const CATALOG_WRITE_ROLES = ['restaurant-owner', 'admin'] as const;
 
 @Controller('restaurants')

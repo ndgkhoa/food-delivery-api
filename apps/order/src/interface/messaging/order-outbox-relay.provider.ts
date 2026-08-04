@@ -15,7 +15,6 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-/** All saga topics keyed by order id (3 partitions, RF=1) — ensured idempotently on boot. */
 const SAGA_TOPICS = [
   'inventory.commands',
   'inventory.replies',
@@ -23,13 +22,6 @@ const SAGA_TOPICS = [
   'payment.replies',
 ];
 
-/**
- * Owns the order service's polling-outbox relay lifecycle. On bootstrap it
- * ensures every saga topic exists, then starts the relay loop that drains
- * `order_outbox` and publishes each row (key = order id) to Kafka. Not
- * auto-started by the shared lib on purpose — a service decides when its own
- * outbox schema is ready. Disabled under NODE_ENV=test (no broker).
- */
 @Injectable()
 export class OrderOutboxRelayProvider implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(OrderOutboxRelayProvider.name);

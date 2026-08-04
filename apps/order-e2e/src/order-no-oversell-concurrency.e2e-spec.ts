@@ -7,18 +7,6 @@ import { buildIdentityHeaders } from './support/build-identity-headers';
 const CONCURRENT_ORDERS = 100;
 const STOCK = 10;
 
-/**
- * Async placement under concurrency: 100 concurrent place-order requests all
- * return PENDING immediately and each enqueues exactly one `ReserveStock`
- * command — no stock is decremented inline (the saga's inventory consumer, which
- * enforces no-oversell via the atomic conditional decrement, is OFF in this
- * in-process stack). The actual "exactly STOCK confirmed, rest cancelled, zero
- * oversell" proof runs in the compose happy-path e2e where the live saga
- * consumes these commands. Here we prove placement is durable + non-blocking and
- * emits one command per order.
- *
- *   pnpm nx e2e order-e2e
- */
 describe('Order place — async placement under concurrency (e2e)', () => {
   let stack: OrderStack;
 
@@ -59,14 +47,12 @@ describe('Order place — async placement under concurrency (e2e)', () => {
     const pending = responses.filter((r) => r.status === 201 && r.body.status === 'PENDING');
     expect(pending).toHaveLength(CONCURRENT_ORDERS);
 
-    // Stock is untouched — reservation happens later, in the saga.
     const stockRows = await stack.inventoryDb.dataSource.query(
       'SELECT "available" FROM "stock" WHERE "tenant_id" = $1 AND "item_id" = $2',
       [tenantId, itemId],
     );
     expect(Number(stockRows[0].available)).toBe(STOCK);
 
-    // Every order opened a STARTED saga and enqueued exactly one ReserveStock.
     const sagaCount = await stack.orderDb.dataSource.query(
       'SELECT COUNT(*)::int AS count FROM "order_saga" WHERE "tenant_id" = $1 AND "state" = \'STARTED\'',
       [tenantId],

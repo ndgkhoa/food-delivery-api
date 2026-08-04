@@ -15,10 +15,6 @@ interface LocationEvent {
   lng: number;
 }
 
-/**
- * Compose e2e — a customer subscribed to their order's room receives the
- * assigned driver's live position as it moves.
- */
 describe('customer receives live driver location (compose e2e)', () => {
   const jwks = new DeliveryJwksServer();
 
@@ -33,7 +29,6 @@ describe('customer receives live driver location (compose e2e)', () => {
     const customerId = randomUUID();
     const orderId = randomUUID();
 
-    // Driver online + order confirmed → an assignment exists so the customer may join.
     const driverToken = await jwks.sign({ sub: driverId, tenantId: TENANT_A, roles: ['driver'] });
     const driver = connectClient(driverToken);
     await waitForConnect(driver);
@@ -53,7 +48,6 @@ describe('customer receives live driver location (compose e2e)', () => {
       return res.body?.assigned ? res.body : undefined;
     });
 
-    // Customer joins the order room, then the driver moves.
     const customerToken = await jwks.sign({
       sub: customerId,
       tenantId: TENANT_A,

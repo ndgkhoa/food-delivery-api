@@ -11,11 +11,6 @@ import { ProcessedEventOrmEntity } from '@payment/infrastructure/persistence/ent
 import { TypeOrmTransactionAdapter } from '@payment/infrastructure/persistence/transaction/typeorm-transaction.adapter';
 import { buildDataSourceOptions } from '@payment/infrastructure/persistence/typeorm-options';
 
-/**
- * Owns the payment Postgres connection + binds the outbox writer, dedupe store,
- * and transaction ports to their TypeORM adapters. No domain-table repositories
- * yet — the stub only persists its outbox + dedupe ledger.
- */
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({

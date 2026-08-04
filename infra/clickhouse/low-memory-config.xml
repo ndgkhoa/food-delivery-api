@@ -1,18 +1,6 @@
-<!--
-  Bounds ClickHouse's memory footprint for local dev/e2e, where it shares a
-  16GB box with core + messaging (+ whatever other profiles are up). The
-  analytics fact table is tiny in dev, so these caches/limits trade peak
-  throughput for a predictable, small resident set — never a concern outside
-  this single-node dev/e2e deployment.
--->
 <clickhouse>
   <max_server_memory_usage>1500000000</max_server_memory_usage>
   <mark_cache_size>134217728</mark_cache_size>
   <uncompressed_cache_size>0</uncompressed_cache_size>
-  <!--
-    Pin the server timezone: the revenue series buckets by `toDate(occurred_at)`,
-    which uses the SERVER tz. occurred_at is stored UTC, so fixing the server to
-    UTC keeps day buckets correct regardless of the host/deployment timezone.
-  -->
   <timezone>UTC</timezone>
 </clickhouse>

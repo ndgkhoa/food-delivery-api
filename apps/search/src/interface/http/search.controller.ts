@@ -8,15 +8,6 @@ import type {
 } from '@search/interface/http/dto/restaurant-search.response';
 import { SearchRestaurantsRequest } from '@search/interface/http/dto/search-restaurants.request';
 
-/**
- * Public read API for restaurant search. Both routes are tenant-scoped: the
- * query handlers read the tenant from the trusted identity the gateway verified
- * and propagated (never a raw client header), so a caller only ever sees its own
- * tenant's restaurants.
- *
- * `autocomplete` is a distinct static subpath of `search/restaurants`, so it
- * never collides with the collection root.
- */
 @Controller('search/restaurants')
 export class SearchController {
   constructor(

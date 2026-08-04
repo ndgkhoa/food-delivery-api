@@ -15,7 +15,6 @@ export interface CreatedRestaurant {
   menuItems: { id: string; priceCents: number }[];
 }
 
-/** Creates one restaurant + its menu items as the tenant owner, recording every id into `state`. */
 export async function createRestaurant(
   ownerGateway: GatewayClient,
   tenantId: string,

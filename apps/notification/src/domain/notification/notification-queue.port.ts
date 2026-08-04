@@ -1,6 +1,5 @@
 import type { ChannelName } from '@notification/domain/notification/notification';
 
-/** BullMQ job payload — everything the per-channel worker needs to send + report back. */
 export interface NotificationJobPayload {
   notificationId: string;
   channel: ChannelName;
@@ -10,14 +9,12 @@ export interface NotificationJobPayload {
   data: Record<string, unknown>;
 }
 
-/** BullMQ queue name per channel — shared by the producer adapter and the interface worker. */
 export const CHANNEL_QUEUE_NAMES: Record<ChannelName, string> = {
   email: 'notify-email',
   sms: 'notify-sms',
   push: 'notify-push',
 };
 
-/** Parked queue exhausted sends land in — created paused, never consumed, purely observable. */
 export const NOTIFY_DLQ_QUEUE_NAME = 'notify-dlq';
 
 export interface NotificationQueuePort {

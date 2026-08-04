@@ -16,15 +16,6 @@ import { RecipientResolverStub } from '@notification/infrastructure/recipient/re
 import { OrderEventsConsumer } from '@notification/interface/messaging/order-events.consumer';
 import { NotificationWorker } from '@notification/interface/queue/notification.worker';
 
-/**
- * Composition root for notification: config + persistence (notifications
- * ledger + dedupe store), tenancy (consume-time tenant scope), the Kafka
- * messaging edge (`order.events` consumer), the channel adapters (Mailpit
- * email + sms/push stubs), the BullMQ queue/DLQ producers, and the per-channel
- * workers. Otherwise headless — no public API; `HealthModule` adds only the
- * k8s liveness/readiness endpoint. `KafkaTopicAdmin` is not needed since this
- * service only consumes (never publishes to Kafka).
- */
 @Module({
   imports: [
     SharedConfigModule.forRoot(notificationEnvSchema),

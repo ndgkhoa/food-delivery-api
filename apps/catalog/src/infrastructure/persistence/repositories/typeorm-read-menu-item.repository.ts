@@ -18,7 +18,6 @@ export class TypeOrmReadMenuItemRepository implements ReadMenuItemRepository {
     private readonly ormRepository: Repository<ReadMenuItemOrmEntity>,
   ) {}
 
-  /** Enlists in the active transaction (the projection upsert) when one is open. */
   private get repository(): Repository<ReadMenuItemOrmEntity> {
     return (
       getTransactionalEntityManager()?.getRepository(ReadMenuItemOrmEntity) ?? this.ormRepository
@@ -39,7 +38,6 @@ export class TypeOrmReadMenuItemRepository implements ReadMenuItemRepository {
     return { data: rows.map(ReadMenuItemMapper.toDomain), total };
   }
 
-  /** Idempotent upsert by PK so re-delivered projection events converge to the same row. */
   async upsert(row: ReadMenuItemRow): Promise<void> {
     await this.repository.upsert(ReadMenuItemMapper.toOrm(row), ['id']);
   }

@@ -76,7 +76,6 @@ describe('Restaurant', () => {
       expect(updated.name).toBe('Updated');
       expect(updated.isActive).toBe(false);
       expect(updated.updatedAt.getTime()).toBeGreaterThan(restaurant.updatedAt.getTime());
-      // original instance is untouched (immutability)
       expect(restaurant.name).toBe('Original');
     });
 

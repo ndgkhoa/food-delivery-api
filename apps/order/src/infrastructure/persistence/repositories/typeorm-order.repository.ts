@@ -21,7 +21,6 @@ export class TypeOrmOrderRepository implements OrderRepository {
     private readonly dataSource: DataSource,
   ) {}
 
-  /** Enlists in the active transaction when one is open, else the default connection. */
   private get orderRepository(): Repository<OrderOrmEntity> {
     return (
       getTransactionalEntityManager()?.getRepository(OrderOrmEntity) ?? this.ormOrderRepository
@@ -51,13 +50,6 @@ export class TypeOrmOrderRepository implements OrderRepository {
     return OrderMapper.toDomain(savedOrder, savedItems);
   }
 
-  /**
-   * Optimistic-lock transition: an atomic conditional `UPDATE ... WHERE id = :id
-   * AND tenant_id = :tenantId AND version = :version` that also bumps the
-   * version. Zero affected rows means a concurrent writer already moved the
-   * version on since this aggregate was loaded — a real conflict, not a
-   * missing row (the row was loaded moments earlier in the same use case).
-   */
   async updateStatus(order: Order): Promise<Order> {
     const result = await this.orderRepository
       .createQueryBuilder()
@@ -84,19 +76,10 @@ export class TypeOrmOrderRepository implements OrderRepository {
     return OrderMapper.toDomain(reloaded, items);
   }
 
-  /**
-   * Order history — the ONE genuinely lag-tolerant read in this repository
-   * (never a row the caller might have just written), so it explicitly opts
-   * into the replica pool instead of the master every other method here
-   * relies on by default (see `typeorm-options.ts`). A single batched item
-   * query (not one per order) avoids N+1 round-trips.
-   */
   async findRecentByTenant(tenantId: string, userId: string, limit: number): Promise<Order[]> {
     return readFromSlave(this.dataSource, async (manager) => {
       const orderRows = await manager.getRepository(OrderOrmEntity).find({
         where: { tenantId, userId },
-        // `id` breaks ties so rows with an identical created_at keep a stable
-        // order across calls (no flicker in/out at the LIMIT boundary).
         order: { createdAt: 'DESC', id: 'DESC' },
         take: limit,
       });

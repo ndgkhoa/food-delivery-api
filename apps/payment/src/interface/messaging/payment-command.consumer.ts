@@ -25,17 +25,6 @@ interface ChargePaymentPayload {
   totalCents: number;
 }
 
-/**
- * Consumes `payment.commands` and starts the durable charge workflow — it no
- * longer decides or replies inline (the workflow's emit-reply activity owns the
- * reply). Idempotency is by workflow id (`charge-{orderId}`): a redelivered
- * `ChargePayment` re-targets the same id and the gateway treats the resulting
- * "already started" as a no-op, so exactly one workflow (and one reply) exists
- * per order. The handler runs in the tenant scope the envelope carries; that
- * tenant + the saga correlation id are threaded into the workflow so the
- * emit-reply activity can re-establish scope when writing the outbox. Disabled
- * under NODE_ENV=test (no broker).
- */
 @Injectable()
 export class PaymentCommandConsumer implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(PaymentCommandConsumer.name);

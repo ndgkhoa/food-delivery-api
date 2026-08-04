@@ -3,12 +3,6 @@ import 'reflect-metadata';
 import { buildDataSourceOptions } from '@auth/infrastructure/persistence/typeorm-options';
 import { DataSource } from 'typeorm';
 
-/**
- * Standalone DataSource for the TypeORM CLI (auth migration generate/run/revert
- * scripts). Reads straight from `process.env` since the CLI runs outside Nest's
- * DI container. Uses the shared core Postgres (host port 5432) under the `auth`
- * database — override DB_NAME when the shared `.env` points DB_* at catalog.
- */
 const authDataSource = new DataSource(
   buildDataSourceOptions({
     DB_HOST: process.env.DB_HOST ?? 'localhost',

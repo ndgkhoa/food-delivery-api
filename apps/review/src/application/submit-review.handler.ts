@@ -24,27 +24,13 @@ export interface SubmitReviewCommand {
   comment?: string;
 }
 
-/** Postgres SQLSTATE for unique_violation — a duplicate `order_id` (already reviewed). */
 const PG_UNIQUE_VIOLATION = '23505';
 
-/** True for a Postgres unique_violation, however TypeORM wraps the driver error. */
 function isUniqueViolation(error: unknown): boolean {
   const wrapped = error as { code?: string; driverError?: { code?: string } };
   return (wrapped?.driverError?.code ?? wrapped?.code) === PG_UNIQUE_VIOLATION;
 }
 
-/**
- * Submits a review for a CONFIRMED order the caller owns, exactly once.
- * `restaurantId` is taken from the eligibility record (derived from the
- * order, never the client) so a review can never be forged for an arbitrary
- * restaurant. In ONE transaction: insert the review, recompute the
- * restaurant's rating aggregate FROM the reviews table (so a redelivered
- * submit — impossible here since submit isn't event-driven, but also any
- * future replay — can never double count), and append the
- * `RestaurantRatingChanged` event to the outbox. The outbox row commits
- * atomically with the review, so a published event always reflects committed
- * state.
- */
 @Injectable()
 export class SubmitReviewHandler {
   constructor(

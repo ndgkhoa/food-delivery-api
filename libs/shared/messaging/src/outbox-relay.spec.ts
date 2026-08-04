@@ -120,8 +120,6 @@ describe('OutboxRelay.runOnce with runExclusively', () => {
       const result = await drain();
       return { ran: true, result };
     });
-    // The mock is narrowed to the relay's actual call shape (drain -> number);
-    // the real `OutboxPort.runExclusively` is generic over `T`.
     outbox.runExclusively = runExclusively as unknown as OutboxPort['runExclusively'];
     const relay = new OutboxRelay(outbox, producer);
 
@@ -179,9 +177,9 @@ describe('OutboxRelay start/stop loop', () => {
     const relay = new OutboxRelay(outbox, producer, { intervalMs: 1000 });
 
     relay.start();
-    await jest.advanceTimersByTimeAsync(0); // first immediate tick
+    await jest.advanceTimersByTimeAsync(0);
     outbox.rows = [makeRow('2')];
-    await jest.advanceTimersByTimeAsync(1000); // second scheduled tick
+    await jest.advanceTimersByTimeAsync(1000);
 
     expect(producer.published.map((m) => m.key)).toEqual(['order-1', 'order-2']);
     relay.stop();
@@ -209,10 +207,10 @@ describe('OutboxRelay start/stop loop', () => {
     const relay = new OutboxRelay(outbox, producer, { intervalMs: 1000, maxBackoffMs: 8000 });
 
     relay.start();
-    await jest.advanceTimersByTimeAsync(0); // fails, schedules retry at +1000 (current backoff)
+    await jest.advanceTimersByTimeAsync(0);
     expect(producer.published).toHaveLength(0);
 
-    await jest.advanceTimersByTimeAsync(1000); // succeeds this time
+    await jest.advanceTimersByTimeAsync(1000);
     expect(producer.published).toHaveLength(1);
 
     relay.stop();

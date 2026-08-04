@@ -6,17 +6,11 @@ import {
 } from '@search/domain/restaurant-search/restaurant-search.repository';
 import type { RestaurantAutocompleteSuggestion } from '@search/domain/restaurant-search/restaurant-search-document';
 
-/** Validated, bounded autocomplete params (tenant is added here from the trusted identity). */
 export interface AutocompleteRestaurantsParams {
   q: string;
   limit: number;
 }
 
-/**
- * Edge-ngram prefix autocomplete over restaurant names, scoped to the caller's
- * tenant from the trusted identity. Returns a capped list of id + name
- * suggestions.
- */
 @Injectable()
 export class AutocompleteRestaurantsHandler {
   constructor(

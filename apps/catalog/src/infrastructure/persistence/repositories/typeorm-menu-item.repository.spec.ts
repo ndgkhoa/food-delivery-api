@@ -14,12 +14,6 @@ import {
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
-/**
- * Integration test: real Postgres via testcontainers, real migrated schema.
- * Exercises `TypeOrmMenuItemRepository` end-to-end (which internally uses
- * `MenuItemMapper`), so mapper correctness is covered by round-tripping
- * through the actual database rather than by a separate mock-based test.
- */
 describe('TypeOrmMenuItemRepository (integration)', () => {
   let db: CatalogTestDatabase;
   let menuItemRepository: TypeOrmMenuItemRepository;
@@ -165,7 +159,6 @@ describe('TypeOrmMenuItemRepository (integration)', () => {
         }),
       );
 
-      // Two concurrent PATCHes both load version 1 before either writes.
       const firstLoad = await menuItemRepository.findById(created.id, restaurant.id, tenantA);
       const secondLoad = await menuItemRepository.findById(created.id, restaurant.id, tenantA);
       if (!firstLoad || !secondLoad) {
@@ -177,9 +170,6 @@ describe('TypeOrmMenuItemRepository (integration)', () => {
       );
       expect(winner.version).toBe(2);
 
-      // Second writer's version-1 view is stale — the atomic
-      // `WHERE ... version = 1` update affects 0 rows, so it's rejected
-      // instead of silently overwriting the winner's write.
       await expect(
         menuItemRepository.updateVersioned(secondLoad.update({ priceCents: 7000 })),
       ).rejects.toThrow(ConcurrencyConflictError);

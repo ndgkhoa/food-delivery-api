@@ -32,7 +32,6 @@ describe('SearchRestaurantsHandler', () => {
   });
 
   it('rejects a page deeper than the result window instead of letting ES 5xx', async () => {
-    // page*limit = 101*100 = 10100 > 10000 → deep-pagination guard.
     await expect(handler.execute({ q: 'pho', page: 101, limit: 100 })).rejects.toBeInstanceOf(
       BadRequestException,
     );
@@ -40,7 +39,6 @@ describe('SearchRestaurantsHandler', () => {
   });
 
   it('allows the last in-window page', async () => {
-    // 100*100 = 10000, exactly the window.
     await handler.execute({ q: 'pho', page: 100, limit: 100 });
     expect(searched).toMatchObject({ page: 100, limit: 100 });
   });

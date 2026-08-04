@@ -1,6 +1,5 @@
 export interface FeatureFlagProps {
   id: string;
-  /** `null` = the GLOBAL default; a tenant row overrides it. */
   tenantId: string | null;
   key: string;
   enabled: boolean;
@@ -25,12 +24,6 @@ function assertValidKey(key: string): void {
   }
 }
 
-/**
- * Plain-class aggregate for one feature-flag row — separate from `ConfigEntry`
- * on purpose (flags are boolean switches, never business-tunable numbers; the
- * two concerns are never conflated — separate tables, separate API paths).
- * Constructed only via `create()` or `reconstitute()`.
- */
 export class FeatureFlag {
   private constructor(private readonly props: FeatureFlagProps) {}
 
@@ -64,7 +57,6 @@ export class FeatureFlag {
     return this.props.updatedAt;
   }
 
-  /** Returns a new instance with `enabled` replaced — id/tenantId/key never change once created. */
   withEnabled(enabled: boolean): FeatureFlag {
     return new FeatureFlag({ ...this.props, enabled, updatedAt: new Date() });
   }

@@ -1,7 +1,6 @@
 import { extractHandshakeToken } from '@delivery/interface/ws/handshake-token';
 import type { Socket } from 'socket.io';
 
-/** Minimal handshake shape the extractor reads. */
 function handshake(partial: {
   auth?: Record<string, unknown>;
   query?: Record<string, unknown>;

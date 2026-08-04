@@ -5,21 +5,6 @@ import {
   SettingsClient,
 } from '@food-delivery-api/shared-settings';
 
-/**
- * End-to-end proof of the settings-client read-through cache against REAL
- * infrastructure (Kafka + the config service) — same live-stack requirement
- * as the HTTP spec in this project:
- *
- *   docker compose -f infra/docker-compose.yml --profile core --profile messaging up -d
- *   nx run config:migration-run
- *   pnpm --filter config serve          # config on :3008
- *   RUN_CONFIG_E2E=1 pnpm nx e2e config-e2e
- *
- * Drives the library directly (not through a host app) so the scenario is
- * self-contained: getInt on a cold cache fetches from the HTTP API; updating
- * the value through the API emits `config.events`; the consumer evicts the
- * cache; the next getInt call re-fetches and observes the NEW value.
- */
 const CONFIG_SERVICE_URL = (process.env.CONFIG_BASE_URL ?? 'http://localhost:3008/api/v1').replace(
   /\/api\/v1$/,
   '',
@@ -88,18 +73,14 @@ gatedDescribe('settings-client cache invalidation via config.events (e2e, compos
       body: JSON.stringify({ value: 1000 }),
     });
 
-    // Cold miss -> HTTP fetch -> cached.
     await expect(client.getInt(key, tenantA, -1)).resolves.toBe(1000);
 
-    // Update via the API — emits ConfigValueChanged on config.events.
     await fetch(`${CONFIG_HTTP_BASE}/config/${key}`, {
       method: 'PUT',
       headers: headersFor(tenantA),
       body: JSON.stringify({ value: 2000 }),
     });
 
-    // The consumer evicts the cache entry asynchronously; poll until the next
-    // getInt call observes the refreshed value.
     await waitUntil(async () => (await client.getInt(key, tenantA, -1)) === 2000);
   }, 30_000);
 });

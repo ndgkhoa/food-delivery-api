@@ -1,11 +1,6 @@
 import type { AuditAction } from '@catalog/domain/shared/audit-action';
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
-/**
- * Append-only ledger of every write in catalog. No update/delete repository
- * methods are exposed anywhere in this app for this entity — rows are
- * immutable once written.
- */
 @Entity('audit_log')
 @Index(['tenantId'])
 @Index(['entity', 'entityId'])

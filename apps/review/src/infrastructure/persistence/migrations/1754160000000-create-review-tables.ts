@@ -1,14 +1,5 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Creates the review service's schema: `reviews` (one row per reviewed
- * order — `order_id` UNIQUE backs the one-review-per-order rule),
- * `review_eligible_orders` (one row per CONFIRMED order carrying a
- * restaurantId, recorded by the `order.events` consumer), `review_outbox`
- * (the polling outbox an in-app relay drains to publish `review.events`,
- * mirroring `order_outbox`), and `processed_events` (the eligibility
- * consumer's dedupe ledger).
- */
 export class CreateReviewTables1754160000000 implements MigrationInterface {
   name = 'CreateReviewTables1754160000000';
 

@@ -9,21 +9,11 @@ import { RpcException } from '@nestjs/microservices';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-/** Node collapses a repeated gRPC metadata entry into an array; take the first value only. */
 function firstMetadataValue(metadata: Metadata | undefined, key: string): string | undefined {
   const raw = metadata?.get(key)[0];
   return typeof raw === 'string' ? raw : raw?.toString();
 }
 
-/**
- * Extracts the verified tenant from gRPC metadata (`x-tenant-id`), the authority
- * on tenant scope for an internal call — the request body's tenantId is never
- * trusted. Also verifies the HMAC signature order stamps on the metadata
- * (`x-identity-ts`/`x-identity-sig`) when signature enforcement is on, so a
- * caller reaching inventory directly can't forge the tenant id. Fails closed
- * with UNAUTHENTICATED on either check so a call can never run unscoped or
- * mis-scoped.
- */
 export function readTenantFromMetadata(
   metadata: Metadata | undefined,
   verifier: GrpcTenantVerifier,

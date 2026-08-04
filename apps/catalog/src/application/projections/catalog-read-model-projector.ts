@@ -2,14 +2,6 @@ import type { ReadMenuItemRepository } from '@catalog/domain/read-model/read-men
 import type { ReadRestaurantRepository } from '@catalog/domain/read-model/read-restaurant.repository';
 import type { EventEnvelopeHeaders } from '@food-delivery-api/shared-messaging';
 
-/**
- * Snapshot shape emitted by the outbox factory (dates arrive as ISO strings
- * over JSON). `version` is the write aggregate's optimistic-lock version at
- * the moment the event was emitted (`Restaurant.toSnapshot()`/
- * `MenuItem.toSnapshot()` spread the aggregate's props, which already include
- * it) — projecting it here is what lets a `GET` return the same version a
- * concurrent `PATCH`'s `If-Match` check compares against.
- */
 interface RestaurantSnapshot {
   name: string;
   description: string | null;
@@ -35,18 +27,6 @@ export interface CatalogReadModelRepositories {
   menuItems: ReadMenuItemRepository;
 }
 
-/**
- * Applies one catalog event to the read model, dispatching on the envelope's
- * event type. Tenant + aggregate id come from the trusted envelope headers (not
- * the payload); the payload supplies the denormalized fields. Deletes drop the
- * read row(s): a restaurant delete both bulk-removes its menu-item read rows
- * (immediate cleanup) AND the delete handler emits a per-item MenuItemDeleted so
- * each item's own partition carries its terminal event — the bulk removal alone
- * couldn't be ordered against an in-flight item update on another partition.
- *
- * Pure over its repository ports so the type→effect mapping is unit-testable
- * without Kafka or a database.
- */
 export async function applyCatalogEvent(
   envelope: EventEnvelopeHeaders,
   payload: unknown,
@@ -97,7 +77,6 @@ export async function applyCatalogEvent(
       return;
     }
     default:
-      // Unknown type on a shared topic: ignore rather than fail the partition.
       return;
   }
 }

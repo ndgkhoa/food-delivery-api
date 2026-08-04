@@ -96,10 +96,6 @@ describe('HttpForwarder', () => {
   });
 
   it('maps a stalled/aborted body read to 504 and never half-writes the response', async () => {
-    // undici resolves fetch on headers; the body read is what stalls. The action
-    // reads the body under the abort timeout, so an aborted body rejects the
-    // action → the breaker counts a failure (via pass-through run here) → 504,
-    // and nothing was written to res before the failure.
     const upstream = {
       status: 200,
       headers: new Headers(),
@@ -125,7 +121,6 @@ describe('HttpForwarder', () => {
     const upstream = new Response('ok', { status: 200 });
     const fetchSpy = jest.fn().mockResolvedValue(upstream);
     global.fetch = fetchSpy as unknown as typeof fetch;
-    // Pass-through run: invokes the action exactly as CircuitBreakerRegistry would when disabled.
     const run = jest.fn((_service: string, action: () => Promise<unknown>) => action());
     const forwarder = new HttpForwarder(breakersStub(run), configStub());
     const { res } = resStub();

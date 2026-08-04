@@ -1,28 +1,13 @@
 name: CD
 
-# Post-merge only (push to develop/main, never pull_request — forks never get
-# package-write or deploy access). Builds + pushes the single `food-delivery-api`
-# image (bundles all 13 services; APP env selects which runs) to GHCR and scans
-# it. A PRODUCTION rollout runs only on `main` (develop is integration/staging);
-# see the deploy job's branch guard.
 on:
-  # Build/sign/scan (and deploy) only from main. Building on every develop push
-  # too doubled the images pushed to GHCR (each build adds a tagged image plus
-  # its cosign signature + SLSA attestation manifests) with no deploy value —
-  # dev runs a locally-built image, and the prod deploy is main-gated anyway.
   push:
     branches: [main]
 
-# Do NOT cancel an in-flight CD run: a build/push or (worse) a mid-rollout deploy
-# aborted halfway leaves a partial release / partial cluster state. Let each run
-# finish; queue the next.
 concurrency:
   group: cd-${{ github.ref }}
   cancel-in-progress: false
 
-# Least-privilege at the workflow level (read-only); the build-push job elevates
-# packages:write, image-scan takes packages:read + security-events:write — each
-# scoped to the job that needs it rather than granted workspace-wide.
 permissions:
   contents: read
 
@@ -38,9 +23,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      # Keyless supply-chain signing: id-token mints the short-lived OIDC token
-      # cosign + the provenance attestor exchange with Sigstore/Fulcio (no
-      # long-lived key), attestations lets the provenance be pushed to GHCR.
       id-token: write
       attestations: write
     steps:
@@ -55,10 +37,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Compute tags declaratively (no shell interpolation of git refs): the
-      # immutable full commit sha ALWAYS, the branch name, and `:latest` ONLY on
-      # the default branch (main) — so a develop merge can never overwrite the
-      # `:latest` tag that production pins to.
       - name: Derive image tags
         id: meta
         uses: docker/metadata-action@v5
@@ -80,32 +58,19 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=food-delivery-api
           cache-to: type=gha,mode=max,scope=food-delivery-api
-          # Let attest-build-provenance be the SINGLE provenance source — without
-          # this, BuildKit also attaches its own (mode=min) provenance and turns
-          # the pushed artifact into an OCI index.
           provenance: false
 
-      # cosign-installer has no moving `@v4` major tag (unlike most actions here),
-      # so it is pinned to an exact version; the cosign BINARY is pinned too for
-      # a reproducible signer. Renovate keeps both current.
       - name: Install cosign
         uses: sigstore/cosign-installer@v4.1.2
         with:
           cosign-release: v3.1.2
 
-      # Sign the image BY DIGEST — one manifest digest covers every tag
-      # (sha/branch/latest), so signing the digest signs them all. Keyless: Fulcio
-      # issues a short-lived cert bound to this workflow's OIDC identity and the
-      # signature is recorded in Rekor (public transparency log). --yes skips the
-      # interactive confirmation (there is no TTY in CI).
       - name: Sign image
         env:
           IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/food-delivery-api
           DIGEST: ${{ steps.build.outputs.digest }}
         run: cosign sign --yes "${IMAGE}@${DIGEST}"
 
-      # SLSA build provenance — a signed predicate describing HOW the image was
-      # built (source, builder, materials), attached to the image in GHCR.
       - name: Attest SLSA provenance
         uses: actions/attest-build-provenance@v4
         with:
@@ -113,18 +78,6 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
-      # Self-verify: fail the job if the just-produced signature doesn't validate
-      # against this workflow's identity + the GitHub OIDC issuer, so a broken
-      # signing config can never ship a "signed" image that nobody can verify.
-      # The identity regexp is fully ANCHORED (^…$) with literal dots escaped and
-      # the ref pinned to main/develop — cosign matches unanchored, so a loose
-      # pattern would weaken the very control it enforces.
-      # A consumer runs the same check against a pulled image:
-      #   cosign verify \
-      #     --certificate-identity-regexp '^https://github\.com/ndgkhoa/food-delivery-api/\.github/workflows/cd\.yml@refs/heads/(main|develop)$' \
-      #     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-      #     ghcr.io/ndgkhoa/food-delivery-api:<sha>
-      #   gh attestation verify oci://ghcr.io/ndgkhoa/food-delivery-api:<sha> --owner ndgkhoa
       - name: Verify signature
         env:
           IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/food-delivery-api
@@ -154,13 +107,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # The REAL runtime-vulnerability gate: it scans the actual shipped image
-      # (prod deps only) and BLOCKS (exit-code 1) on any HIGH/CRITICAL. It uses
-      # the IMAGE-SCOPED `infra/docker/.trivyignore` (NOT the repo-root dev-only
-      # one) — that file allowlists ONLY CVEs we cannot remediate ourselves (a
-      # system libssl3 Node never loads, pending a distroless base rebuild),
-      # each with a written justification; it must never silence a fixable
-      # runtime vulnerability.
       - name: Trivy image scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -169,11 +115,6 @@ jobs:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/food-delivery-api:${{ github.sha }}
           severity: HIGH,CRITICAL
           exit-code: "1"
-          # The action builds the SARIF with ALL severities by default, and the
-          # exit-code then counts every one of them — so unfixable LOW/MEDIUM base
-          # CVEs would fail the gate despite `severity: HIGH,CRITICAL`. Limit the
-          # SARIF (and thus the exit-code) to the requested severities so this
-          # blocks ONLY on HIGH/CRITICAL, as intended.
           limit-severities-for-sarif: true
           trivyignores: infra/docker/.trivyignore
           format: sarif
@@ -189,9 +130,6 @@ jobs:
   deploy:
     name: deploy
     needs: [build-push, image-scan]
-    # Production deploys ONLY from main. develop merges build+scan+validate but
-    # never roll out to prod (a develop→prod deploy would ship integration code).
-    # A staging deploy off develop is a documented follow-up (needs a staging env).
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -208,16 +146,9 @@ jobs:
           curl -sSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.7.1/kustomize_v5.7.1_linux_amd64.tar.gz" \
             | tar xz -C /usr/local/bin kustomize
 
-      # Always runs, secret or not — the honest, portfolio-safe part of the gate:
-      # the prod overlay must render + validate against the k8s schemas on every
-      # main merge, cluster or no cluster.
       - name: Render + validate prod overlay
         run: kubectl kustomize infra/k8s/overlays/prod | kubeconform -strict -ignore-missing-schemas -summary
 
-      # `secrets` is not a valid context inside a step `if:`, so the presence
-      # check happens here (where `env:` CAN read a secret) and is exposed as a
-      # boolean output for later steps to gate on. Only the boolean is emitted —
-      # the secret value never touches a log.
       - name: Check for a configured cluster
         id: kubeconfig-check
         env:
@@ -234,12 +165,6 @@ jobs:
           chmod 600 "$HOME/.kube/config"
           echo "KUBECONFIG=$HOME/.kube/config" >> "$GITHUB_ENV"
 
-      # A KUBECONFIG secret being SET is not the same as its cluster being
-      # REACHABLE from the runner (a local/stale/placeholder config points
-      # nowhere CI can hit). Probe first and gate the apply/rollout on actual
-      # reachability, so an unreachable config falls back to validate-only
-      # instead of failing the deploy on a `kubectl apply` that can't connect.
-      # Never fails the job itself — it only records the boolean.
       - name: Probe cluster reachability
         id: cluster-probe
         if: steps.kubeconfig-check.outputs.present == 'true'
@@ -251,10 +176,6 @@ jobs:
             echo "KUBECONFIG is set but the cluster is unreachable from CI — validate-only."
           fi
 
-      # Pin every app to the IMMUTABLE commit-sha image just built — never the
-      # mutable `:latest` the overlay declares statically. This makes the release
-      # reproducible + rollback-able (redeploy an older sha) instead of whatever
-      # `:latest` happens to point at.
       - name: Pin prod images to this commit
         if: steps.cluster-probe.outputs.reachable == 'true'
         working-directory: infra/k8s/overlays/prod
@@ -266,12 +187,6 @@ jobs:
           kustomize edit set image \
             "food-delivery-api=${REGISTRY}/${IMAGE_NAMESPACE}/food-delivery-api:${GITHUB_SHA}"
 
-      # Real rollout only when a cluster is wired up (the KUBECONFIG environment
-      # secret, protected behind the `production` Environment's required-reviewer
-      # rule). This is a rolling update; `rollout status` is the health gate — it
-      # fails the job (no promotion) if the new pods never become ready. A true
-      # progressive rollout (the infra/k8s/rollout canary/blue-green manifests via
-      # Argo Rollouts) is the documented prod upgrade.
       - name: Apply prod overlay
         if: steps.cluster-probe.outputs.reachable == 'true'
         run: kubectl apply -k infra/k8s/overlays/prod

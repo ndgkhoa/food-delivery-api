@@ -13,13 +13,6 @@ import {
   runWithTraceParent,
 } from './kafka-trace-propagation';
 
-/**
- * A real (in-memory) tracer provider + W3C propagator + async-hooks context
- * manager registered as the global OTel API implementation, so
- * `injectTraceContext`/`runWithExtractedContext` (which call the plain
- * `@opentelemetry/api` globals, same as production code) exercise real span
- * contexts instead of the no-op default. No Collector/network involved.
- */
 function registerTestTracing(): {
   exporter: InMemorySpanExporter;
   contextManager: AsyncHooksContextManager;
@@ -69,10 +62,6 @@ describe('injectTraceContext', () => {
   });
 
   it('still writes a traceparent (from its own span) when there is no ambient active span', () => {
-    // Mirrors an outbox-relay publish tick: nothing is active when the relay
-    // fires, but the message must still carry a trace header for the
-    // consumer to parent to — injectTraceContext starts its own span rather
-    // than depending on ambient context.
     const headers: Record<string, string> = {};
     expect(() => injectTraceContext(headers)).not.toThrow();
     expect(headers.traceparent).toBeDefined();
@@ -152,8 +141,6 @@ describe('runWithTraceParent', () => {
   });
 
   it('re-activates a captured traceparent so work inside sees the original trace id', async () => {
-    // Capture from one span, then — with NO active span (the Temporal-worker
-    // situation) — re-activate it and confirm the inner capture round-trips the id.
     const tracer = trace.getTracer('test-client');
     let originalTraceId = '';
     let captured: Record<string, string> = {};
@@ -167,7 +154,6 @@ describe('runWithTraceParent', () => {
     let innerTraceId = '';
     await runWithTraceParent(captured.traceparent, async () => {
       innerTraceId = trace.getSpanContext(context.active())?.traceId ?? '';
-      // The outbox writer's own capture, run inside this reactivated context.
       expect(captureActiveTraceContext().traceparent).toContain(originalTraceId);
     });
 
@@ -187,8 +173,6 @@ describe('runWithTraceParent', () => {
   });
 
   it('propagates a business error from fn exactly once — never re-runs it', async () => {
-    // A failure in the wrapped work is NOT a tracing failure: it must surface to
-    // the caller, and fn must run only once (no double-execution via a catch).
     const fn = jest.fn().mockRejectedValue(new Error('db write failed'));
     await expect(
       runWithTraceParent('00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01', fn),
@@ -228,11 +212,6 @@ describe('runWithExtractedContext', () => {
       consumerTraceId = trace.getActiveSpan()?.spanContext().traceId ?? '';
     });
 
-    // Read back the finished spans via the exporter (the public `ReadableSpan`
-    // shape) rather than the live `Span` object, which doesn't expose its
-    // parent on the public API surface. `injectTraceContext` starts its own
-    // "kafka.publish" span around the injection, so that — not the outer
-    // "publish" span — is what "consume" is actually parented to.
     const finishedSpans = exporter.getFinishedSpans();
     const publishSpan = finishedSpans.find((s) => s.name === 'kafka.publish');
     const consumeSpan = finishedSpans.find((s) => s.name === 'consume');
@@ -249,9 +228,6 @@ describe('runWithExtractedContext', () => {
   });
 
   it('propagates a handler rejection exactly once — never re-runs the handler', async () => {
-    // A handler failure is business, not tracing: it must surface AND run only
-    // once. The old catch-then-`return fn()` shape re-executed the handler on any
-    // throw (and mislabelled it a tracing failure) — this guards against that.
     const fn = jest.fn().mockRejectedValue(new Error('handler failed'));
     await expect(runWithExtractedContext({}, 'consume', fn)).rejects.toThrow('handler failed');
     expect(fn).toHaveBeenCalledTimes(1);

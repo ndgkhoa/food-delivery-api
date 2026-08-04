@@ -12,12 +12,6 @@ export interface CatalogTestDatabase {
   dataSource: DataSource;
 }
 
-/**
- * Spins up a real, throwaway Postgres via testcontainers and applies the
- * catalog migration, so tests assert against the same schema/constraints as
- * production instead of a mock. Migration is passed as a class reference
- * (not a glob) so it loads inside ts-jest without a separate ts-node step.
- */
 export async function startCatalogTestDatabase(): Promise<CatalogTestDatabase> {
   const container = await new PostgreSqlContainer('postgres:18.4').start();
 
@@ -62,12 +56,6 @@ export async function truncateCatalogTables(dataSource: DataSource): Promise<voi
   );
 }
 
-/**
- * Copies live write-model rows into the read tables, standing in for the
- * Debezium→Kafka→projection loop that isn't running in an in-process test. Lets
- * read endpoints (served from the read model) be asserted deterministically
- * without a broker; the compose-based e2e exercises the real CDC path.
- */
 export async function syncReadModelFromWriteModel(dataSource: DataSource): Promise<void> {
   await dataSource.query(`
     INSERT INTO "read_restaurants" (id, tenant_id, name, description, is_active, version, created_at, updated_at)

@@ -1,25 +1,15 @@
 import { resolve } from 'node:path';
 import { GenericContainer, type StartedTestContainer, Wait } from 'testcontainers';
 
-// Reuses the same realm import the compose `auth` profile uses, so the e2e
-// exercises the exact clients/roles/mappers that ship to dev. Mirrors
-// apps/gateway-e2e/src/support/keycloak-container.ts.
 const REALM_EXPORT_PATH = resolve(__dirname, '../../../../infra/keycloak/realm-export.json');
 const REALM = 'food-delivery';
 const SPA_CLIENT_ID = 'food-delivery-spa';
 
 export interface KeycloakHandle {
   container: StartedTestContainer;
-  /** e.g. `http://localhost:54321` — used verbatim as issuer base so token `iss` matches. */
   baseUrl: string;
 }
 
-/**
- * Boots a throwaway Keycloak (no maintained `@testcontainers/keycloak` package
- * exists, so `GenericContainer` + `--import-realm`) and waits until the realm's
- * OIDC discovery document answers 200. Generous startup budget — cold boot is
- * ~30-60s.
- */
 export async function startKeycloak(): Promise<KeycloakHandle> {
   const container = await new GenericContainer('quay.io/keycloak/keycloak:26.7')
     .withExposedPorts(8080)
@@ -45,7 +35,6 @@ export async function stopKeycloak(handle: KeycloakHandle): Promise<void> {
   await handle.container.stop();
 }
 
-/** Mints a real access token via the direct-access (password) grant on the SPA client. */
 export async function mintPasswordToken(config: {
   baseUrl: string;
   username: string;

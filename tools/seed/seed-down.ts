@@ -13,7 +13,6 @@ import {
 import { resolveFixtureUser } from './seed-fixture-user-lookup';
 import { loadState, removeState, type SeedState } from './seed-state-store';
 
-/** Best-effort cancel — a CONFIRMED order can no longer be cancelled (illegal transition), which is fine to skip. */
 async function cancelOrders(config: SeedConfig, state: SeedState): Promise<void> {
   console.log(`\n[1/9] Cancelling ${state.orders.length} order(s)...`);
   for (const order of state.orders) {
@@ -33,7 +32,6 @@ async function cancelOrders(config: SeedConfig, state: SeedState): Promise<void>
   }
 }
 
-/** Deletes menu items before their parent restaurant — a restaurant delete cascades to its remaining items anyway. */
 async function deleteCatalogEntries(config: SeedConfig, state: SeedState): Promise<void> {
   console.log(
     `\n[2/9] Deleting menu items + restaurants for ${state.restaurants.length} restaurant(s)...`,
@@ -70,7 +68,6 @@ async function deleteCatalogEntries(config: SeedConfig, state: SeedState): Promi
   }
 }
 
-/** No `DELETE /config/:key` route exists — the closest reversible action is restoring the service's hardcoded default. */
 async function resetConfigValues(config: SeedConfig, state: SeedState): Promise<void> {
   console.log(
     `\n[3/9] Resetting ${state.configValues.length} config value(s) to service defaults...`,
@@ -109,7 +106,6 @@ async function deleteStockRows(config: SeedConfig, state: SeedState): Promise<vo
   });
 }
 
-/** No HTTP surface exists for removing a driver's GEO position (see `redis-driver-geo.ts`) — the seeder wrote it directly, so it removes it directly too. */
 async function removeDriverLocations(config: SeedConfig, state: SeedState): Promise<void> {
   console.log(`\n[5/9] Removing ${state.driverLocations.length} driver GEO location(s)...`);
   await withRedis(config, async (redis) => {
@@ -125,13 +121,6 @@ async function removeDriverLocations(config: SeedConfig, state: SeedState): Prom
   });
 }
 
-/**
- * No `DELETE /media/:id` route exists (see `minio-media-store.ts`), so teardown
- * fully cleans a seeded media object in two steps: remove the object bytes from
- * MinIO, then delete the `media_objects` metadata row directly in the media DB
- * (carve-out mirroring the inventory-stock one). Each step is best-effort so a
- * missing object or row never aborts the rest of the sweep.
- */
 async function deleteMediaObjects(config: SeedConfig, state: SeedState): Promise<void> {
   console.log(`\n[6/9] Deleting ${state.media.length} media object(s) (MinIO + DB row)...`);
   const minio = createMinioClient(config);

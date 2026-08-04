@@ -17,17 +17,9 @@ import {
 import { RecordReviewEligibilityHandler } from '@review/application/record-review-eligibility.handler';
 
 const ORDER_EVENTS_TOPIC = 'order.events';
-/** Review's own consumer group — tails `order.events` with independent offsets. */
 const CONSUMER_GROUP_ID = 'review-order-events';
 const ORDER_CONFIRMED = 'OrderConfirmed';
 
-/**
- * Consumes `order.events` and records a CONFIRMED order as review-eligible
- * (mirrors delivery's/notification's own `order.events` consumers on the same
- * topic, each with an independent consumer group). A straggler order
- * confirmed without a `restaurantId` (placed before that invariant existed)
- * is skipped — it is never review-eligible.
- */
 @Injectable()
 export class OrderEventsConsumer implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(OrderEventsConsumer.name);

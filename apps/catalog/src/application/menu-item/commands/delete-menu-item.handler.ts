@@ -23,8 +23,6 @@ export class DeleteMenuItemHandler {
   async execute(restaurantId: string, id: string): Promise<void> {
     const before = await this.getMenuItem.execute(restaurantId, id);
 
-    // Write + audit + outbox share one commit boundary: the soft-delete and its
-    // emitted event commit or roll back together.
     await this.transaction.runInTransaction(async () => {
       await this.menuItemRepository.softDelete(before.id, before.tenantId);
 

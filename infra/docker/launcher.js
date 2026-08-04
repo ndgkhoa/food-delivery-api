@@ -1,4 +1,3 @@
-// Single-image launcher: the image bundles every service; APP selects which one runs.
 const fs = require('node:fs');
 const path = require('node:path');
 const app = process.env.APP;

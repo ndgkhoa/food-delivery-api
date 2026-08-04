@@ -7,7 +7,6 @@ import { EntityNotFoundError } from '@catalog/domain/shared/errors';
 import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable } from '@nestjs/common';
 
-/** Also depended on by menu-item command/query handlers to 404 + tenant-scope-check the parent restaurant. */
 @Injectable()
 export class GetRestaurantHandler {
   constructor(

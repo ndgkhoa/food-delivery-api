@@ -1,8 +1,3 @@
-# Least-privilege wiring for prometheus-adapter as an aggregated API server
-# (mirrors the upstream kubernetes-sigs/prometheus-adapter deploy manifests
-# for v0.12.0, trimmed to only what this cluster's custom-metrics path needs
-# — no resourceRules/metrics.k8s.io registration since k3d's metrics-server
-# already serves that API; only custom.metrics.k8s.io is registered below).
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -13,9 +8,6 @@ metadata:
     app.kubernetes.io/part-of: food-delivery
 automountServiceAccountToken: false
 ---
-# Read-only discovery the adapter needs to resolve a Prometheus series'
-# namespace/pod/service labels back to real k8s objects when building the
-# custom-metrics API response.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -44,8 +36,6 @@ subjects:
     name: prometheus-adapter
     namespace: observability
 ---
-# Required for any aggregated API server: lets the main API server delegate
-# auth decisions on requests it proxies to the adapter.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -62,9 +52,6 @@ subjects:
     name: prometheus-adapter
     namespace: observability
 ---
-# Lets the adapter read the aggregation layer's client-CA/requestheader
-# config from kube-system, required to authenticate the API server's
-# proxied requests.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -82,11 +69,6 @@ subjects:
     name: prometheus-adapter
     namespace: observability
 ---
-# Grants read access to the registered custom.metrics.k8s.io API itself —
-# without this, k8s's built-in HPA controller (running as the
-# `horizontal-pod-autoscaler` ServiceAccount in kube-system) is authenticated
-# but not AUTHORIZED to query the custom metric, so the order HPA would sit
-# stuck on "unable to get metric" even though the adapter is healthy.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:

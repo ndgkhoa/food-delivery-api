@@ -13,13 +13,6 @@ export interface ConfigDbEnv {
   DB_NAME: string;
 }
 
-/**
- * Single source of truth for Postgres connection + entity/migration discovery,
- * shared by the runtime `PersistenceModule` (via `ConfigService`) and the
- * standalone TypeORM CLI `DataSource` used to run migrations outside Nest's DI.
- *
- * `synchronize` is always false — schema changes happen ONLY via migrations.
- */
 export function buildDataSourceOptions(env: ConfigDbEnv): DataSourceOptions {
   return {
     type: 'postgres',

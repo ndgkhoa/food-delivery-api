@@ -10,19 +10,12 @@ import {
 import type { ClickHouseClient } from '@clickhouse/client';
 import { Inject, Injectable } from '@nestjs/common';
 
-/** ClickHouse returns Int64/UInt64 aggregates as strings over JSONEachRow (avoids JS number precision loss). */
 interface RevenueSeriesRow {
   day: string;
   revenue_cents: string;
   order_count: string;
 }
 
-/**
- * `FINAL` forces the merge to happen at read time, so a not-yet-merged
- * redelivery duplicate is never double-counted — correctness over the
- * (still sub-second, single-node) extra merge cost. `{tenant}`/`{from}`/`{to}`
- * are always bound via `query_params`, never string-interpolated.
- */
 const QUERY = `
   SELECT
     toDate(occurred_at) AS day,

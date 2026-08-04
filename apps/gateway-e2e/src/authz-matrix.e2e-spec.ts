@@ -16,20 +16,10 @@ import {
 
 const REALM = 'food-delivery';
 const AUDIENCE = 'food-delivery-api';
-// Public direct-grant client whose 2s access-token lifespan lets us mint a real
-// Keycloak token that expires within the test — see the expired-token case.
 const SHORTLIVED_CLIENT_ID = 'food-delivery-shortlived';
 
 const delay = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
-/**
- * Authorization matrix against a REAL Keycloak: tokens are minted by password
- * grant for the seeded owner + customer users, and every request goes through
- * the gateway (live JWKS verification) to catalog (service-enforced RBAC).
- *
- * NOTE: boots a Keycloak container (~30-60s) plus catalog's Postgres — run it
- * explicitly, e.g. `pnpm nx e2e gateway-e2e --testFile=authz-matrix.e2e-spec.ts`.
- */
 describe('Gateway authorization matrix with real Keycloak (e2e)', () => {
   let keycloak: KeycloakHandle;
   let catalog: CatalogHandle;
@@ -43,7 +33,6 @@ describe('Gateway authorization matrix with real Keycloak (e2e)', () => {
     catalog = await startCatalog();
     gateway = await startGateway({
       catalogUrl: catalog.url,
-      // No keyResolver → the gateway fetches JWKS from this real Keycloak.
       keycloakBaseUrl: keycloak.baseUrl,
       realm: REALM,
       audience: AUDIENCE,
@@ -86,8 +75,6 @@ describe('Gateway authorization matrix with real Keycloak (e2e)', () => {
   });
 
   it('locks the auth-proxy admin path with no token — GET /auth/tenants (401)', async () => {
-    // Proves the global JwtAuthGuard covers the auth reverse-proxy, not just
-    // catalog: the request is rejected at the gateway before any forward.
     await request(gateway.url).get('/api/v1/auth/tenants').expect(401);
   });
 
@@ -96,7 +83,6 @@ describe('Gateway authorization matrix with real Keycloak (e2e)', () => {
   });
 
   it('serves the public health probe without a token (200)', async () => {
-    // @Public() + @SkipRateLimit(): no auth, never throttled.
     const res = await request(gateway.url).get('/api/v1/health').expect(200);
     expect(res.body).toEqual({ status: 'ok' });
   });
@@ -133,9 +119,6 @@ describe('Gateway authorization matrix with real Keycloak (e2e)', () => {
   });
 
   it('ignores forged identity headers on a customer token — real role wins (403)', async () => {
-    // Attacker sends a customer token but tries to smuggle admin role + a foreign
-    // tenant + a fake user id via raw headers. The gateway rebuilds identity from
-    // the verified token only, so these are stripped and the customer role loses.
     await request(gateway.url)
       .post('/api/v1/catalog/restaurants')
       .set('authorization', `Bearer ${customerToken}`)
@@ -150,7 +133,6 @@ describe('Gateway authorization matrix with real Keycloak (e2e)', () => {
     let restaurantId: string;
 
     beforeAll(async () => {
-      // Owner creates the parent restaurant the nested menu-item route hangs off.
       const res = await request(gateway.url)
         .post('/api/v1/catalog/restaurants')
         .set('authorization', `Bearer ${ownerToken}`)
@@ -177,12 +159,6 @@ describe('Gateway authorization matrix with real Keycloak (e2e)', () => {
   });
 
   it('rejects a real expired Keycloak token (401)', async () => {
-    // Mint from the 2s-lifespan client, then wait past expiry so the gateway's
-    // verifier rejects on `exp`. Wait must exceed the 2s token lifespan PLUS the
-    // 5s default clock tolerance (JWT_CLOCK_TOLERANCE_SEC) — 8s clears both with
-    // margin. jose expiry logic itself is unit-covered by
-    // access-token-verifier.spec.ts ("rejects an expired token"); this proves the
-    // edge behaves the same against a real IdP-issued token.
     const shortLivedToken = await mintPasswordToken({
       baseUrl: keycloak.baseUrl,
       username: 'customer-user',

@@ -8,21 +8,13 @@ import { AppModule } from '@search/app.module';
 import { setupOpenApi } from '@search/interface/http/setup-openapi';
 import { Logger as PinoLogger } from 'nestjs-pino';
 
-/**
- * Search is an HTTP query API (search + autocomplete) plus a background
- * `catalog.events` consumer that projects into Elasticsearch. It is only reached
- * by clients through the gateway's reverse proxy over HTTP.
- */
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
-  // Must run before pino-http's own middleware so `genReqId` reads a normalized header.
   app.use(correlationIdMiddleware);
   app.useLogger(app.get(PinoLogger));
-  // Unified error envelope for every 4xx/5xx response across all services.
   app.useGlobalFilters(new GlobalExceptionFilter());
 
-  // Drain the ES pool + Kafka consumer on SIGTERM/SIGINT instead of dropping them.
   app.enableShutdownHooks();
 
   app.setGlobalPrefix('api/v1');

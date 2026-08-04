@@ -64,12 +64,11 @@ describe('CompleteUploadHandler', () => {
 
   it('deletes + rejects an actually-oversized object (declared size is not trusted)', async () => {
     const id = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
-    const media = seedPending(id, tenantId); // declared 1000 bytes
-    // The bytes the client actually PUT are 2 MB — past the 1 MB ceiling.
+    const media = seedPending(id, tenantId);
     storage.putBytes(media.objectKey, Buffer.alloc(2_000_000), 'image/png');
 
     await expect(handler.execute(id)).rejects.toBeInstanceOf(InvalidUploadError);
-    expect(storage.removed).toContain(media.objectKey); // cleaned up, never enqueued
+    expect(storage.removed).toContain(media.objectKey);
     expect(queue.enqueued).toEqual([]);
     expect(repository.rows.get(id)?.status).toBe(MediaStatus.PENDING);
   });

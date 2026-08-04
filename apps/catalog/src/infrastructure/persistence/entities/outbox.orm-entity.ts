@@ -1,12 +1,5 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-/**
- * Insert-only CDC outbox row. Column names match the Debezium Outbox Event
- * Router field convention (lowercase, no camelCase) so the SMT maps them
- * without per-field renames. `id` becomes the event id (dedupe key),
- * `aggregateid` the Kafka key, `type` the event type, `payload` the message
- * body. `tenant_id`/`correlationid` ride as headers.
- */
 @Entity('outbox')
 export class OutboxOrmEntity {
   @PrimaryGeneratedColumn('uuid')

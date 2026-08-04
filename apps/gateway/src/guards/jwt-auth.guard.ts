@@ -17,13 +17,6 @@ function extractBearerToken(authorization: string | undefined): string | undefin
   return scheme?.toLowerCase() === 'bearer' && token ? token : undefined;
 }
 
-/**
- * Verifies the `Authorization: Bearer` token via the shared offline JWKS
- * verifier and attaches the resulting identity to the request for the proxy
- * layer to propagate. Any missing/invalid/expired token → 401; the request
- * never reaches a downstream service unauthenticated. Registered globally, so
- * routes marked `@Public()` (the session endpoints) are explicitly skipped.
- */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(

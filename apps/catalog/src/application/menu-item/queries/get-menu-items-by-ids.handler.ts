@@ -6,12 +6,6 @@ import {
 import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable } from '@nestjs/common';
 
-/**
- * Bulk menu-item lookup for east-west callers (order/inventory over gRPC).
- * Tenant scope comes from the request context — established from gRPC metadata
- * by the gRPC tenant interceptor, exactly as HTTP reads use it — so a caller
- * can only ever resolve items within its own tenant.
- */
 @Injectable()
 export class GetMenuItemsByIdsHandler {
   constructor(

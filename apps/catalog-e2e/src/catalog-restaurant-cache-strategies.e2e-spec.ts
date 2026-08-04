@@ -1,23 +1,3 @@
-/**
- * End-to-end proof of the restaurant cache-aside + write-through + eviction
- * strategy against REAL infrastructure (Postgres + Redis + Kafka/Debezium),
- * same live-stack shape as `catalog-outbox-cdc-read-model.e2e-spec.ts`:
- *
- *   docker compose --env-file .env -f infra/docker-compose.yml --profile core --profile messaging up -d
- *   ./infra/debezium/register-connectors.sh
- *   pnpm --filter catalog serve        # catalog on :3001 (projection consumers + cache active)
- *   RUN_CACHE_E2E=1 pnpm nx e2e catalog-e2e --testFile=catalog-restaurant-cache-strategies.e2e-spec.ts
- *
- * Env overrides: CATALOG_BASE_URL (default http://localhost:3001/api/v1).
- *
- * Covers: (1) a cold read misses (served from Postgres) and a repeated read
- * hits (served from Redis, no DB round trip) — observed via the hit-ratio
- * counter at GET /internal/cache-stats; (2) an update makes the VERY NEXT
- * read return the new value (write-through, no stale window); (3) tenant
- * isolation — tenant A's cached restaurant is never served to tenant B;
- * (4) a Redis-down scenario (separate, opt-in flag below — requires Redis
- * stopped BEFORE the run, since the rest of this file needs it up).
- */
 const BASE_URL = process.env.CATALOG_BASE_URL ?? 'http://localhost:3001/api/v1';
 
 const tenantId = '77777777-7777-4777-8777-777777777777';
@@ -70,7 +50,6 @@ gatedDescribe('Restaurant cache: cache-aside + write-through + eviction (e2e, co
     expect(createRes.status).toBe(201);
     const restaurantId = ((await createRes.json()) as { id: string }).id;
 
-    // Wait for the CDC projection so the read model has the row at all.
     await waitUntil(async () => {
       const res = await fetch(`${BASE_URL}/restaurants/${restaurantId}`, { headers: ownerHeaders });
       return res.status === 200 ? true : undefined;
@@ -78,10 +57,6 @@ gatedDescribe('Restaurant cache: cache-aside + write-through + eviction (e2e, co
 
     const before = await cacheStats();
 
-    // Cold miss (this GET may itself have been the miss above, or a fresh
-    // entry may already be cached from the projector's write-through on
-    // create — either way, the SECOND read below must be a hit, which is
-    // the property under test).
     await fetch(`${BASE_URL}/restaurants/${restaurantId}`, { headers: ownerHeaders });
     const afterFirst = await cacheStats();
 
@@ -100,7 +75,6 @@ gatedDescribe('Restaurant cache: cache-aside + write-through + eviction (e2e, co
     });
     const restaurantId = ((await createRes.json()) as { id: string }).id;
 
-    // Warm the cache with the original value.
     await waitUntil(async () => {
       const res = await fetch(`${BASE_URL}/restaurants/${restaurantId}`, { headers: ownerHeaders });
       if (res.status !== 200) return undefined;
@@ -114,9 +88,6 @@ gatedDescribe('Restaurant cache: cache-aside + write-through + eviction (e2e, co
       body: JSON.stringify({ name: 'Updated Name' }),
     });
 
-    // The projector's write-through happens asynchronously after the update's
-    // catalog.events message is projected — poll until the cached value flips.
-    // Never observes a stale "Original Name" once the flip is seen.
     const updated = await waitUntil(async () => {
       const res = await fetch(`${BASE_URL}/restaurants/${restaurantId}`, { headers: ownerHeaders });
       const body = (await res.json()) as { name: string };
@@ -157,7 +128,6 @@ gatedDescribe('Restaurant cache: cache-aside + write-through + eviction (e2e, co
     });
     const restaurantId = ((await createRes.json()) as { id: string }).id;
 
-    // Warm tenant A's cache entry.
     await waitUntil(async () => {
       const res = await fetch(`${BASE_URL}/restaurants/${restaurantId}`, { headers: ownerHeaders });
       return res.status === 200 ? true : undefined;
@@ -171,20 +141,6 @@ gatedDescribe('Restaurant cache: cache-aside + write-through + eviction (e2e, co
   }, 60_000);
 });
 
-/**
- * Redis-down fallback — a SEPARATE opt-in scenario, since it requires the
- * OPPOSITE infra state from the rest of this file (Redis stopped, not
- * running). Run manually, isolated:
- *
- *   docker compose --env-file .env -f infra/docker-compose.yml --profile core --profile messaging up -d
- *   docker compose -f infra/docker-compose.yml stop redis
- *   pnpm --filter catalog serve
- *   RUN_CACHE_E2E_REDIS_DOWN=1 pnpm nx e2e catalog-e2e --testFile=catalog-restaurant-cache-strategies.e2e-spec.ts
- *   docker compose -f infra/docker-compose.yml start redis   # restore afterwards
- *
- * Asserts reads still succeed straight from Postgres — Redis is never a hard
- * dependency for the catalog read path.
- */
 const gatedRedisDownDescribe =
   process.env.RUN_CACHE_E2E_REDIS_DOWN === '1' ? describe : describe.skip;
 

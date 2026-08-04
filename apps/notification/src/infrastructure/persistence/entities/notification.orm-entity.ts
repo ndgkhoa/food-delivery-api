@@ -11,12 +11,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-/**
- * One row per (event id, channel). The unique index backs up the
- * `processed_events` dedupe at the DB level (belt-and-suspenders: the
- * app-level check runs first inside the same transaction; this catches
- * anything that slips past it).
- */
 @Entity('notifications')
 @Index(['eventId', 'channel'], { unique: true })
 export class NotificationOrmEntity {

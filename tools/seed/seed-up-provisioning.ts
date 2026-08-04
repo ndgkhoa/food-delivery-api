@@ -24,7 +24,6 @@ export interface ProvisionedUser {
   password: string;
 }
 
-/** Looks up a tenant by slug through the paginated list — the only lookup the auth API exposes (no filter-by-slug). */
 async function findTenantBySlug(
   gateway: GatewayClient,
   slug: string,
@@ -42,7 +41,6 @@ async function findTenantBySlug(
   }
 }
 
-/** Creates the tenant, or reuses the existing one on a 409 (slug already taken). */
 export async function ensureTenant(
   gateway: GatewayClient,
   fixture: TenantFixture,
@@ -64,7 +62,6 @@ export async function ensureTenant(
   }
 }
 
-/** Provisions a user, or resolves the existing Keycloak id on a 409 (username already taken). */
 export async function ensureProvisionedUser(
   gateway: GatewayClient,
   config: SeedConfig,

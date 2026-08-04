@@ -5,7 +5,6 @@ import { runWithEntityManager } from '@catalog/infrastructure/persistence/transa
 import type { TenantContextPort, TenantRequestContext } from '@food-delivery-api/shared-tenancy';
 import type { EntityManager, Repository } from 'typeorm';
 
-/** Captures saved rows and echoes `create` so assertions can inspect the persisted shape. */
 class FakeOutboxRepository {
   readonly saved: OutboxOrmEntity[] = [];
   create(row: Partial<OutboxOrmEntity>): OutboxOrmEntity {
@@ -65,7 +64,6 @@ describe('TypeOrmOutboxAdapter', () => {
 
     await runWithEntityManager(manager, () => adapter.write(entry));
 
-    // The row was written through the transactional manager, not the default repo.
     expect(txRepo.saved).toHaveLength(1);
     expect(fallback.saved).toHaveLength(0);
   });

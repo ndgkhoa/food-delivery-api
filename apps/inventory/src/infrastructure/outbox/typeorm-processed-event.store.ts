@@ -16,12 +16,6 @@ function isUniqueViolation(error: unknown): boolean {
   return code === UNIQUE_VIOLATION || driverCode === UNIQUE_VIOLATION;
 }
 
-/**
- * Records consumed command event ids in the same transaction as the reply
- * append. A re-delivered command's insert collides on the PK; that
- * unique-violation is translated into `DuplicateEventError` so the idempotent
- * consumer skips re-appending the reply.
- */
 @Injectable()
 export class TypeOrmProcessedEventStore implements ProcessedEventStorePort {
   constructor(

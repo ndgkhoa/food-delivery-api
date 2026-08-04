@@ -10,13 +10,6 @@ import {
 import { Queue } from 'bullmq';
 import IORedis, { type Redis } from 'ioredis';
 
-/**
- * BullMQ producer for the three per-channel queues. `jobId = notificationId`
- * dedupes: a notification row can enqueue its job at most once while it is
- * pending/active (BullMQ ignores a duplicate jobId already in the queue).
- * Attempts + backoff are env-driven (`NOTIFY_MAX_ATTEMPTS`/`NOTIFY_BACKOFF_MS`)
- * — the same env `HandleSendFailureHandler` reads for its exhaustion check.
- */
 @Injectable()
 export class BullMqNotificationQueue implements NotificationQueuePort, OnApplicationShutdown {
   private readonly connection: Redis;

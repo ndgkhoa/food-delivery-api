@@ -16,10 +16,8 @@ class FakeOutbox implements OutboxWriter {
   }
 }
 
-/** Passes work straight through — the real adapter's ALS boundary isn't needed for logic tests. */
 const passthroughTransaction: TransactionPort = { runInTransaction: (work) => work() };
 
-/** Records the scope emit-reply establishes and runs the callback within it. */
 class FakeTenantContext implements TenantContextPort {
   lastContext?: TenantRequestContext;
   run<T>(context: TenantRequestContext, callback: () => T): T {
@@ -37,7 +35,6 @@ class FakeTenantContext implements TenantContextPort {
   }
 }
 
-/** Dedupe store that records the first event id and rejects a repeat. */
 class FakeProcessedEvents implements ProcessedEventStorePort {
   readonly seen = new Set<string>();
   async markProcessed(_tx: unknown, eventId: string): Promise<void> {
@@ -98,8 +95,6 @@ describe('createEmitReplyActivity', () => {
   });
 
   it('still emits the reply when a captured traceparent is threaded in', async () => {
-    // The traceparent is re-activated around the write (so the row inherits the
-    // saga trace id); the wrapper must not swallow or duplicate the append.
     const { outbox, emitReply } = build();
     await emitReply({
       orderId: 'o4',

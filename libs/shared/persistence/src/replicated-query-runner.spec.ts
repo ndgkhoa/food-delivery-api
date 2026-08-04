@@ -56,11 +56,10 @@ describe('readFromSlave', () => {
 
     await expect(
       readFromSlave(dataSource, async () => {
-        throw new Error('boom'); // a genuine query bug, not a connection failure
+        throw new Error('boom');
       }),
     ).rejects.toThrow('boom');
 
-    // Only the slave runner was created — no master fallback for a real error.
     expect(dataSource.createQueryRunner).toHaveBeenCalledTimes(1);
     expect(dataSource.createQueryRunner).toHaveBeenCalledWith('slave');
     expect(queryRunner.release).toHaveBeenCalledTimes(1);

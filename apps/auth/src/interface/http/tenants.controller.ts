@@ -13,12 +13,6 @@ import { TenantResponseMapper } from '@auth/interface/http/mappers/tenant-respon
 import { Roles } from '@food-delivery-api/shared-tenancy';
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 
-/**
- * Admin registry API. Every route requires the platform `admin` role — only
- * platform admins may create tenants or provision users. The gateway verifies
- * the JWT and stamps the trusted `x-roles` header; `RolesGuard` (composition
- * root) enforces `@Roles('admin')` from it.
- */
 @Controller('tenants')
 @Roles('admin')
 export class TenantsController {

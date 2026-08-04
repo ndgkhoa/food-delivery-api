@@ -16,14 +16,6 @@ export interface OrderConfirmedEvent {
   tenantId: string;
 }
 
-/**
- * Produces an `OrderConfirmed` directly to `order.events` with the six
- * envelope headers the review consumer requires, matching order's real
- * producer payload shape (`orderId`, `userId`, `status`, `totalCents`,
- * `restaurantId`). Bypasses the full order/inventory/payment saga — review's
- * eligibility consumer only cares about this one topic's contract, the same
- * shortcut notification-e2e takes for its own `order.events` consumer.
- */
 export async function produceOrderConfirmed(event: OrderConfirmedEvent): Promise<void> {
   const client: KafkaClient = createKafkaClient({
     clientId: `review-e2e-${randomUUID()}`,

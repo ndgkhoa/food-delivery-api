@@ -3,22 +3,6 @@ import { produceOrderConfirmed } from './support/order-confirmed-event-support';
 import { findReviewByOrderId, waitForEligibility } from './support/review-db-support';
 import { collectRatingChangedEvents } from './support/review-events-support';
 
-/**
- * Compose-run e2e for the review service's submit flow + rating recompute.
- * Real path: produce an `OrderConfirmed` (with restaurantId) on `order.events`
- * → review's eligibility consumer records it → `POST /reviews` persists the
- * review and, in the same transaction, appends `RestaurantRatingChanged` to
- * the outbox → the relay publishes it to `review.events`.
- *
- * Requires the live stack, so it is gated behind RUN_REVIEW_E2E and run by
- * the orchestrator, NOT the offline unit sandbox. Bring up:
- *   docker compose -f infra/docker-compose.yml --profile core --profile messaging up -d
- *   pnpm db:migrate
- *   pnpm nx serve review           # review on :3009
- *   RUN_REVIEW_E2E=1 pnpm nx e2e review-e2e --testFile=review-submit-and-rating-propagation.e2e-spec.ts
- *
- * Env overrides: REVIEW_BASE_URL (default http://localhost:3009/api/v1).
- */
 const gatedDescribe = process.env.RUN_REVIEW_E2E === '1' ? describe : describe.skip;
 
 const REVIEW_BASE_URL = process.env.REVIEW_BASE_URL ?? 'http://localhost:3009/api/v1';

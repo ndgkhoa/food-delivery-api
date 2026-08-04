@@ -1,6 +1,5 @@
 import type { SeedConfig } from './seed-config';
 
-/** Public SPA client direct-grant login — mirrors `bruno/auth/login-*.bru`. */
 export async function loginPassword(
   config: SeedConfig,
   username: string,
@@ -24,12 +23,6 @@ export async function loginPassword(
   return payload.access_token;
 }
 
-/**
- * Master-realm admin-cli grant — same pattern as the auth service's
- * `KeycloakAdminHttpAdapter.authenticate()`. Used only for direct Keycloak
- * Admin REST housekeeping (conflict lookups on `up`, user deletion on `down`),
- * never for calling the platform API itself.
- */
 export async function getKeycloakAdminToken(config: SeedConfig): Promise<string> {
   const body = new URLSearchParams({
     grant_type: 'password',
@@ -53,7 +46,6 @@ export async function getKeycloakAdminToken(config: SeedConfig): Promise<string>
   return payload.access_token;
 }
 
-/** Exact-username lookup in the target realm; returns `null` if no such user exists. */
 export async function findUserIdByUsername(
   config: SeedConfig,
   adminToken: string,
@@ -68,7 +60,6 @@ export async function findUserIdByUsername(
   return users.find((user) => user.username === username)?.id ?? null;
 }
 
-/** 204/404 both count as success (idempotent) — anything else is a genuine failure. */
 export async function deleteKeycloakUser(
   config: SeedConfig,
   adminToken: string,

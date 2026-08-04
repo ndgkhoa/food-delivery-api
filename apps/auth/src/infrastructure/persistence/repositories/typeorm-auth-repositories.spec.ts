@@ -15,11 +15,6 @@ import {
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
-/**
- * Integration test: real Postgres via testcontainers, real migrated schema.
- * Exercises both auth repositories end-to-end (mappers round-trip through the
- * actual database + the migration's tables/constraints), rather than mocks.
- */
 describe('auth TypeORM repositories (integration)', () => {
   let db: AuthTestDatabase;
   let tenantRepository: TypeOrmTenantRepository;
@@ -68,9 +63,6 @@ describe('auth TypeORM repositories (integration)', () => {
 
   it('maps the unique-slug violation to a domain ConflictError (→ HTTP 409, not 500)', async () => {
     await tenantRepository.save(Tenant.create({ id: randomUUID(), name: 'A', slug: 'dup' }));
-    // A concurrent duplicate that races past the handler pre-check hits the unique
-    // index; the repository must translate SQLSTATE 23505 into ConflictError so the
-    // edge maps it to 409 rather than leaking a raw QueryFailedError as 500.
     await expect(
       tenantRepository.save(Tenant.create({ id: randomUUID(), name: 'B', slug: 'dup' })),
     ).rejects.toThrow(ConflictError);

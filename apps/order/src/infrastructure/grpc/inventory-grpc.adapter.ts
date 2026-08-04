@@ -25,18 +25,11 @@ import { firstValueFrom, type Observable, timeout } from 'rxjs';
 
 const CALL_TIMEOUT_MS = 5000;
 
-/** See the equivalent note in `catalog-grpc.adapter.ts` re: the metadata parameter. */
 interface InventoryGrpcClientWithMetadata {
   reserve(request: ReserveRequest, metadata?: Metadata): Observable<ReserveResponse>;
   release(request: ReleaseRequest, metadata?: Metadata): Observable<ReleaseResponse>;
 }
 
-/**
- * Binds `InventoryGatewayPort` to real gRPC calls against the inventory
- * service. ABORTED (lock contention) is retried a few times internally,
- * since reserve/release are both idempotent under the hood; ALREADY_EXISTS
- * (a replay with mismatched items) surfaces as `IdempotencyConflictError`.
- */
 @Injectable()
 export class InventoryGrpcAdapter implements InventoryGatewayPort, OnModuleInit {
   private readonly logger = new Logger(InventoryGrpcAdapter.name);

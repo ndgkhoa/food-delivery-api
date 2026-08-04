@@ -134,7 +134,6 @@ describe('consumeOneMessage dead-letter paths', () => {
     const handler = jest.fn(async () => {});
     const { deps, dropCounter, dlqCalls, commit } = makeConsumeDeps(handler);
 
-    // No headers → decodeHeaders fails closed → structurally unrecoverable.
     await consumeOneMessage(rawMessage(undefined), deps);
 
     expect(handler).not.toHaveBeenCalled();
@@ -196,7 +195,6 @@ describe('consumeOneMessage dead-letter paths', () => {
 
   it('does NOT commit or count when the dead-letter write itself fails (message redelivers, not lost)', async () => {
     const handler = jest.fn().mockRejectedValue(new Error('db lock timeout'));
-    // deadLetter resolves false → the DLQ write could not be made durable.
     const { deps, dropCounter, dlqCalls, commit } = makeConsumeDeps(handler, false);
 
     await consumeOneMessage(
@@ -213,8 +211,6 @@ describe('consumeOneMessage dead-letter paths', () => {
       deps,
     );
 
-    // DLQ was attempted, but since it failed the offset stays put (redelivery)
-    // and the drop is not counted — no silent loss.
     expect(dlqCalls).toHaveLength(1);
     expect(dropCounter.total()).toBe(0);
     expect(commit).not.toHaveBeenCalled();

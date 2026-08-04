@@ -10,7 +10,6 @@ describe('media object keys', () => {
 
   it('derives a deterministic thumbnail key under the same tenant prefix', () => {
     expect(buildThumbnailKey(tenantId, id)).toBe(`${tenantId}/${id}_thumb`);
-    // Idempotent: repeated calls yield the same key so a retry overwrites in place.
     expect(buildThumbnailKey(tenantId, id)).toBe(buildThumbnailKey(tenantId, id));
   });
 

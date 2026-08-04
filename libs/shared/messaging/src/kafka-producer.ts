@@ -5,14 +5,11 @@ import { KAFKA_CLIENT, type KafkaClient } from './kafka-client';
 
 export interface OutboundKafkaMessage {
   topic: string;
-  /** Partition key — same key always lands on the same partition, giving per-aggregate ordering. */
   key: string;
   headers: Record<string, string>;
-  /** JSON-serialized on the wire; pass any JSON-serializable value. */
   value: unknown;
 }
 
-/** Port a use case/adapter publishes through — never the confluent client directly. */
 export interface MessageProducer {
   publish(message: OutboundKafkaMessage): Promise<void>;
   publishBatch(messages: OutboundKafkaMessage[]): Promise<void>;
@@ -31,13 +28,6 @@ function toWireHeaders(headers: Record<string, string>): Record<string, Buffer> 
 }
 
 function toWireMessage(message: OutboundKafkaMessage): WireMessage {
-  // ADDITIVE to the envelope's `x-*` headers, never overwriting one already
-  // present (a future outbox row that captures its own trace context at write
-  // time would win over whatever this publish-time injection produces).
-  // `injectTraceContext` always attaches a valid traceparent (it starts its
-  // own span if nothing is already active — see kafka-trace-propagation.ts),
-  // so the producer -> consumer boundary never goes untraced even for an
-  // outbox-relay publish tick with no request in flight.
   if (!message.headers.traceparent) {
     injectTraceContext(message.headers);
   }
@@ -48,19 +38,11 @@ function toWireMessage(message: OutboundKafkaMessage): WireMessage {
   };
 }
 
-/**
- * Idempotent producer adapter (`enable.idempotence` + `acks=all`, expressed
- * via the client's kafkaJS-compatible config) over the confluent client. Owns
- * its connection lifecycle: connects on module init, flushes in-flight sends
- * and disconnects on shutdown.
- */
 @Injectable()
 export class ConfluentMessageProducer implements MessageProducer, OnModuleInit, OnModuleDestroy {
   private readonly producer: KafkaJS.Producer;
 
   constructor(@Inject(KAFKA_CLIENT) client: KafkaClient) {
-    // idempotent:true + acks:-1 ("all") is the kafkaJS-config equivalent of
-    // the raw `enable.idempotence=true` / `acks=all` librdkafka options.
     this.producer = client.producer({ kafkaJS: { idempotent: true, acks: -1 } });
   }
 
@@ -72,13 +54,10 @@ export class ConfluentMessageProducer implements MessageProducer, OnModuleInit, 
     await this.disconnect();
   }
 
-  /** Opens the underlying producer connection. Exposed so a manually-constructed
-   * instance (e.g. the subscriber's lazy DLQ producer) can connect without Nest. */
   async connect(): Promise<void> {
     await this.producer.connect();
   }
 
-  /** Flushes in-flight sends then closes the connection. */
   async disconnect(): Promise<void> {
     await this.producer.flush();
     await this.producer.disconnect();

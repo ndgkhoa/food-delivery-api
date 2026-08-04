@@ -8,18 +8,6 @@ interface CreateUploadResponse {
   uploadUrl: string;
 }
 
-/**
- * Drives the media service's real presigned-upload flow end to end (see
- * `apps/media/src/interface/http/media.controller.ts` +
- * `apps/media/src/application/create-upload.handler.ts`):
- *   1. `POST /media/uploads` (through the gateway, as `caller`) — declares
- *      content-type + size, gets back a presigned PUT URL.
- *   2. `PUT` the actual placeholder PNG bytes straight to that URL — this
- *      goes DIRECTLY to MinIO, never through the gateway, mirroring how a
- *      real client transfers.
- *   3. `POST /media/uploads/:id/complete` — the service re-stats the object
- *      in MinIO and advances PENDING → UPLOADED.
- */
 export async function uploadDemoMedia(
   caller: GatewayClient,
   tenantId: string,
