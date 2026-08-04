@@ -1,13 +1,17 @@
 meta {
-  name: Config - list
+  name: Order - list
   type: http
-  seq: 1
+  seq: 2
 }
 
 get {
-  url: {{gateway}}/config
+  url: {{gateway}}/orders?limit=20
   body: none
   auth: bearer
+}
+
+params:query {
+  limit: 20
 }
 
 auth:bearer {

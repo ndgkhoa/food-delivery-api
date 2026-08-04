@@ -6,11 +6,12 @@ meta {
 
 get {
   url: {{gateway}}/config/:key
+  body: none
   auth: bearer
 }
 
 params:path {
-  key:
+  key: order.delivery_fee_cents
 }
 
 auth:bearer {

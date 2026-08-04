@@ -5,12 +5,13 @@ meta {
 }
 
 get {
-  url: {{gateway}}/search/restaurants?q=pizza
+  url: {{gateway}}/search/restaurants?q=pho
+  body: none
   auth: bearer
 }
 
 params:query {
-  q: pizza
+  q: pho
 }
 
 auth:bearer {

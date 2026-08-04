@@ -5,13 +5,14 @@ meta {
 }
 
 get {
-  url: {{gateway}}/analytics/summary?from=2026-07-01&to=2026-08-01
+  url: {{gateway}}/analytics/summary?from=2026-01-01&to=2026-12-31
+  body: none
   auth: bearer
 }
 
 params:query {
-  from: 2026-07-01
-  to: 2026-08-01
+  from: 2026-01-01
+  to: 2026-12-31
 }
 
 auth:bearer {

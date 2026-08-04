@@ -16,7 +16,13 @@ auth:bearer {
 
 body:json {
   {
-    "contentType": "image/jpeg",
+    "contentType": "image/png",
     "sizeBytes": 204800
+  }
+}
+
+script:post-response {
+  if (res.body && res.body.uploadUrl) {
+    bru.setEnvVar("uploadUrl", res.body.uploadUrl);
   }
 }

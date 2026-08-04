@@ -5,13 +5,14 @@ meta {
 }
 
 get {
-  url: {{gateway}}/analytics/revenue?from=2026-07-01&to=2026-08-01&granularity=day
+  url: {{gateway}}/analytics/revenue?from=2026-01-01&to=2026-12-31&granularity=day
+  body: none
   auth: bearer
 }
 
 params:query {
-  from: 2026-07-01
-  to: 2026-08-01
+  from: 2026-01-01
+  to: 2026-12-31
   granularity: day
 }
 

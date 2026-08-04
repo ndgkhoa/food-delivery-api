@@ -1,16 +1,17 @@
 meta {
   name: Media - complete upload
   type: http
-  seq: 2
+  seq: 3
 }
 
 post {
   url: {{gateway}}/media/uploads/:id/complete
+  body: none
   auth: bearer
 }
 
 params:path {
-  id: {{mediaId}}
+  id: 3f0ca052-5deb-4f9a-b34e-69cbd158a855
 }
 
 auth:bearer {
