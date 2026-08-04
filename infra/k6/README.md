@@ -24,7 +24,7 @@ Keycloak container).
 ## Run
 
 ```bash
-k6 run infra/load-test/load-test.js
+k6 run infra/k6/load-test.js
 ```
 
 Override the target and load via env vars:
@@ -33,7 +33,7 @@ Override the target and load via env vars:
 GATEWAY_URL=https://staging-gateway.example.com \
 KEYCLOAK_URL=https://staging-keycloak.example.com \
 BROWSE_VUS=50 ORDER_RATE=10 HOLD=2m \
-  k6 run infra/load-test/load-test.js
+  k6 run infra/k6/load-test.js
 ```
 
 | Env | Default | Meaning |
