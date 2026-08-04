@@ -4,7 +4,7 @@ import {
   FakeDriverLocationStore,
   TENANT_A,
   TENANT_B,
-} from '@delivery/application/delivery-test-doubles';
+} from '@delivery/testing/delivery-test-doubles';
 
 function buildHandler() {
   const locations = new FakeDriverLocationStore();
