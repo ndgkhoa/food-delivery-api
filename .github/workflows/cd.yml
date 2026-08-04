@@ -32,7 +32,7 @@ env:
 
 jobs:
   build-push:
-    name: build + push (food-delivery-api)
+    name: build + push
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -98,7 +98,7 @@ jobs:
       # issues a short-lived cert bound to this workflow's OIDC identity and the
       # signature is recorded in Rekor (public transparency log). --yes skips the
       # interactive confirmation (there is no TTY in CI).
-      - name: Sign image (keyless)
+      - name: Sign image
         env:
           IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/food-delivery-api
           DIGEST: ${{ steps.build.outputs.digest }}
@@ -125,7 +125,7 @@ jobs:
       #     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
       #     ghcr.io/ndgkhoa/food-delivery-api:<sha>
       #   gh attestation verify oci://ghcr.io/ndgkhoa/food-delivery-api:<sha> --owner ndgkhoa
-      - name: Verify signature (self-check)
+      - name: Verify signature
         env:
           IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/food-delivery-api
           DIGEST: ${{ steps.build.outputs.digest }}
@@ -136,7 +136,7 @@ jobs:
             "${IMAGE}@${DIGEST}"
 
   image-scan:
-    name: trivy image scan (food-delivery-api)
+    name: trivy image scan
     needs: build-push
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -187,7 +187,7 @@ jobs:
           category: trivy-image-food-delivery-api
 
   deploy:
-    name: deploy (production, environment-gated)
+    name: deploy
     needs: [build-push, image-scan]
     # Production deploys ONLY from main. develop merges build+scan+validate but
     # never roll out to prod (a develop→prod deploy would ship integration code).
@@ -280,6 +280,6 @@ jobs:
         if: steps.cluster-probe.outputs.reachable == 'true'
         run: kubectl rollout status deploy --all -n food-delivery --timeout=180s
 
-      - name: No reachable cluster (validate-only)
+      - name: No reachable cluster
         if: steps.cluster-probe.outputs.reachable != 'true'
         run: echo "No reachable cluster (KUBECONFIG unset, or set but unreachable from CI) — the render+validate gate above passed. This is the documented portfolio state; wiring a CI-reachable cluster's KUBECONFIG into the 'production' Environment activates the apply + rollout health gate."
