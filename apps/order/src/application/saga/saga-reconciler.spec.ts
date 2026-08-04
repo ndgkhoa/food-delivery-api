@@ -4,12 +4,12 @@ import {
   PAYMENT_COMMANDS_TOPIC,
 } from '@order/application/saga/saga-commands';
 import { decideReconcileAction } from '@order/application/saga/saga-reconciler';
+import { OrderSaga, type SagaState } from '@order/domain/saga/order-saga';
 import {
   buildOrder,
   DEFAULT_CORRELATION_ID,
   TENANT_ID,
-} from '@order/application/saga/saga-reply-test-doubles';
-import { OrderSaga, type SagaState } from '@order/domain/saga/order-saga';
+} from '@order/testing/saga-reply-test-doubles';
 
 const ORDER_ID = '99999999-9999-4999-8999-999999999999';
 const MAX_ATTEMPTS = 10;
