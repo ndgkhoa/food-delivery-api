@@ -1,0 +1,18 @@
+meta {
+  name: Media - complete upload
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{gateway}}/media/uploads/:id/complete
+  auth: bearer
+}
+
+params:path {
+  id: {{mediaId}}
+}
+
+auth:bearer {
+  token: {{token}}
+}
