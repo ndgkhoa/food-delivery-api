@@ -1,5 +1,5 @@
-import { fakeConfig } from '@notification/application/notification-test-doubles';
 import { MailpitEmailChannel } from '@notification/infrastructure/channels/mailpit-email.channel';
+import { fakeConfig } from '@notification/testing/notification-test-doubles';
 import { createTransport } from 'nodemailer';
 
 jest.mock('nodemailer', () => ({ createTransport: jest.fn() }));
