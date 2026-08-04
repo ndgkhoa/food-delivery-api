@@ -1,0 +1,23 @@
+meta {
+  name: Review - submit
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{gateway}}/reviews
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "orderId": "{{orderId}}",
+    "rating": 5,
+    "comment": "Great food and fast delivery!"
+  }
+}

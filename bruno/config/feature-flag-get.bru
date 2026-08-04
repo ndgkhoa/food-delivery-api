@@ -1,16 +1,16 @@
 meta {
-  name: Order - cancel
+  name: Config - get feature flag
   type: http
   seq: 4
 }
 
-post {
-  url: {{gateway}}/orders/:orderId/cancel
+get {
+  url: {{gateway}}/config/flags/:key
   auth: bearer
 }
 
 params:path {
-  orderId: 
+  key:
 }
 
 auth:bearer {

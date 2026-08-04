@@ -1,0 +1,26 @@
+meta {
+  name: Config - upsert feature flag
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{gateway}}/config/flags/:key
+  body: json
+  auth: bearer
+}
+
+params:path {
+  key:
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "enabled": true,
+    "global": false
+  }
+}

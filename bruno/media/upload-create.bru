@@ -1,11 +1,11 @@
 meta {
-  name: Tenant - create
+  name: Media - create upload
   type: http
   seq: 1
 }
 
 post {
-  url: {{gateway}}/auth/tenants
+  url: {{gateway}}/media/uploads
   body: json
   auth: bearer
 }
@@ -16,7 +16,7 @@ auth:bearer {
 
 body:json {
   {
-    "name": "Acme Foods",
-    "slug": "acme-foods"
+    "contentType": "image/jpeg",
+    "sizeBytes": 204800
   }
 }

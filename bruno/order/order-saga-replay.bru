@@ -1,0 +1,18 @@
+meta {
+  name: Order - saga replay
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{gateway}}/orders/sagas/:orderId/replay
+  auth: bearer
+}
+
+params:path {
+  orderId: {{orderId}}
+}
+
+auth:bearer {
+  token: {{token}}
+}
