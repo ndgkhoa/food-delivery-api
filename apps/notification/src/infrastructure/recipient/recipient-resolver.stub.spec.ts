@@ -1,4 +1,4 @@
-import { RecipientResolverStub } from '@notification/application/recipient-resolver.stub';
+import { RecipientResolverStub } from '@notification/infrastructure/recipient/recipient-resolver.stub';
 
 describe('RecipientResolverStub', () => {
   it('deterministically derives email/phone/pushToken from the userId', async () => {

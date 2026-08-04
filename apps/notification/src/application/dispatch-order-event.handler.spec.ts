@@ -12,7 +12,7 @@ import {
   FakeRecipientResolver,
   fakeConfig,
   passthroughTransaction,
-} from '@notification/application/notification-test-doubles';
+} from '@notification/testing/notification-test-doubles';
 
 const ENABLED = {
   NOTIFY_EMAIL_ENABLED: true,

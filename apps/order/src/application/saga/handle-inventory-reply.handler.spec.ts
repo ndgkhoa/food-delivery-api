@@ -1,11 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { OrderSaga } from '@order/domain/saga/order-saga';
 import {
-  HandleInventoryReplyHandler,
-  STOCK_RESERVATION_FAILED,
-  STOCK_RESERVED,
-} from './handle-inventory-reply.handler';
-import {
   buildOrder,
   DEFAULT_CORRELATION_ID,
   envelope,
@@ -16,7 +11,12 @@ import {
   FakeTransaction,
   TENANT_ID,
   USER_ID,
-} from './saga-reply-test-doubles';
+} from '@order/testing/saga-reply-test-doubles';
+import {
+  HandleInventoryReplyHandler,
+  STOCK_RESERVATION_FAILED,
+  STOCK_RESERVED,
+} from './handle-inventory-reply.handler';
 
 function buildHandler() {
   const sagaRepo = new FakeSagaRepository();

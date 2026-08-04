@@ -1,13 +1,13 @@
-import {
-  FakeConfigEntryRepository,
-  FakeConfigEventPublisher,
-  FakeTenantContext,
-} from '@config/application/config/config-test-doubles';
 import { GetConfigValueHandler } from '@config/application/config/get-config-value.handler';
 import { ListConfigValuesHandler } from '@config/application/config/list-config-values.handler';
 import { UpsertConfigValueHandler } from '@config/application/config/upsert-config-value.handler';
 import { ConfigEntry } from '@config/domain/config/config-entry';
 import { ConfigEntryNotFoundError } from '@config/domain/shared/errors';
+import {
+  FakeConfigEntryRepository,
+  FakeConfigEventPublisher,
+  FakeTenantContext,
+} from '@config/testing/config-test-doubles';
 
 describe('config value handlers', () => {
   const tenantId = '11111111-1111-4111-8111-111111111111';

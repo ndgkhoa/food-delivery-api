@@ -42,7 +42,12 @@ resources:
 images:
   - name: food-delivery-api
     newName: ghcr.io/ndgkhoa/food-delivery-api
-    newTag: latest
+    # The CD pipeline pins this to the immutable pushed digest at deploy time
+    # (`kustomize edit set image food-delivery-api=…@sha256:…`). The committed
+    # value is a non-existent sentinel ON PURPOSE, NOT `latest`: a manual
+    # `kubectl apply -k overlays/prod` without the pipeline then fails loudly
+    # (ImagePullBackOff) instead of silently rolling out a floating tag.
+    newTag: set-by-cd-pipeline-at-deploy
 
 patches:
   # Replicas, pull policy, and resources for every app Deployment in one shot

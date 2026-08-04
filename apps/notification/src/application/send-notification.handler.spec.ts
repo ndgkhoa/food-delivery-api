@@ -1,10 +1,10 @@
-import {
-  FakeNotificationRepository,
-  fixedChannelMap,
-} from '@notification/application/notification-test-doubles';
 import { SendNotificationHandler } from '@notification/application/send-notification.handler';
 import type { NotificationChannel } from '@notification/domain/notification/notification-channel.port';
 import type { NotificationJobPayload } from '@notification/domain/notification/notification-queue.port';
+import {
+  FakeNotificationRepository,
+  fixedChannelMap,
+} from '@notification/testing/notification-test-doubles';
 
 function jobPayload(overrides: Partial<NotificationJobPayload> = {}): NotificationJobPayload {
   return {

@@ -1,12 +1,12 @@
 import { GenerateThumbnailHandler } from '@media/application/generate-thumbnail.handler';
+import type { ImageProcessorPort } from '@media/domain/media/image-processor.port';
+import { buildObjectKey, buildThumbnailKey } from '@media/domain/media/media-keys';
+import { MediaObject, MediaStatus } from '@media/domain/media/media-object';
 import {
   FakeMediaObjectRepository,
   FakeObjectStorage,
   fakeConfig,
-} from '@media/application/media-test-doubles';
-import type { ImageProcessorPort } from '@media/domain/media/image-processor.port';
-import { buildObjectKey, buildThumbnailKey } from '@media/domain/media/media-keys';
-import { MediaObject, MediaStatus } from '@media/domain/media/media-object';
+} from '@media/testing/media-test-doubles';
 
 /** Fake resize: returns a strictly smaller buffer so "thumbnail is smaller" is assertable. */
 class HalvingImageProcessor implements ImageProcessorPort {

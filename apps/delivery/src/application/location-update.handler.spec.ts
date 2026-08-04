@@ -1,9 +1,9 @@
+import { LocationUpdateHandler } from '@delivery/application/location-update.handler';
 import {
   FakeAssignmentStore,
   FakeDriverLocationStore,
   TENANT_A,
-} from '@delivery/application/delivery-test-doubles';
-import { LocationUpdateHandler } from '@delivery/application/location-update.handler';
+} from '@delivery/testing/delivery-test-doubles';
 
 function buildHandler() {
   const locations = new FakeDriverLocationStore();
