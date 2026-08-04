@@ -17,7 +17,7 @@ out/
 coverage/
 .nyc_output/
 
-# Env & secrets (keep .env.example tracked)
+# Env & secrets
 .env
 .env.*
 !.env.example
@@ -39,9 +39,12 @@ docker-data/
 !.vscode/extensions.json
 *.swp
 
-# Claude Code local tooling state (do not publish)
+# Claude Code local tooling state
 .claude/
 
 # Temp
 tmp/
 .tmp/
+
+# Demo data seeder run state
+tools/seed/.seed-state.json
