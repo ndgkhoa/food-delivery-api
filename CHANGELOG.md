@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.2](https://github.com/ndgkhoa/food-delivery-api/compare/v1.2.1...v1.2.2) (2026-08-04)
+
+
+### Bug Fixes
+
+* **ci:** align commitlint scope-enum with the actual shared libs ([056ebca](https://github.com/ndgkhoa/food-delivery-api/commit/056ebcaffa5989a53ecd2005664d8443b78d2428))
+* **infra:** stop pinning the prod overlay image to latest ([45e7a60](https://github.com/ndgkhoa/food-delivery-api/commit/45e7a60aa4949d062ac105595c49186268963acf))
+
 ## [1.2.1](https://github.com/ndgkhoa/food-delivery-api/compare/v1.2.0...v1.2.1) (2026-08-03)
 
 
