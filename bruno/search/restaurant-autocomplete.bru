@@ -1,0 +1,18 @@
+meta {
+  name: Search - autocomplete restaurants
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{gateway}}/search/restaurants/autocomplete?q=piz
+  auth: bearer
+}
+
+params:query {
+  q: piz
+}
+
+auth:bearer {
+  token: {{token}}
+}

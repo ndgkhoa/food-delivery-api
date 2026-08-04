@@ -1,0 +1,20 @@
+meta {
+  name: Analytics - top restaurants
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{gateway}}/analytics/top-restaurants?from=2026-07-01&to=2026-08-01&limit=20
+  auth: bearer
+}
+
+params:query {
+  from: 2026-07-01
+  to: 2026-08-01
+  limit: 20
+}
+
+auth:bearer {
+  token: {{token}}
+}

@@ -25,10 +25,3 @@ body:json {
     ]
   }
 }
-
-docs {
-  Login (customer) first. Put a real menu item UUID (from Menu item - create) in
-  the body; that item also needs an inventory stock row or reserve returns 409.
-  Idempotency-Key is required ({{$guid}} = fresh each send; reuse the SAME value
-  to test idempotent replay). Copy the returned order `id` into the requests below.
-}

@@ -1,16 +1,16 @@
 meta {
-  name: Order - cancel
+  name: Config - get value
   type: http
-  seq: 4
+  seq: 2
 }
 
-post {
-  url: {{gateway}}/orders/:orderId/cancel
+get {
+  url: {{gateway}}/config/:key
   auth: bearer
 }
 
 params:path {
-  orderId: 
+  key:
 }
 
 auth:bearer {

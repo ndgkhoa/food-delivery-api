@@ -1,16 +1,16 @@
 meta {
-  name: Order - cancel
+  name: Media - get by id
   type: http
-  seq: 4
+  seq: 3
 }
 
-post {
-  url: {{gateway}}/orders/:orderId/cancel
+get {
+  url: {{gateway}}/media/:id
   auth: bearer
 }
 
 params:path {
-  orderId: 
+  id: {{mediaId}}
 }
 
 auth:bearer {

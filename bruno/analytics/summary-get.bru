@@ -1,0 +1,19 @@
+meta {
+  name: Analytics - summary
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{gateway}}/analytics/summary?from=2026-07-01&to=2026-08-01
+  auth: bearer
+}
+
+params:query {
+  from: 2026-07-01
+  to: 2026-08-01
+}
+
+auth:bearer {
+  token: {{token}}
+}

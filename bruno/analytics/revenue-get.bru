@@ -1,0 +1,20 @@
+meta {
+  name: Analytics - revenue
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{gateway}}/analytics/revenue?from=2026-07-01&to=2026-08-01&granularity=day
+  auth: bearer
+}
+
+params:query {
+  from: 2026-07-01
+  to: 2026-08-01
+  granularity: day
+}
+
+auth:bearer {
+  token: {{token}}
+}
