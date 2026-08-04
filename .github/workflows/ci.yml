@@ -29,7 +29,7 @@ env:
 
 jobs:
   affected:
-    name: nx affected (lint, test, build) + workspace gates
+    name: Nx affected checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,7 +50,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Cache Nx computation cache
+      - name: Cache Nx
         uses: actions/cache@v4
         with:
           path: .nx/cache
@@ -58,30 +58,30 @@ jobs:
           restore-keys: |
             nx-${{ runner.os }}-
 
-      - name: Derive base/head SHAs for nx affected
+      - name: Derive base
         uses: nrwl/nx-set-shas@v4
 
-      - name: nx affected — lint, test, build
+      - name: lint, test, build
         run: pnpm nx affected -t lint test build --base=${{ env.NX_BASE }} --head=${{ env.NX_HEAD }}
 
-      - name: Biome (format + lint + imports)
+      - name: Biome
         run: pnpm run lint
 
-      - name: dependency-cruiser (bounded-context boundaries)
+      - name: dependency-cruiser
         run: pnpm run cruiser
 
-      - name: Knip (unused files/exports/deps)
+      - name: Knip
         run: pnpm run knip
 
   actionlint:
-    name: actionlint (self-lint the workflows)
+    name: actionlint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: raven-actions/actionlint@v2
 
   hadolint:
-    name: hadolint (Dockerfile)
+    name: hadolint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -103,7 +103,7 @@ jobs:
   # track the advisory findings. (Hardening this to blocking with a pinned checks
   # bundle is a documented follow-up.)
   trivy-scan:
-    name: trivy (IaC config + filesystem vulnerabilities)
+    name: trivy
     runs-on: ubuntu-latest
     permissions:
       contents: read

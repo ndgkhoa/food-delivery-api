@@ -24,7 +24,7 @@ jobs:
   prune:
     runs-on: ubuntu-latest
     steps:
-      - name: Prune old untagged image versions
+      - name: Prune untagged image versions
         uses: actions/delete-package-versions@v5
         with:
           package-name: food-delivery-api
