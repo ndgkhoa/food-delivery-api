@@ -6,11 +6,12 @@ meta {
 
 get {
   url: {{gateway}}/delivery/orders/:orderId/assignment
+  body: none
   auth: bearer
 }
 
 params:path {
-  orderId: {{orderId}}
+  orderId: 6b718742-f1a1-4917-8d11-8fc5538bb756
 }
 
 auth:bearer {

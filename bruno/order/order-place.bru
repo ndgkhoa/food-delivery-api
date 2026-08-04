@@ -10,18 +10,18 @@ post {
   auth: bearer
 }
 
-auth:bearer {
-  token: {{token}}
-}
-
 headers {
   Idempotency-Key: {{$guid}}
+}
+
+auth:bearer {
+  token: {{token}}
 }
 
 body:json {
   {
     "items": [
-      { "itemId": "PASTE_A_MENU_ITEM_UUID", "qty": 2 }
+      { "itemId": "3745f44b-2a32-42c3-ad41-edc9eefd722e", "qty": 2 }
     ]
   }
 }

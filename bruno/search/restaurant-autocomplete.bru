@@ -5,12 +5,13 @@ meta {
 }
 
 get {
-  url: {{gateway}}/search/restaurants/autocomplete?q=piz
+  url: {{gateway}}/search/restaurants/autocomplete?q=pho
+  body: none
   auth: bearer
 }
 
 params:query {
-  q: piz
+  q: pho
 }
 
 auth:bearer {

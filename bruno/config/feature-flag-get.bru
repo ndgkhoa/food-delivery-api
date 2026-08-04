@@ -6,11 +6,12 @@ meta {
 
 get {
   url: {{gateway}}/config/flags/:key
+  body: none
   auth: bearer
 }
 
 params:path {
-  key:
+  key: checkout.new_flow
 }
 
 auth:bearer {

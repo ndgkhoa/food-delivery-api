@@ -1,16 +1,17 @@
 meta {
   name: Order - saga replay
   type: http
-  seq: 5
+  seq: 6
 }
 
 post {
   url: {{gateway}}/orders/sagas/:orderId/replay
+  body: none
   auth: bearer
 }
 
 params:path {
-  orderId: {{orderId}}
+  orderId: 6b718742-f1a1-4917-8d11-8fc5538bb756
 }
 
 auth:bearer {

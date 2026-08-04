@@ -5,13 +5,14 @@ meta {
 }
 
 get {
-  url: {{gateway}}/analytics/top-restaurants?from=2026-07-01&to=2026-08-01&limit=20
+  url: {{gateway}}/analytics/top-restaurants?from=2026-01-01&to=2026-12-31&limit=20
+  body: none
   auth: bearer
 }
 
 params:query {
-  from: 2026-07-01
-  to: 2026-08-01
+  from: 2026-01-01
+  to: 2026-12-31
   limit: 20
 }
 
