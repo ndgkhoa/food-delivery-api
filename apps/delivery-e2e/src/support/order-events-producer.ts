@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import { createKafkaClient, encodeHeaders } from '@food-delivery-api/shared-messaging';
 import { KAFKA_BROKERS, ORDER_EVENTS_TOPIC } from './delivery-e2e-config';
 
-/** Encodes the string envelope headers into the Buffer map the wire producer expects. */
 function toWireHeaders(headers: Record<string, string>): Record<string, Buffer> {
   const wire: Record<string, Buffer> = {};
   for (const [name, value] of Object.entries(headers)) {
@@ -11,12 +10,6 @@ function toWireHeaders(headers: Record<string, string>): Record<string, Buffer> 
   return wire;
 }
 
-/**
- * Publishes an `OrderConfirmed` event to `order.events` exactly as the order
- * service's outbox relay would — six envelope headers (tenant + event type +
- * correlation etc.) keyed by order id, with the lifecycle payload. Drives the
- * delivery assignment consumer without needing a full place-order flow.
- */
 export async function produceOrderConfirmed(params: {
   orderId: string;
   tenantId: string;

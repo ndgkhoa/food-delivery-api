@@ -4,12 +4,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import type { DataSource } from 'typeorm';
 
-/**
- * Binds the domain `TransactionPort` to a real Postgres transaction. Opens one
- * transaction, publishes its `EntityManager` on async-local storage, and runs
- * the use-case work inside it — so the aggregate write and the audit record
- * share one commit boundary and roll back together on any failure.
- */
 @Injectable()
 export class TypeOrmTransactionAdapter implements TransactionPort {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}

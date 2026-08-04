@@ -2,7 +2,6 @@ import { PlaceOrderItemRequest } from '@order/interface/http/dto/place-order-ite
 import { Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayMinSize, IsArray, ValidateNested } from 'class-validator';
 
-/** Cap on line items per order — bounds request work and total-amount growth. */
 const MAX_ORDER_ITEMS = 100;
 
 export class PlaceOrderRequest {

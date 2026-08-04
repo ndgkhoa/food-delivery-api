@@ -8,22 +8,13 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Logger as PinoLogger } from 'nestjs-pino';
 
-/**
- * Analytics is an HTTP dashboard API (revenue/top-restaurants/summary) plus a
- * background `order.events` ingest consumer feeding its ClickHouse read
- * model. It is only reached by clients through the gateway's reverse proxy
- * over HTTP.
- */
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
-  // Must run before pino-http's own middleware so `genReqId` reads a normalized header.
   app.use(correlationIdMiddleware);
   app.useLogger(app.get(PinoLogger));
-  // Unified error envelope for every 4xx/5xx response across all services.
   app.useGlobalFilters(new GlobalExceptionFilter());
 
-  // Drain the ClickHouse client + Kafka consumer on SIGTERM/SIGINT instead of dropping them.
   app.enableShutdownHooks();
 
   app.setGlobalPrefix('api/v1');

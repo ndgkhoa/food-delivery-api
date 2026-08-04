@@ -11,13 +11,6 @@ import { TemporalWorkerProvider } from '@payment/infrastructure/temporal/tempora
 import { TemporalWorkflowGatewayAdapter } from '@payment/infrastructure/temporal/temporal-workflow-gateway.adapter';
 import { Connection, WorkflowClient } from '@temporalio/client';
 
-/**
- * Temporal edge for the payment service: a client `Connection` + `WorkflowClient`
- * (start/signal workflows) and the worker that hosts the workflow + activities.
- * Connection opens on init and closes on shutdown. Imports `PersistenceModule`
- * so the worker provider can wire the emit-reply activity to the outbox writer,
- * transaction, and dedupe store.
- */
 @Module({
   imports: [PersistenceModule],
   providers: [

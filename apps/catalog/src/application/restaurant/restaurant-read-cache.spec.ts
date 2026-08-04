@@ -9,7 +9,6 @@ import type { PageResult, Pagination } from '@catalog/domain/shared/pagination';
 import { FakeRedisCache } from '@catalog/testing/fake-redis-cache';
 import type { TenantContextPort, TenantRequestContext } from '@food-delivery-api/shared-tenancy';
 
-/** Records call counts so a test can assert a cache hit never reaches the repository. */
 class SpyReadRestaurantRepository implements ReadRestaurantRepository {
   findByIdCalls = 0;
   findAndCountCalls = 0;
@@ -122,7 +121,6 @@ describe('restaurant read cache-aside', () => {
       await handlerA.execute(restaurantId);
       await expect(handlerB.execute(restaurantId)).rejects.toThrow(/not found/i);
 
-      // Both tenants queried independently — tenant B's miss never resolved from tenant A's entry.
       expect(repository.findByIdCalls).toBe(2);
     });
   });

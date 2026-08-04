@@ -8,12 +8,6 @@ export interface ListOrdersQuery {
   limit: number;
 }
 
-/**
- * The caller's own order history, newest first. Lag-tolerant by nature (it
- * never surfaces a row the caller might have just written in this same
- * request), so the repository is free to serve it from a read replica — see
- * `TypeOrmOrderRepository.findRecentByTenant`.
- */
 @Injectable()
 export class ListOrdersHandler {
   constructor(@Inject(ORDER_REPOSITORY) private readonly orderRepository: OrderRepository) {}

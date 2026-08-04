@@ -20,12 +20,6 @@ import type { TransactionPort } from '@catalog/domain/shared/transaction.port';
 import { FakeRedisCache } from '@catalog/testing/fake-redis-cache';
 import type { TenantContextPort, TenantRequestContext } from '@food-delivery-api/shared-tenancy';
 
-/**
- * In-memory fake — no DB. Backs both the write port and the read-model port off
- * one map, so a `save` in a command is visible to the list handler (which reads
- * the read model), letting these tests exercise the whole slice without a
- * projection loop.
- */
 class FakeRestaurantRepository implements RestaurantRepository, ReadRestaurantRepository {
   private readonly rows = new Map<string, Restaurant>();
 
@@ -34,12 +28,6 @@ class FakeRestaurantRepository implements RestaurantRepository, ReadRestaurantRe
     return restaurant;
   }
 
-  /**
-   * Mimics the real repository's atomic conditional update: rejects when the
-   * stored row's version has already moved past `restaurant.version` (the
-   * version the caller loaded), then bumps it by 1 — so a concurrent-save
-   * race can be simulated in-memory without a DB.
-   */
   async updateVersioned(restaurant: Restaurant): Promise<Restaurant> {
     const current = this.rows.get(restaurant.id);
     if (!current || current.version !== restaurant.version) {
@@ -73,8 +61,6 @@ class FakeRestaurantRepository implements RestaurantRepository, ReadRestaurantRe
 
   async softDelete(id: string, tenantId: string): Promise<void> {
     const row = this.rows.get(id);
-    // Simulates soft-delete by removing from the visible set (mirrors TypeORM's
-    // default find/findOne excluding rows with deletedAt set).
     if (row && row.tenantId === tenantId) {
       this.rows.delete(id);
     }
@@ -94,7 +80,6 @@ class FakeRestaurantRepository implements RestaurantRepository, ReadRestaurantRe
   async updateRating(): Promise<void> {}
 }
 
-/** Records emitted outbox entries so tests can assert an event was appended per write. */
 class FakeOutboxWriter implements OutboxWriter {
   readonly entries: OutboxEntry[] = [];
 
@@ -132,17 +117,14 @@ class FakeAuditPort implements AuditPort {
   }
 }
 
-/** Runs the work directly — the in-memory fakes need no real commit/rollback boundary. */
 class FakeTransactionPort implements TransactionPort {
   runInTransaction<T>(work: () => Promise<T>): Promise<T> {
     return work();
   }
 }
 
-/** Minimal stub so `DeleteRestaurantHandler` can cascade; records the cascade target for assertions. */
 class FakeMenuItemRepository implements Partial<MenuItemRepository> {
   readonly cascadedRestaurantIds: string[] = [];
-  /** Live items per restaurant the delete handler enumerates to emit per-item delete events. */
   readonly itemsByRestaurant = new Map<string, MenuItem[]>();
 
   async findAllByRestaurant(restaurantId: string): Promise<MenuItem[]> {
@@ -154,7 +136,6 @@ class FakeMenuItemRepository implements Partial<MenuItemRepository> {
   }
 }
 
-/** Bare MenuItem stand-in — the delete path only needs its id + snapshot for the outbox entry. */
 function fakeMenuItem(id: string): MenuItem {
   return { id, toSnapshot: () => ({ id }) } as unknown as MenuItem;
 }
@@ -223,7 +204,6 @@ describe('restaurant application handlers', () => {
       entity: 'restaurant',
       entityId: restaurant.id,
     });
-    // A RestaurantCreated event is appended to the outbox in the same commit.
     expect(outboxWriter.entries).toHaveLength(1);
     expect(outboxWriter.entries[0]).toMatchObject({
       aggregateType: 'catalog',
@@ -248,11 +228,8 @@ describe('restaurant application handlers', () => {
     const deleteEntry = auditPort.entries.find((e) => e.action === AuditAction.DELETE);
     expect(deleteEntry).toBeDefined();
 
-    // Deleting a restaurant cascades a soft-delete to its menu items.
     expect(menuItemRepository.cascadedRestaurantIds).toContain(restaurant.id);
 
-    // It also emits RestaurantDeleted + one MenuItemDeleted per live item, so
-    // each item's own partition carries a terminal event (no orphan read rows).
     expect(outboxWriter.entries.filter((e) => e.type === 'RestaurantDeleted')).toHaveLength(1);
     const itemDeletes = outboxWriter.entries.filter((e) => e.type === 'MenuItemDeleted');
     expect(itemDeletes.map((e) => e.aggregateId).sort()).toEqual([
@@ -297,7 +274,6 @@ describe('restaurant application handlers', () => {
       updateRestaurant.execute(restaurant.id, { name: 'Updated Name', expectedVersion: 999 }),
     ).rejects.toThrow(ConcurrencyConflictError);
 
-    // Nothing persisted or audited — the check happens before the transaction.
     const stored = await repository.findById(restaurant.id, tenantA);
     expect(stored?.name).toBe('Original Name');
     expect(auditPort.entries.filter((e) => e.action === AuditAction.UPDATE)).toHaveLength(0);
@@ -317,8 +293,6 @@ describe('restaurant application handlers', () => {
   it('resolves a concurrent double-write race with exactly one winner, no lost update', async () => {
     const restaurant = await createRestaurant.execute({ name: 'Original Name' });
 
-    // Both writers load the SAME version before either commits — simulates
-    // two concurrent PATCHes racing on the read, each about to write.
     const firstView = await getRestaurant.execute(restaurant.id);
     const secondView = await getRestaurant.execute(restaurant.id);
     expect(firstView.version).toBe(secondView.version);
@@ -330,13 +304,10 @@ describe('restaurant application handlers', () => {
     expect(winner.name).toBe('Winner');
     expect(winner.version).toBe(firstView.version + 1);
 
-    // The second writer's version has already moved on in the DB — the
-    // atomic guard rejects it rather than silently clobbering the winner.
     await expect(repository.updateVersioned(secondUpdated)).rejects.toThrow(
       ConcurrencyConflictError,
     );
 
-    // No lost update: the winner's write survives untouched.
     const stored = await repository.findById(restaurant.id, tenantA);
     expect(stored?.name).toBe('Winner');
     expect(stored?.version).toBe(2);

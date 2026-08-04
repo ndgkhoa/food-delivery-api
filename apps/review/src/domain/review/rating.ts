@@ -3,12 +3,6 @@ import { InvalidRatingError } from '@review/domain/shared/errors';
 const MIN_RATING = 1;
 const MAX_RATING = 5;
 
-/**
- * 1–5 integer rating value object. The HTTP DTO already bounds this
- * (`@IsInt @Min(1) @Max(5)`); this is defense in depth so no code path —
- * present or future — can persist an out-of-range rating by constructing a
- * `Review` directly.
- */
 export class Rating {
   private constructor(private readonly value: number) {}
 

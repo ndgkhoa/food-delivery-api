@@ -1,10 +1,3 @@
-# Minimal SLO alert rules (dev/portfolio scope — alert only on a real breach,
-# not on noise). Golden-signal metric names below follow the OTel Collector's
-# Prometheus exporter naming convention for the semconv `http.server.request.duration`
-# histogram (dots -> underscores, unit suffix appended): confirm the exact
-# name once the `observability` profile is actually running and Prometheus's
-# target page shows the scraped series (`otel-collector:8889/metrics`) — a
-# semconv/exporter version bump can shift a suffix.
 groups:
   - name: golden-signals
     rules:
@@ -33,11 +26,6 @@ groups:
 
   - name: telemetry-health
     rules:
-      # Watchdog: the golden-signal alerts above query a metric whose name comes
-      # from the http instrumentation's semconv output. A version bump (Renovate
-      # pins exact) could rename it, and a rule querying a now-missing metric
-      # silently NEVER fires — the SLO alerts would go quietly dark. This fires
-      # if the series disappears entirely, surfacing the rename instead.
       - alert: GoldenSignalMetricAbsent
         expr: absent(http_server_request_duration_seconds_count)
         for: 15m

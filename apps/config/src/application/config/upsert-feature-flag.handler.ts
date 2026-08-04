@@ -16,11 +16,9 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 export interface UpsertFeatureFlagCommand {
   key: string;
   enabled: boolean;
-  /** Writes the GLOBAL default (`tenant_id NULL`) instead of the caller's own tenant override. */
   global: boolean;
 }
 
-/** Writes a feature flag — same tenant/global + admin/platform-admin rules as `UpsertConfigValueHandler`; emits `FeatureFlagChanged` best-effort. */
 @Injectable()
 export class UpsertFeatureFlagHandler {
   private readonly logger = new Logger(UpsertFeatureFlagHandler.name);

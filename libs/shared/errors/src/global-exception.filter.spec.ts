@@ -32,7 +32,6 @@ function buildHost(request: Partial<Request>): { host: ArgumentsHost; response: 
   return { host, response };
 }
 
-/** A non-HTTP (gRPC/Kafka/WS) host — `switchToHttp` would return junk, so the filter must skip it entirely. */
 function buildRpcHost(): { host: ArgumentsHost; switchToHttp: jest.Mock } {
   const switchToHttp = jest.fn();
   const host = {
@@ -168,9 +167,6 @@ describe('GlobalExceptionFilter', () => {
   });
 
   it('skips a non-HTTP (gRPC/Kafka/WS) context entirely — no HTTP write, no log', () => {
-    // Hybrid services inherit this filter into their RPC contexts; it must return
-    // without touching switchToHttp() (which would mis-handle the RPC error and
-    // spam the logs), letting Nest's RPC exception handler take over.
     const errorLog = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     errorLog.mockClear();
     const { host, switchToHttp } = buildRpcHost();

@@ -23,15 +23,6 @@ async function runScenario(name: string, fn: () => Promise<void>): Promise<void>
   }
 }
 
-/**
- * Creates the "Demo Edge Cases" restaurant + its 3 dedicated menu items (as
- * the tenant's restaurant-owner) and their inventory stock rows. Reuses
- * `createRestaurant`/`state.restaurants`/`state.stock` exactly like the main
- * seed flow, so `seed:down`'s existing catalog-entry and stock-row teardown
- * steps clean these up automatically — no new teardown code needed for them.
- * Returns `null` (logging a warning) when the owner can't be resolved or the
- * API calls fail, since every scenario below depends on these items existing.
- */
 async function createScenarioRestaurant(
   config: SeedConfig,
   state: SeedState,
@@ -71,16 +62,6 @@ async function createScenarioRestaurant(
   }
 }
 
-/**
- * Extends `seed:up` with edge-case demo scenarios exercising saga
- * compensation, idempotency, no-oversell concurrency, and order-partition
- * pruning — all against the FIRST seeded tenant, reusing its already-
- * provisioned owner/customer identities. Runs AFTER the main tenant loop so
- * that tenant's config (delivery fee/VAT/discount) is already in place — the
- * saga-compensation item's price is solved against those exact values (see
- * `seed-scenario-fixtures.ts`). Every scenario is best-effort: a failure is
- * logged as a warning and the remaining scenarios still run.
- */
 export async function seedScenarios(config: SeedConfig, state: SeedState): Promise<void> {
   console.log('\n== Demo scenarios (saga compensation, idempotency, no-oversell, partitioning) ==');
   const tenant = state.tenants[0];
@@ -129,9 +110,6 @@ export async function seedScenarios(config: SeedConfig, state: SeedState): Promi
     );
   }
 
-  // No HTTP identity needed for the partitioning carve-out (direct DB writes) —
-  // `user_id` is an unconstrained varchar column, so any already-seeded user
-  // works; falls back to a fixed demo string if none is on record.
   const anyTenantUserId =
     state.users.find((user) => user.tenantId === tenant.id)?.keycloakUserId ??
     'seed-partition-demo-user';

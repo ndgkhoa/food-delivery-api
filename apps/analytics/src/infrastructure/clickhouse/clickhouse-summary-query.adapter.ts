@@ -10,19 +10,12 @@ import {
 import type { ClickHouseClient } from '@clickhouse/client';
 import { Inject, Injectable } from '@nestjs/common';
 
-/** ClickHouse returns Int64/UInt64 aggregates as strings over JSONEachRow (avoids JS number precision loss). */
 interface SummaryRow {
   revenue_cents: string;
   confirmed_count: string;
   cancelled_count: string;
 }
 
-/**
- * A single aggregate row (no `GROUP BY`) always comes back even when zero
- * rows match the filter — `sumIf`/`countIf` default to 0, never NULL. `FINAL`
- * keeps this merge-independent; `{tenant}`/`{from}`/`{to}` are always bound
- * via `query_params`, never string-interpolated.
- */
 const QUERY = `
   SELECT
     sumIf(total_cents, status = 'CONFIRMED') AS revenue_cents,

@@ -4,13 +4,6 @@ import type {
   RecipientResolverPort,
 } from '@notification/domain/notification/recipient-resolver.port';
 
-/**
- * STUB recipient lookup: order events only carry a `userId`, not contact
- * details, so this synthesises deterministic, clearly-fake contact info from
- * it. Real user-contact lookup (a user-service call) is deferred — swap this
- * class for a real adapter behind `RecipientResolverPort`, no consumer/handler
- * change required.
- */
 @Injectable()
 export class RecipientResolverStub implements RecipientResolverPort {
   async resolve(userId: string): Promise<Recipient> {

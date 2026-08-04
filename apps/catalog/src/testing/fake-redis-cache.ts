@@ -1,12 +1,5 @@
 import type { RedisCache } from '@food-delivery-api/shared-cache';
 
-/**
- * In-memory `RedisCache` stand-in for unit tests — no real Redis, no JSON
- * round-trip (call sites already cache JSON-safe snapshots, not domain
- * objects). `RedisCache` is a concrete class with private fields, so this
- * fake is passed to handlers via `as unknown as RedisCache` (same pattern as
- * `FakeRedis` in `libs/shared/locking`'s spec).
- */
 export class FakeRedisCache {
   private readonly store = new Map<string, unknown>();
   hits = 0;

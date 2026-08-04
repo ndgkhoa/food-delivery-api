@@ -6,11 +6,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
-/**
- * Writes one immutable row per create/update/delete. Tenant + actor are read
- * from the tenant context port rather than passed in by callers, so no write
- * path can accidentally omit or spoof them.
- */
 @Injectable()
 export class TypeOrmAuditAdapter implements AuditPort {
   constructor(
@@ -19,7 +14,6 @@ export class TypeOrmAuditAdapter implements AuditPort {
     @Inject(TENANT_CONTEXT_PORT) private readonly tenantContext: TenantContextPort,
   ) {}
 
-  /** Enlists in the active transaction so the audit row commits atomically with its write. */
   private get repository(): Repository<AuditLogOrmEntity> {
     return (
       getTransactionalEntityManager()?.getRepository(AuditLogOrmEntity) ?? this.auditLogRepository

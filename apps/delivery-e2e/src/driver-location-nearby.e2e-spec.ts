@@ -10,10 +10,6 @@ interface NearbyDriver {
   distanceMeters: number;
 }
 
-/**
- * Compose e2e — the ORCHESTRATOR runs: `core` + `messaging` + the `delivery`
- * service (pointed at this suite's JWKS server), then `nx e2e delivery-e2e`.
- */
 describe('driver location → nearby query (compose e2e)', () => {
   const jwks = new DeliveryJwksServer();
 

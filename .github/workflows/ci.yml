@@ -1,16 +1,8 @@
 name: CI
 
-# Runs on every PR into develop/main and on every push to those branches —
-# this is the fast, per-commit gate (nx-affected + workspace lint gates +
-# workflow/Dockerfile/IaC scanning). Image builds live in cd.yml (post-merge
-# only) since building all 13 service images on every PR is expensive.
 on:
   pull_request:
     branches: [main, develop]
-  # Post-merge verification runs on main only. develop is already gated by the
-  # pull_request run before every merge, so also running push CI on develop just
-  # doubled the checks on develop→main sync PRs (develop is both the pushed
-  # branch and the PR head) for no extra signal.
   push:
     branches: [main]
 
@@ -18,8 +10,6 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# Least-privilege default; the trivy job elevates security-events for SARIF
-# upload only where it runs.
 permissions:
   contents: read
 
@@ -34,8 +24,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # nx affected and nx-set-shas need full history to diff against
-          # the base branch — a shallow clone can't resolve the merge base.
           fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
@@ -89,19 +77,6 @@ jobs:
         with:
           dockerfile: infra/docker/Dockerfile
 
-  # Trivy runs in ADVISORY mode here (exit-code 0): every finding is uploaded to
-  # the Security tab for visibility, but it does not hard-gate CI. Rationale: the
-  # IaC config findings are dev-only infra (the in-cluster Postgres/Redis + the
-  # metrics-adapter RBAC, none of which the prod overlay deploys) whose SEVERITY
-  # drifts with Trivy's misconfig-checks bundle — it's fetched fresh from an OCI
-  # registry, versioned independently of the pinned binary, so the same manifests
-  # grade clean on one checks bundle and HIGH on another, making a blocking gate
-  # non-reproducible. The filesystem vuln findings are transitive dev-tooling CVEs
-  # (@nx/webpack, @nx/jest) that never reach a runtime image. The MEANINGFUL
-  # runtime-vuln gate is the CD image scan (cd.yml), which scans the actual
-  # shipped image (prod deps only) and DOES block. Renovate + the Security tab
-  # track the advisory findings. (Hardening this to blocking with a pinned checks
-  # bundle is a documented follow-up.)
   trivy-scan:
     name: trivy
     runs-on: ubuntu-latest
@@ -130,8 +105,6 @@ jobs:
           category: trivy-config-k8s
 
       - name: Trivy config scan — infra/docker
-        # Run even if an earlier scan failed, so one finding doesn't hide the
-        # rest and every SARIF still uploads; the job still fails on any finding.
         if: always()
         uses: aquasecurity/trivy-action@v0.36.0
         with:

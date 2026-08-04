@@ -3,7 +3,7 @@ node_modules/
 .pnp.*
 .yarn/*
 
-# Build output
+# Build artifacts
 dist/
 build/
 out/
@@ -13,38 +13,40 @@ out/
 .nx/cache
 .nx/workspace-data
 
-# Test / coverage
+# Test artifacts
 coverage/
 .nyc_output/
 
-# Env & secrets
+# Environment
 .env
 .env.*
 !.env.example
 
 # Logs
 *.log
+logs/
 npm-debug.log*
 pnpm-debug.log*
-logs/
 
-# Docker / local data volumes
+# Local data
 docker-data/
 *.local
 
-# Editor / OS
-.DS_Store
+# Editor
 .idea/
 .vscode/*
 !.vscode/extensions.json
 *.swp
 
-# Claude Code local tooling state
+# OS
+.DS_Store
+
+# Claude Code
 .claude/
 
-# Temp
+# Temporary files
 tmp/
 .tmp/
 
-# Demo data seeder run state
+# Seeder state
 tools/seed/.seed-state.json

@@ -11,15 +11,6 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { type StartedRedis, startRedisContainer } from './support/start-redis-container';
 
-/**
- * The no-oversell concurrency PROOF against real Postgres + real Redis. Fires
- * many concurrent single-unit reserves at one item with limited stock: the
- * Redis per-item lock + DB transaction + domain re-check must let through
- * exactly `available` winners and reject the rest, leaving available at 0.
- *
- * This is the load-bearing correctness test for the slice — run it with:
- *   pnpm nx e2e inventory-e2e
- */
 describe('Inventory reserve — no-oversell under concurrency (e2e)', () => {
   let app: INestApplication;
   let db: InventoryTestDatabase;
@@ -39,7 +30,6 @@ describe('Inventory reserve — no-oversell under concurrency (e2e)', () => {
     process.env.NODE_ENV = 'test';
     process.env.LOG_LEVEL = 'fatal';
 
-    // Import AFTER env is set — ConfigModule validates/bakes at module-import time.
     const { AppModule } = await import('@inventory/app.module');
     const { ReserveStockHandler } = await import(
       '@inventory/application/reservation/commands/reserve-stock.handler'
@@ -68,8 +58,6 @@ describe('Inventory reserve — no-oversell under concurrency (e2e)', () => {
       [tenantId, itemId, 10],
     );
 
-    // 50 distinct orders (distinct orderIds so idempotency never collapses them),
-    // each reserving a single unit, all fired concurrently.
     const attempts = Array.from({ length: 50 }, () =>
       reserveStock.execute({
         tenantId,
@@ -90,7 +78,6 @@ describe('Inventory reserve — no-oversell under concurrency (e2e)', () => {
     );
     expect(Number(rows[0].available)).toBe(0);
 
-    // Exactly 10 active reservations were written — one per winner, zero oversell.
     const reservations = await db.dataSource.query(
       'SELECT COUNT(*)::int AS count FROM "reservations" WHERE "tenant_id" = $1 AND "status" = $2',
       [tenantId, 'ACTIVE'],
@@ -106,8 +93,6 @@ describe('Inventory reserve — no-oversell under concurrency (e2e)', () => {
       [tenantId, itemId, 10],
     );
 
-    // Two line items of the SAME item, each 6 → 12 requested against 10 in stock.
-    // Summed, this must fail cleanly, never split into two reservations of 6.
     const result = await reserveStock.execute({
       tenantId,
       orderId: randomUUID(),
@@ -205,8 +190,6 @@ describe('Inventory reserve — no-oversell under concurrency (e2e)', () => {
 
     await reserveStock.execute({ tenantId, orderId, items: [{ itemId, qty: 4 }] });
 
-    // Two releases of the same order raced: the ACTIVE→RELEASED gate must let
-    // only one add the units back, so available lands on 10 — never 14.
     await Promise.all([
       releaseStock.execute({ tenantId, orderId }),
       releaseStock.execute({ tenantId, orderId }),

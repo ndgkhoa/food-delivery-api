@@ -1,34 +1,3 @@
-/**
- * Env-driven config for the demo-data seeder. Defaults mirror `.env.example`
- * so the seeder works out of the box against the local dev stack started via
- * `docker compose --env-file .env -f infra/docker-compose.yml ...` + `pnpm dev`.
- *
- * Two DIFFERENT admin identities are involved, and it's easy to conflate them:
- *  - `bootstrapAdmin*` — the realm-seeded APPLICATION admin (`admin-user` /
- *    `admin-pass`, realm role `admin`) from `infra/keycloak/realm-export.json`.
- *    Used to call the auth service's `POST /tenants` (which requires
- *    `@Roles('admin')`).
- *  - `keycloakAdmin*` — the KEYCLOAK SERVER bootstrap admin in the `master`
- *    realm (`KEYCLOAK_ADMIN` / `KEYCLOAK_ADMIN_PASSWORD`). Used for direct
- *    Keycloak Admin REST calls (user lookup on conflict, user deletion on
- *    teardown) — the same pattern the auth service's own
- *    `KeycloakAdminHttpAdapter` uses.
- *
- * `redisUrl` and the `minio*`/`mediaBucket` fields back two more direct-infra
- * carve-outs (driver GEO positions, media object teardown) alongside the
- * existing inventory-stock one — see `redis-driver-geo.ts` and
- * `minio-media-store.ts`. Defaults mirror the delivery/media services' own
- * env schemas (`REDIS_URL` is the shared `core` instance across services).
- *
- * `orderDbName` backs the order-partitioning demo scenario's direct-DB
- * carve-out (`order-db.ts`) — mirrors `DB_NAME`'s default in
- * `apps/order/src/config/order-env-schema.ts`. `paymentStubFailAtCents`
- * mirrors `PAYMENT_STUB_FAIL_AT_CENTS`'s default in
- * `apps/payment/src/config/payment-env-schema.ts`: the saga-compensation
- * scenario solves a menu item price so an order totals EXACTLY this amount,
- * so it MUST read the same value the payment service is actually running
- * with (a deployment that overrides the env var still gets a correct demo).
- */
 export interface SeedConfig {
   gatewayUrl: string;
   keycloakUrl: string;

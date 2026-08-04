@@ -1,13 +1,6 @@
 import { Client } from 'pg';
 import type { SeedConfig } from './seed-config';
 
-/**
- * Inventory stock has no HTTP endpoint (see `apps/inventory/src/interface`),
- * so the seeder writes/deletes rows directly in the inventory service's own
- * Postgres database — the ONE deliberate carve-out from the "API-driven"
- * approach. Table shape mirrors `StockOrmEntity`: composite primary key
- * `(tenant_id, item_id)`, integer `available`.
- */
 export async function withInventoryDb<T>(
   config: SeedConfig,
   fn: (client: Client) => Promise<T>,
@@ -27,7 +20,6 @@ export async function withInventoryDb<T>(
   }
 }
 
-/** Upsert on the composite PK so re-running `up` is idempotent. */
 export async function upsertStock(
   client: Client,
   tenantId: string,
@@ -42,7 +34,6 @@ export async function upsertStock(
   );
 }
 
-/** Scoped delete of a single (tenant_id, item_id) row — never a table-wide truncate. */
 export async function deleteStock(client: Client, tenantId: string, itemId: string): Promise<void> {
   await client.query('DELETE FROM stock WHERE tenant_id = $1 AND item_id = $2', [tenantId, itemId]);
 }

@@ -1,7 +1,6 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-/** Token set as Keycloak returns it — relayed verbatim; the gateway keeps none of it. */
 export interface KeycloakTokenSet {
   access_token: string;
   refresh_token?: string;
@@ -13,11 +12,6 @@ export interface KeycloakTokenSet {
   session_state?: string;
 }
 
-/**
- * Thin, stateless OIDC client for the SPA public (PKCE) client. Native `fetch`
- * against Keycloak's token/logout endpoints — matching the repo's fetch-based
- * Keycloak adapter pattern — with no token storage: the gateway only relays.
- */
 @Injectable()
 export class KeycloakOidcClient {
   private readonly logger = new Logger(KeycloakOidcClient.name);
@@ -34,7 +28,6 @@ export class KeycloakOidcClient {
     this.clientId = config.getOrThrow<string>('KEYCLOAK_SPA_CLIENT_ID');
   }
 
-  /** Authorization-code + PKCE exchange → token set. */
   exchangeCode(input: {
     code: string;
     codeVerifier: string;
@@ -51,7 +44,6 @@ export class KeycloakOidcClient {
     );
   }
 
-  /** Refresh-token grant → rotated token set (old refresh invalidated by the realm). */
   refresh(refreshToken: string): Promise<KeycloakTokenSet> {
     return this.requestTokens(
       new URLSearchParams({
@@ -62,7 +54,6 @@ export class KeycloakOidcClient {
     );
   }
 
-  /** Backchannel logout: revokes the refresh token + ends the Keycloak session. */
   async logout(refreshToken: string): Promise<void> {
     const response = await fetch(this.logoutUrl, {
       method: 'POST',
@@ -83,12 +74,6 @@ export class KeycloakOidcClient {
     });
     const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
     if (!response.ok) {
-      // Keycloak returns `invalid_grant` for a bad/expired/rotated code or
-      // refresh token → 401 so the client re-authenticates; other OAuth errors
-      // are caller mistakes → 400. The standard OAuth error code is surfaced as
-      // the envelope's machine-readable `code` (the client branches on it to
-      // decide re-auth) with a human `message`; the raw upstream body is never
-      // exposed.
       const oauthError = typeof payload.error === 'string' ? payload.error : 'invalid_request';
       const status =
         oauthError === 'invalid_grant' ? HttpStatus.UNAUTHORIZED : HttpStatus.BAD_REQUEST;

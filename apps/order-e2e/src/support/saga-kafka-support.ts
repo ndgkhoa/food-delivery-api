@@ -2,20 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { createKafkaClient, deadLetterTopic } from '@food-delivery-api/shared-messaging';
 import { KAFKA_BROKERS } from './saga-e2e-support';
 
-/** One raw Kafka record captured off a topic (bytes preserved for exact re-publish). */
 export interface CapturedRecord {
   key: Buffer | null;
   value: Buffer | null;
   headers: Record<string, Buffer>;
 }
 
-/**
- * Collects raw records off `topic` for a bounded window using a fresh consumer
- * group (from the beginning), returning every record whose decoded JSON value
- * matches `predicate`. Used by the duplicate-injection + DLQ helpers — a raw
- * consumer (not the enveloped subscriber) so DLQ records, which carry x-dlq-*
- * headers rather than the six envelope headers, are readable without decoding.
- */
 async function collectRecords(
   topic: string,
   predicate: (value: unknown, record: CapturedRecord) => boolean,
@@ -49,12 +41,6 @@ async function collectRecords(
   return matched;
 }
 
-/**
- * Duplicate injection: reads one record off `topic` matching `predicate`, then
- * re-produces an identical copy (same key + headers + value bytes) to the same
- * topic. Because the record's event id header is unchanged, an idempotent
- * consumer must treat it as a redelivery and apply exactly one effect.
- */
 export async function republishRecord(
   topic: string,
   predicate: (value: unknown, record: CapturedRecord) => boolean,
@@ -80,7 +66,6 @@ export async function republishRecord(
   }
 }
 
-/** The decoded DLQ payload the shared subscriber writes (see buildDeadLetterMessage). */
 interface DlqRecord {
   sourceTopic: string;
   sourceOffset: string;
@@ -88,7 +73,6 @@ interface DlqRecord {
   failureReason: string;
 }
 
-/** Reads records off `<topic>.dlq` within a bounded window. */
 export async function readDlq(topic: string, windowMs = 5_000): Promise<DlqRecord[]> {
   const records = await collectRecords(deadLetterTopic(topic), () => true, windowMs);
   return records.map((record) => JSON.parse((record.value ?? Buffer.from('{}')).toString('utf8')));

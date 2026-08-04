@@ -11,23 +11,13 @@ import { SettingsCache } from './settings-cache';
 import { SettingsClient } from './settings-client';
 
 export interface SettingsClientModuleOptions {
-  /** Base URL of the config service, e.g. `http://localhost:3008`. */
   configServiceUrl: string;
-  /** Cache TTL in ms — the self-healing backstop if a `config.events` invalidation is ever missed. */
   ttlMs: number;
-  /** `host:port` list for the Kafka broker(s) the eviction consumer connects to. */
   kafkaBrokers: string[];
 }
 
 export const SETTINGS_CLIENT = Symbol('SettingsClient');
 
-/**
- * Owns the `ConfigEventsConsumer`'s process lifecycle: starts it once the
- * host app has bootstrapped, stops it on shutdown. Disabled under
- * `NODE_ENV=test` (mirrors every other Kafka consumer in this repo, e.g.
- * `OrderEventsConsumer`) so in-process test suites never need a live broker
- * just because they imported `SettingsClientModule`.
- */
 @Injectable()
 class ConfigEventsConsumerLifecycle implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(ConfigEventsConsumerLifecycle.name);
@@ -49,12 +39,6 @@ class ConfigEventsConsumerLifecycle implements OnApplicationBootstrap, OnModuleD
   }
 }
 
-/**
- * Nest dynamic module wiring the read-through `SettingsClient` + its
- * `config.events` cache-eviction consumer. Import once per host app via
- * `SettingsClientModule.forRoot({ configServiceUrl, ttlMs, kafkaBrokers })` and
- * inject `SETTINGS_CLIENT` wherever a use case needs `getInt`/`isEnabled`.
- */
 @Module({})
 export class SettingsClientModule {
   static forRoot(options: SettingsClientModuleOptions): DynamicModule {

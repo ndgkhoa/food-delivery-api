@@ -22,13 +22,6 @@ interface CachedRestaurantPage {
   total: number;
 }
 
-/**
- * Served from the CQRS read model — eventually consistent with writes via the
- * projection. Cache-aside keyed by tenant + pagination with a SHORT TTL
- * (list contents shift on every create/update/delete and pagination fans one
- * change out across several page-keys, so a short expiry is the simpler
- * correct trade-off vs. precise invalidation — see `cache-keys.ts`).
- */
 @Injectable()
 export class ListRestaurantsHandler {
   constructor(

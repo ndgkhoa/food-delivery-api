@@ -1,10 +1,3 @@
-/**
- * Verifies the enable/disable gate and the "never throw" contract without a
- * live Collector: `@opentelemetry/sdk-node` is mocked, and each test resets
- * the module registry (the enabled/started state is a module-level singleton
- * in `register.ts`) so a fresh `NodeSDK` mock and a fresh gate check apply
- * per test.
- */
 jest.mock('@opentelemetry/sdk-node', () => ({
   NodeSDK: jest.fn().mockImplementation(() => ({
     start: jest.fn(),
@@ -19,8 +12,6 @@ interface FreshModules {
 
 function loadFreshRegister(): FreshModules {
   jest.resetModules();
-  // Re-required after resetModules so this reference matches the instance
-  // `register.ts` itself resolves in this isolated module registry.
   // biome-ignore lint/suspicious/noExplicitAny: dynamic re-require of a mocked module for per-test isolation
   const sdkModule = require('@opentelemetry/sdk-node') as any;
   // biome-ignore lint/suspicious/noExplicitAny: dynamic re-require under jest.resetModules()

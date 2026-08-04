@@ -1,29 +1,36 @@
-# Keeps the Docker build context small and the builder-stage cache stable —
-# none of this is needed to build or run a service image.
+# Dependencies
 node_modules
+
+# Build artifacts
 dist
 coverage
 tmp
 .nx
+
+# Git
 .git
 .github
 
-# Local env / secrets — never bake these into an image.
+# Environment
 .env
 .env.*
 !.env.example
 
-# Plans, docs, and non-runtime tooling.
-plans
+# Documentation
 docs
+plans
 bruno
 *.md
 
-# e2e projects build/run separately from the runtime image.
+# Tests
 **/*-e2e
 
-# Editor/OS cruft.
+# Editor
 .vscode
 .idea
+
+# OS
 .DS_Store
+
+# Logs
 *.log

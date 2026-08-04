@@ -1,22 +1,3 @@
-/**
- * End-to-end proof of the config service's HTTP surface against REAL
- * infrastructure — no testcontainers, a live compose stack with the config
- * service running:
- *
- *   docker compose -f infra/docker-compose.yml --profile core --profile messaging up -d
- *   nx run config:migration-run
- *   pnpm --filter config serve          # config on :3008
- *   RUN_CONFIG_E2E=1 pnpm nx e2e config-e2e
- *
- * Env override: CONFIG_BASE_URL (default http://localhost:3008/api/v1).
- *
- * Calls the config service DIRECTLY (bypassing the gateway) and stamps the
- * identity headers a verified gateway request would carry — the same
- * approach `media-e2e` uses. Asserts: a tenant override beats the global
- * default; a feature flag toggles; a non-admin write is rejected 403; a
- * tenant-scoped admin cannot write the global default (403, needs
- * platform-admin); a platform-admin can.
- */
 const CONFIG_BASE_URL = process.env.CONFIG_BASE_URL ?? 'http://localhost:3008/api/v1';
 
 const tenantA = '99999999-9999-4999-8999-999999999999';

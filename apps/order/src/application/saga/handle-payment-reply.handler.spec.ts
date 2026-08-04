@@ -34,7 +34,6 @@ function buildHandler() {
   return { sagaRepo, orderRepo, outbox, handler };
 }
 
-/** Seeds a saga already at STOCK_RESERVED with its order RESERVED (awaiting payment). */
 function seedStockReserved(
   sagaRepo: FakeSagaRepository,
   orderRepo: FakeOrderRepository,
@@ -56,12 +55,10 @@ describe('HandlePaymentReplyHandler', () => {
 
     expect(orderRepo.rows.get(orderId)?.status).toBe('CONFIRMED');
     expect(sagaRepo.rows.get(orderId)?.state).toBe('COMPLETED');
-    // The lifecycle event rides the same transaction as the confirm transition.
     expect(outbox.entries).toHaveLength(1);
     expect(outbox.entries[0]).toMatchObject({
       topic: 'order.events',
       eventType: 'OrderConfirmed',
-      // subtotal 1000 (2 x 500) + DEFAULT_PRICING (fee 1500, vat floor(1000*1000/10000)=100).
       payload: {
         orderId,
         userId: USER_ID,
@@ -91,7 +88,6 @@ describe('HandlePaymentReplyHandler', () => {
       eventType: 'ReleaseStock',
       payload: { orderId },
     });
-    // Compensation stays on the same saga trace as the payment reply.
     expect(outbox.entries[0].correlationId).toBe(DEFAULT_CORRELATION_ID);
   });
 

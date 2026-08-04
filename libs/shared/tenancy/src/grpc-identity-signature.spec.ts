@@ -97,9 +97,6 @@ describe('GrpcTenantVerifier (enforced)', () => {
   });
 
   it('rejects an HTTP identity signature replayed as a gRPC tenant signature (domain separation)', () => {
-    // Same key, same tenantId/ts, but signed with the HTTP canonical string
-    // (tenantId\nsub\nroles\nts) instead of the `grpc\n`-prefixed one — must
-    // not verify, proving neither signature can be replayed as the other.
     const httpSig = signIdentity(KEY, { tenantId: TENANT_ID, sub: 'user-1', roles: [] }, NOW);
     const result = verifier.verify(TENANT_ID, String(NOW), httpSig, NOW);
     expect(result.ok).toBe(false);

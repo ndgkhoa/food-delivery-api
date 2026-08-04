@@ -74,7 +74,6 @@ describe('SettingsClient', () => {
 
     await expect(client.getInt('k', tenantId, 99)).resolves.toBe(99);
     expect(warnings).toHaveLength(1);
-    // Not cached — the next call re-fetches and gets the now-valid value.
     await expect(client.getInt('k', tenantId, 99)).resolves.toBe(1500);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });

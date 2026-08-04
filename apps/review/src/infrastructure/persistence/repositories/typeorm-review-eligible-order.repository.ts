@@ -22,7 +22,6 @@ export class TypeOrmReviewEligibleOrderRepository implements ReviewEligibleOrder
     );
   }
 
-  /** All columns besides the `orderId` PK are safe to fully overwrite: a redelivered `OrderConfirmed` always carries the same values. */
   async upsertEligible(row: EligibleOrderRow): Promise<void> {
     await this.repository.upsert(
       {

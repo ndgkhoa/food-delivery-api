@@ -4,7 +4,6 @@ import type { OrderSagaOrmEntity } from '@order/infrastructure/persistence/entit
 import { TypeOrmOrderSagaRepository } from '@order/infrastructure/persistence/repositories/typeorm-order-saga.repository';
 import type { Repository } from 'typeorm';
 
-/** Chainable stand-in for TypeORM's update `QueryBuilder`, returning a canned affected count. */
 class FakeUpdateQueryBuilder {
   where: (sql: string, params: Record<string, unknown>) => this;
   readonly wheres: { sql: string; params: Record<string, unknown> }[] = [];
@@ -74,11 +73,6 @@ describe('TypeOrmOrderSagaRepository.resetReconcileAttempts', () => {
     await expect(orderSagaRepository.resetReconcileAttempts('tenant-1', 'order-1')).resolves.toBe(
       'reset',
     );
-    // Assert the safety-critical guard is actually in the query: the reset must
-    // only ever touch NON-TERMINAL sagas (a terminal saga must never be
-    // resurrected) and must be tenant-scoped. Guarding on the recorded SQL +
-    // params catches a regression that dropped the `state IN` clause, which the
-    // canned affected-count alone would not.
     expect(queryBuilder.wheres[0]?.sql).toContain('state IN (:...states)');
     expect(queryBuilder.wheres[0]?.params).toMatchObject({
       tenantId: 'tenant-1',

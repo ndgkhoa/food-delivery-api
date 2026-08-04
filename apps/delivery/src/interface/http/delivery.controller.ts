@@ -9,12 +9,6 @@ import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/
 import { Controller, Get, Inject, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-/**
- * Read API for delivery tracking. Both routes are tenant-scoped: the tenant comes
- * from the trusted identity the gateway verified and propagated (never a raw
- * client header), so a caller only ever sees its own tenant's drivers and
- * assignments. Live driver movement is delivered over WebSocket, not here.
- */
 @Controller('delivery/orders')
 export class DeliveryController {
   private readonly defaultRadiusMeters: number;

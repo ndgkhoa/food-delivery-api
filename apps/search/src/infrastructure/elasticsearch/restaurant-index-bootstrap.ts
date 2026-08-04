@@ -10,17 +10,6 @@ import {
   RESTAURANT_INDEX_SETTINGS,
 } from '@search/infrastructure/elasticsearch/restaurant-index-definition';
 
-/**
- * Creates the `restaurants` index (analyzer + synonym + edge-ngram autocomplete
- * + rating float) if it does not already exist. Elasticsearch is a read model
- * with no SQL migrations, so the schema is provisioned idempotently on boot:
- * create-if-absent, never mutate an existing index (analyzer/mapping changes
- * that need a reindex are an explicit later operation, not a silent boot effect).
- *
- * Skipped under NODE_ENV=test: in-process integration tests boot the module
- * graph without a live ES node. Logged (not silent) so a mis-set NODE_ENV in a
- * real environment is visible rather than a ghost that leaves the index missing.
- */
 @Injectable()
 export class RestaurantIndexBootstrap implements OnApplicationBootstrap {
   private readonly logger = new Logger(RestaurantIndexBootstrap.name);
@@ -57,8 +46,6 @@ export class RestaurantIndexBootstrap implements OnApplicationBootstrap {
         `Created index ${RESTAURANTS_INDEX} (vn_text analyzer + autocomplete + rating)`,
       );
     } catch (error) {
-      // Two instances first-booting a fresh cluster race to create the index;
-      // the loser gets resource_already_exists — a benign no-op, not a crash.
       if (
         error instanceof errors.ResponseError &&
         error.body?.error?.type === 'resource_already_exists_exception'

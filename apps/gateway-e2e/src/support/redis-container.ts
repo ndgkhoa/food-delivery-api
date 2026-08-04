@@ -1,16 +1,12 @@
 import { GenericContainer, type StartedTestContainer, Wait } from 'testcontainers';
 
-// Same image the `core` compose profile pins, so the e2e exercises the exact
-// Redis the gateway rate-limits against in dev.
 const REDIS_IMAGE = 'redis:8.8.0-alpine';
 
 export interface RedisHandle {
   container: StartedTestContainer;
-  /** e.g. `redis://localhost:54999` — passed to the gateway as REDIS_URL. */
   url: string;
 }
 
-/** Boots a throwaway Redis and waits until it accepts connections. */
 export async function startRedis(): Promise<RedisHandle> {
   const container = await new GenericContainer(REDIS_IMAGE)
     .withExposedPorts(6379)

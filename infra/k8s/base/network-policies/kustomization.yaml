@@ -1,6 +1,3 @@
-# Every NetworkPolicy manifest in this directory, reviewed as one set. Wired
-# into infra/k8s/base/kustomization.yaml as a single `network-policies`
-# resource entry.
 resources:
   - 00-default-deny-all.yaml
   - 01-allow-dns-egress.yaml

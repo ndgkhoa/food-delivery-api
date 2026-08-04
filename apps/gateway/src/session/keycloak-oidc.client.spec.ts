@@ -18,7 +18,6 @@ function jsonResponse(status: number, body: unknown): Response {
   return { ok: status < 400, status, json: async () => body } as unknown as Response;
 }
 
-/** Reads the form-encoded body a fetch call was made with. */
 function bodyOf(mock: jest.Mock): URLSearchParams {
   return mock.mock.calls[0][1].body as URLSearchParams;
 }

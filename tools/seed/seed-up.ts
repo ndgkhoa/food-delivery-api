@@ -61,9 +61,6 @@ async function seedTenant(
   }
   await saveState(state);
 
-  // Driver GEO locations go in BEFORE any order is placed, so the delivery
-  // service's online roster already has a candidate the moment a later order
-  // saga confirms.
   const driver = usersByRole.get('driver');
   if (driver) {
     await seedDriverLocation(config, driver, tenant.id, tenantIndex, state);
@@ -100,8 +97,6 @@ async function seedTenant(
 
   await seedTenantStock(config, tenant.id, fixture, createdRestaurants);
 
-  // Media upload as the owner (the restaurant's manager) — independent of
-  // the order flow, so it runs for every tenant.
   await uploadDemoMedia(
     ownerGateway,
     tenant.id,
@@ -141,10 +136,6 @@ export async function seedUp(config: SeedConfig): Promise<void> {
 
   for (const [index, fixture] of TENANT_FIXTURES.entries()) {
     try {
-      // Demo orders (and their reviews) are placed only for the first tenant —
-      // keeps the saga/event fan-out demoable without doubling the async
-      // traffic the seeder waits on. Driver GEO + media are seeded for every
-      // tenant since neither depends on the order saga.
       await seedTenant(config, gateway, fixture, state, index, index === 0);
     } catch (error) {
       await saveState(state);
@@ -158,9 +149,6 @@ export async function seedUp(config: SeedConfig): Promise<void> {
 
   await saveState(state);
 
-  // Runs after every tenant is seeded (needs tenant 0's config already in
-  // place) and is entirely best-effort — a failure here never fails `seed:up`
-  // itself, since the main demo data is already committed at this point.
   try {
     await seedScenarios(config, state);
   } catch (error) {

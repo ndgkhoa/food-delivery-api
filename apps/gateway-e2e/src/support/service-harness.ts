@@ -18,7 +18,6 @@ export interface GatewayHandle {
   url: string;
 }
 
-/** Boots a real catalog service (full module graph) on a testcontainers Postgres. */
 export async function startCatalog(): Promise<CatalogHandle> {
   const db = await startCatalogTestDatabase();
 
@@ -43,16 +42,6 @@ export async function startCatalog(): Promise<CatalogHandle> {
   return { app, url: await app.getUrl(), db };
 }
 
-/**
- * Boots the gateway pointed at `catalogUrl` and a Keycloak base URL + realm
- * (issuer/JWKS are derived from these, matching the app's config). Pass
- * `keyResolver` to swap the remote JWKS for a local test key set (no live IdP);
- * omit it to verify against a real Keycloak reachable at `keycloakBaseUrl`.
- *
- * Rate limiting is OFF unless `rateLimit` is supplied, so the container-less
- * suites neither require Redis nor get throttled; the rate-limit e2e opts in
- * with a low `max` + a real Redis `url`.
- */
 export async function startGateway(config: {
   catalogUrl: string;
   keycloakBaseUrl: string;

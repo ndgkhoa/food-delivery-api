@@ -1,10 +1,3 @@
-/**
- * Per-socket fixed-window rate limiter for driver location pushes. Each socket
- * owns one instance; `allow()` returns `false` once `maxPerSec` pushes have been
- * accepted in the current one-second window, and resets when the window rolls
- * over. Excess pushes are dropped (never disconnected) so a chatty client is
- * throttled without losing its stream. Pure + clock-injectable → unit-testable.
- */
 export class LocationRateLimiter {
   private windowStartMs = 0;
   private count = 0;

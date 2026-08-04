@@ -13,20 +13,8 @@ import {
 import { Inject, Injectable } from '@nestjs/common';
 
 const CONFIG_EVENTS_TOPIC = 'config.events';
-/**
- * The envelope's `tenantId` header must be non-empty (`decodeHeaders` fails
- * closed on a missing/empty header). A GLOBAL change (`tenant_id IS NULL`) has
- * no single owning tenant, so this sentinel fills the header; the true
- * nullable tenant scope travels in the JSON payload instead.
- */
 const GLOBAL_TENANT_HEADER = 'global';
 
-/**
- * Direct Kafka producer for config change notifications — best-effort, NOT a
- * transactional outbox: config writes are low-frequency admin actions and the
- * settings-client's short-TTL cache is the self-healing fallback if a publish is
- * ever missed (documented trade-off; see architecture notes for this slice).
- */
 @Injectable()
 export class KafkaConfigEventPublisher implements ConfigEventPublisherPort {
   constructor(@Inject(KAFKA_PRODUCER) private readonly producer: MessageProducer) {}

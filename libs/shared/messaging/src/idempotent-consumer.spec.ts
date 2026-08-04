@@ -4,7 +4,6 @@ import {
   type ProcessedEventStorePort,
 } from './idempotent-consumer';
 
-/** In-memory fake standing in for a service's dedupe-table adapter. */
 class FakeProcessedEventStore implements ProcessedEventStorePort<string> {
   private readonly seen = new Set<string>();
   markProcessedCalls: Array<{ tx: string; eventId: string }> = [];

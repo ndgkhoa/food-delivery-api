@@ -16,7 +16,6 @@ export interface ChargeCommand {
   orderId: string;
   totalCents: number;
   tenantId: string;
-  /** Reuse a fixed eventId to simulate a redelivery of the SAME command. */
   eventId?: string;
   correlationId?: string;
 }
@@ -27,12 +26,6 @@ export interface PaymentReply {
   reason?: string;
 }
 
-/**
- * Produces a `ChargePayment` command to `payment.commands` with the six envelope
- * headers the payment worker requires (keyed by order id for per-order ordering).
- * Returns the eventId so a test can redeliver the identical command to prove
- * workflow-id idempotency.
- */
 export async function produceChargeCommand(command: ChargeCommand): Promise<string> {
   const eventId = command.eventId ?? randomUUID();
   const client = createKafkaClient({
@@ -65,11 +58,6 @@ export async function produceChargeCommand(command: ChargeCommand): Promise<stri
   return eventId;
 }
 
-/**
- * Waits (bounded) for replies on `payment.replies` for `orderId`, returning all
- * matching decoded replies seen within the window — so a test can assert the
- * reply arrived AND that redelivery produced no second reply.
- */
 export async function collectRepliesForOrder(
   orderId: string,
   windowMs = 20_000,

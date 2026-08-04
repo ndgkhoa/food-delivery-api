@@ -16,7 +16,6 @@ export type KafkaMessageHandler<TPayload = unknown> = (
   message: DecodedKafkaMessage<TPayload>,
 ) => Promise<void>;
 
-/** Outcome of running a handler with retry — `ok` when it succeeded, else the last failure reason. */
 export type HandlerOutcome = { ok: true } | { ok: false; reason: string };
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -24,16 +23,6 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 const reasonOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
-/**
- * Runs `handler` for one decoded message inside the tenant scope carried by its
- * envelope, retrying on failure up to `maxAttempts` times. Returns
- * `{ ok: false }` (never throws) once the budget is exhausted so the caller can
- * dead-letter the message: a handler that keeps throwing past its retry budget
- * must NOT be silently skipped (that strands a saga + leaks a stock hold), but
- * it also must never stall the partition. Pure (only side effects are the
- * handler call, sleep, and the logger) so retry semantics are unit-testable
- * without a real broker.
- */
 export async function runHandlerWithRetry<TPayload>(
   handler: KafkaMessageHandler<TPayload>,
   message: DecodedKafkaMessage<TPayload>,
@@ -62,7 +51,6 @@ export async function runHandlerWithRetry<TPayload>(
       await sleep(options.retryDelayMs * attempt);
     }
   }
-  // Unreachable (loop returns), but keeps the function total for the type checker.
   return { ok: false, reason: 'retry budget exhausted' };
 }
 
@@ -80,35 +68,17 @@ export interface ConsumeMessageDeps {
   handler: KafkaMessageHandler;
   tenantContext: TenantContextPort;
   dropCounter: MessageDropCounter;
-  /**
-   * Publishes the raw message to its dead-letter topic, retrying transient
-   * broker faults. Resolves `true` once the DLQ write is durable, `false` if it
-   * could not be written — it must NOT throw.
-   */
   deadLetter: (
     raw: RawInboundMessage,
     reason: DropReason,
     failureReason: string,
   ) => Promise<boolean>;
-  /** Advances the group past this message. Called once the message is safely handled or dead-lettered. */
   commit: () => Promise<void>;
   maxAttempts: number;
   retryDelayMs: number;
   logger: Pick<Logger, 'warn' | 'error'>;
 }
 
-/**
- * Processes one inbound message end to end. An undecodable message
- * (structurally unrecoverable) and a handler that exhausts its retry budget are
- * both routed to the dead-letter topic, and the offset advances ONLY once that
- * DLQ write is confirmed — so the message is never silently lost. If the DLQ
- * write itself fails, the offset is left UNCOMMITTED so the message redelivers
- * (handlers are idempotent) instead of vanishing: the DLQ shares the broker with
- * the source topic, so a DLQ outage means the broker is down and everything is
- * stalled anyway. The drop counter counts confirmed DLQ writes, not intents.
- * Extracted from the subscriber so both drop paths are unit-testable without a
- * broker.
- */
 export async function consumeOneMessage(
   raw: RawInboundMessage,
   deps: ConsumeMessageDeps,
@@ -135,12 +105,6 @@ export async function consumeOneMessage(
   await deadLetterThenCommit(raw, 'handler-exhausted', outcome.reason, deps);
 }
 
-/**
- * Dead-letter the message, then advance the offset only if the DLQ write
- * succeeded. On DLQ failure the offset stays put so the message redelivers
- * rather than being lost, and the drop is not counted (it counts durable DLQ
- * writes, not attempts).
- */
 async function deadLetterThenCommit(
   raw: RawInboundMessage,
   reason: DropReason,

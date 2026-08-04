@@ -1,10 +1,5 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Creates the auth registry schema: tenants + user_tenant_map.
- * `tenants.id` is the UUID stamped as the `tenant_id` claim on every provisioned
- * Keycloak user; `user_tenant_map` links a Keycloak user to its tenant + role.
- */
 export class CreateAuthTables1753660800000 implements MigrationInterface {
   name = 'CreateAuthTables1753660800000';
 

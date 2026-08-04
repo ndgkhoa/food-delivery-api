@@ -38,12 +38,6 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
-/**
- * Composition root: wires ports (domain) to adapters (infrastructure),
- * registers application use-case handlers as providers, and registers HTTP
- * controllers (interface). This is the only file allowed to import across
- * all layers — see dependency-cruiser layer rules in `.dependency-cruiser.js`.
- */
 @Module({
   imports: [
     SharedConfigModule.forRoot(catalogEnvSchema),
@@ -52,8 +46,6 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
     PersistenceModule,
     TenancyModule,
     AuditModule,
-    // Cache-aside/write-through for restaurant reads (never a hard dependency
-    // — a down Redis falls back to the Postgres read model transparently).
     CacheModule.forRoot({ redisUrl: process.env.REDIS_URL ?? 'redis://localhost:6379' }),
   ],
   controllers: [
@@ -63,24 +55,18 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
     CacheStatsController,
   ],
   providers: [
-    // Restaurant use cases. GetRestaurantHandler stays on the write model
-    // (command validation); GetRestaurantViewHandler serves reads from the
-    // eventually-consistent read model.
     CreateRestaurantHandler,
     UpdateRestaurantHandler,
     DeleteRestaurantHandler,
     ListRestaurantsHandler,
     GetRestaurantHandler,
     GetRestaurantViewHandler,
-    // Menu item use cases
     CreateMenuItemHandler,
     UpdateMenuItemHandler,
     DeleteMenuItemHandler,
     ListMenuItemsHandler,
     GetMenuItemHandler,
     GetMenuItemsByIdsHandler,
-    // Read-model projection: shared Kafka client + subscriber + the consumer
-    // that tails catalog.events. Debezium emits, so no producer is registered.
     {
       provide: KAFKA_CLIENT,
       useFactory: (config: ConfigService) =>
@@ -92,18 +78,9 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
     },
     KafkaConsumerSubscriber,
     CatalogProjectionConsumer,
-    // Second consumer on the same shared Kafka client: tails `review.events`
-    // (its own consumer group) to fold rating recomputes into the same read model.
     ReviewProjectionConsumer,
-    // Establishes tenant scope for gRPC calls from their metadata (per-controller
-    // interceptor on the gRPC controller — not global, so HTTP is untouched).
     GrpcTenantContextInterceptor,
-    // RBAC on write routes: the guard reads the roles the gateway verified and
-    // stamped, denying writes without `restaurant-owner`/`admin`. Runs before the
-    // interceptor, so reads stay open to any authenticated tenant.
     { provide: APP_GUARD, useClass: RolesGuard },
-    // Every route is tenant-scoped by default — the tenant comes from the verified identity
-    // the gateway propagates (shared-tenancy), never from a raw client header.
     { provide: APP_INTERCEPTOR, useClass: TrustedIdentityInterceptor },
   ],
 })

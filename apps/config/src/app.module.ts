@@ -20,12 +20,6 @@ import {
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
-/**
- * Composition root: wires the domain repository/publisher ports to their
- * infrastructure adapters, registers the application use-case handlers, and
- * the HTTP controller. The only file allowed to import across every layer —
- * see the hexagonal rules in `.dependency-cruiser.js`.
- */
 @Module({
   imports: [
     SharedConfigModule.forRoot(configEnvSchema),
@@ -33,8 +27,6 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
     HealthModule,
     TenancyModule,
     PersistenceModule,
-    // Producer-only: config never consumes its own `config.events` topic — the
-    // shared settings-client library (imported by every OTHER service) is the consumer.
     MessagingModule.forRoot({
       clientId: process.env.KAFKA_CLIENT_ID ?? 'config',
       brokers: (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(','),
@@ -48,11 +40,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
     GetFeatureFlagHandler,
     UpsertFeatureFlagHandler,
     { provide: CONFIG_EVENT_PUBLISHER, useClass: KafkaConfigEventPublisher },
-    // RBAC on `@Roles`-annotated write routes (admin/platform-admin). Runs
-    // before the interceptor, mirroring catalog/media.
     { provide: APP_GUARD, useClass: RolesGuard },
-    // Every route is tenant-scoped by default — the tenant comes from the
-    // verified identity the gateway propagates (shared-tenancy), never a raw client header.
     { provide: APP_INTERCEPTOR, useClass: TrustedIdentityInterceptor },
   ],
 })

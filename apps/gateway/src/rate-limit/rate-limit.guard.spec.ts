@@ -8,7 +8,6 @@ import { Reflector } from '@nestjs/core';
 const MAX = 3;
 const WINDOW_SEC = 60;
 
-/** Reflector stub — returns `skip` for the SkipRateLimit metadata lookup. */
 function reflectorStub(skip = false): Reflector {
   return { getAllAndOverride: () => skip } as unknown as Reflector;
 }
@@ -34,7 +33,6 @@ function contextFor(request: Partial<AuthenticatedRequest>): {
   const req = { headers: {}, ...request } as AuthenticatedRequest;
   const context = {
     switchToHttp: () => ({ getRequest: () => req, getResponse: () => ({ setHeader }) }),
-    // Reflector metadata lookup reads the handler/class off the context.
     getHandler: () => undefined,
     getClass: () => undefined,
   } as unknown as ExecutionContext;
@@ -97,9 +95,6 @@ describe('RateLimitGuard', () => {
   });
 
   it('fails open (allows + warns) when the store is unavailable', async () => {
-    // Redis down / unreachable → store.hit rejects. The limiter is a protective
-    // edge layer, so it must ALLOW the request (never 500) and log a warning with
-    // the derived key rather than take the gateway offline.
     store.hit.mockRejectedValue(new Error('redis unreachable'));
     const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     const guard = new RateLimitGuard(store, reflectorStub(), configStub());

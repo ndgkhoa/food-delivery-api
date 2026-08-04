@@ -9,11 +9,6 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-/**
- * Owns the Postgres connection and binds the config-entry/feature-flag
- * repository ports to their TypeORM adapters. Any module needing these ports
- * imports this one.
- */
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({

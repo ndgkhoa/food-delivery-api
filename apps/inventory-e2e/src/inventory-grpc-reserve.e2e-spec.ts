@@ -30,7 +30,6 @@ import { type StartedRedis, startRedisContainer } from './support/start-redis-co
 
 const GRPC_URL = '127.0.0.1:50551';
 
-/** Minimal typed shape of the raw gRPC client the proto definition produces. */
 interface InventoryRawClient {
   Reserve(
     request: ReserveRequest,
@@ -61,13 +60,6 @@ function tenantMetadata(tenantId: string): Metadata {
   return metadata;
 }
 
-/**
- * Proves the real gRPC path end-to-end: a live inventory microservice (Postgres
- * + Redis via testcontainers) reached over a genuine gRPC channel decrements
- * stock and returns reservation ids — with tenant read from metadata.
- *
- *   pnpm nx e2e inventory-e2e
- */
 describe('Inventory gRPC Reserve/Release (e2e)', () => {
   let service: INestMicroservice;
   let db: InventoryTestDatabase;

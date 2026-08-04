@@ -26,26 +26,8 @@ interface UnpublishedRow {
   trace_parent: string | null;
 }
 
-/**
- * Distinct per-service Postgres advisory-lock key so the payment relay's drain
- * serializes across HPA replicas. Only needs to be unique within payment's own
- * database (each service owns its database), but kept distinct from the other
- * services' keys (order 4001, inventory 4003, review 4004) for clarity.
- */
 const OUTBOX_RELAY_LOCK_KEY = 4002;
 
-/**
- * `OutboxWriter.append` enlists in the caller's transaction so a reply row
- * commits atomically with its dedupe marker; tenant is read from the tenant
- * context (set by the consumer from the command header) and the triggering
- * command's `correlationId` is carried onto the reply (minted only when absent)
- * so the saga shares one trace id. `OutboxPort.fetchUnpublished` / `markPublished` are the relay's drain:
- * claim a batch with `FOR UPDATE SKIP LOCKED`, map each to a keyed Kafka record
- * (key = order id) with the six envelope headers, publish, mark done.
- * `OutboxPort.runExclusively` wraps the whole drain in a session-held advisory
- * lock so only one HPA replica drains at a time, avoiding duplicate-publish
- * amplification across replicas.
- */
 @Injectable()
 export class TypeOrmPaymentOutboxAdapter implements OutboxWriter, OutboxPort {
   constructor(
@@ -77,7 +59,6 @@ export class TypeOrmPaymentOutboxAdapter implements OutboxWriter, OutboxPort {
     await this.repository.save(row);
   }
 
-  /** Bumps `attempts` for rows whose relay publish just failed — poison-row visibility. */
   async incrementAttempts(ids: string[]): Promise<void> {
     if (ids.length === 0) {
       return;
@@ -118,9 +99,6 @@ export class TypeOrmPaymentOutboxAdapter implements OutboxWriter, OutboxPort {
         correlationId: row.correlation_id,
         occurredAt: new Date(row.created_at).toISOString(),
       });
-      // Forwards the ORIGINAL request's trace context captured at append time;
-      // the producer's `!headers.traceparent` guard only injects its own
-      // (disconnected) span when this is absent — see `kafka-producer.ts`.
       if (row.trace_parent) {
         headers.traceparent = row.trace_parent;
       }

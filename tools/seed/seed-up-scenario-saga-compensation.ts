@@ -7,14 +7,6 @@ interface OrderResponse {
   id: string;
 }
 
-/**
- * Places one order for the dedicated "Saga Compensation Special" item (priced
- * so its total exactly matches `PAYMENT_STUB_FAIL_AT_CENTS`), then polls until
- * the saga compensates it: `POST /orders` → STARTED → StockReserved (RESERVED)
- * → payment stub declines → COMPENSATING → StockReleased → CANCELLED (see
- * `apps/order/src/application/saga/handle-payment-reply.handler.ts`). A
- * reviewer can observe this in Bruno with `GET /orders/:id` on the logged id.
- */
 export async function runSagaCompensationScenario(
   customerGateway: GatewayClient,
   tenantId: string,

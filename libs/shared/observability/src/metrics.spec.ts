@@ -20,11 +20,6 @@ describe('business metrics helpers', () => {
   });
 
   describe('with a real (in-memory) meter provider registered as the API global', () => {
-    // Guards the production shape: `metrics.ts` resolves its instruments off the
-    // API-global meter provider (`metrics.getMeter`). If that global is ever a
-    // no-op (a real regression this project already hit), these record no data.
-    // A never-throw-only test can't catch that — this asserts real datapoints
-    // AND the exact label values reach an exporter.
     let exporter: InMemoryMetricExporter;
     let reader: PeriodicExportingMetricReader;
     let provider: MeterProvider;

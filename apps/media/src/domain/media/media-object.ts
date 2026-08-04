@@ -1,4 +1,3 @@
-/** Lifecycle of a media object: metadata row created → bytes present in storage → thumbnail generated. */
 export enum MediaStatus {
   PENDING = 'PENDING',
   UPLOADED = 'UPLOADED',
@@ -25,12 +24,6 @@ export interface CreateMediaObjectProps {
   sizeBytes: number;
 }
 
-/**
- * Plain-class aggregate for an uploaded image — no framework/ORM/storage
- * dependency. Constructed only via `create()` (a brand-new PENDING upload) or
- * `reconstitute()` (rehydrated from persistence). State transitions return a new
- * immutable instance so a caller never mutates a shared reference.
- */
 export class MediaObject {
   private constructor(private readonly props: MediaObjectProps) {}
 
@@ -97,12 +90,10 @@ export class MediaObject {
     return this.props.status === MediaStatus.READY;
   }
 
-  /** Marks the bytes as confirmed-present in storage (PENDING → UPLOADED). */
   markUploaded(): MediaObject {
     return new MediaObject({ ...this.props, status: MediaStatus.UPLOADED, updatedAt: new Date() });
   }
 
-  /** Records the generated thumbnail and completes the lifecycle (→ READY). */
   markReady(thumbnailKey: string): MediaObject {
     return new MediaObject({
       ...this.props,

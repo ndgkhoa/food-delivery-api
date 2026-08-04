@@ -1,11 +1,6 @@
 import { loadSync } from '@grpc/proto-loader';
 import { catalogProtoPath, inventoryProtoPath, PROTO_LOADER_OPTIONS } from './proto-paths';
 
-/**
- * Guards the wire contract: the protos must parse and expose exactly the
- * services/methods the servers implement. Runs in the fast unit gate (no
- * containers) — a broken proto fails here before any integration run.
- */
 describe('gRPC proto contracts', () => {
   it('loads the catalog contract with GetMenuItems', () => {
     const definition = loadSync(catalogProtoPath(), PROTO_LOADER_OPTIONS);

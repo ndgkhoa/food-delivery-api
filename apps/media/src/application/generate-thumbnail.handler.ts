@@ -9,14 +9,6 @@ import { OBJECT_STORAGE, type ObjectStoragePort } from '@media/domain/media/obje
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-/**
- * The thumbnail worker's use case, driven by the background queue (no request
- * scope, so it loads the row tenant-agnostically). Idempotent: a READY row is a
- * no-op, and the thumbnail key is deterministic so a retry overwrites the same
- * object. The row is only marked READY AFTER the thumbnail is stored — if any
- * step throws, the job fails/retries and the row stays UPLOADED (never a false
- * READY).
- */
 @Injectable()
 export class GenerateThumbnailHandler {
   private readonly thumbnailWidth: number;

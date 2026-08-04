@@ -1,24 +1,15 @@
 import { resolve } from 'node:path';
 import { GenericContainer, type StartedTestContainer, Wait } from 'testcontainers';
 
-// The realm import the compose `auth` profile uses is reused verbatim here, so
-// the e2e exercises the exact clients/roles/mappers/users that ship to dev.
 const REALM_EXPORT_PATH = resolve(__dirname, '../../../../infra/keycloak/realm-export.json');
 const REALM = 'food-delivery';
 const SPA_CLIENT_ID = 'food-delivery-spa';
 
 export interface KeycloakHandle {
   container: StartedTestContainer;
-  /** e.g. `http://localhost:54321` — used verbatim as issuer base so token `iss` matches. */
   baseUrl: string;
 }
 
-/**
- * Boots a throwaway Keycloak (no maintained `@testcontainers/keycloak` package
- * exists, so `GenericContainer` + `--import-realm`) and waits until the realm's
- * OIDC discovery document answers 200. Generous startup budget — cold boot is
- * ~30-60s.
- */
 export async function startKeycloak(): Promise<KeycloakHandle> {
   const container = await new GenericContainer('quay.io/keycloak/keycloak:26.7')
     .withExposedPorts(8080)
@@ -44,17 +35,11 @@ export async function stopKeycloak(handle: KeycloakHandle): Promise<void> {
   await handle.container.stop();
 }
 
-/** Full token set from the direct-grant flow (refresh token drives the rotation/logout e2e). */
 export interface MintedTokenSet {
   accessToken: string;
   refreshToken: string;
 }
 
-/**
- * Mints a real access + refresh token via the direct-access (password) grant.
- * Defaults to the public SPA client; pass `clientId` to mint from another client
- * (e.g. the short-lived client whose 2s token lifespan drives the expiry test).
- */
 export async function mintTokenSet(config: {
   baseUrl: string;
   username: string;
@@ -80,7 +65,6 @@ export async function mintTokenSet(config: {
   return { accessToken: payload.access_token, refreshToken: payload.refresh_token };
 }
 
-/** Convenience wrapper returning just the access token (authz-matrix e2e). */
 export async function mintPasswordToken(config: {
   baseUrl: string;
   username: string;

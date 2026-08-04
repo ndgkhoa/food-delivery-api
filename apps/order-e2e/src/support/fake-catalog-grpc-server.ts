@@ -18,7 +18,6 @@ import { loadSync } from '@grpc/proto-loader';
 
 export interface FakeCatalogGrpcServer {
   url: string;
-  /** Seeds a menu item, scoped to the tenant that "owns" it in this fake catalog. */
   seed(tenantId: string, item: MenuItemMessage): void;
   stop(): Promise<void>;
 }
@@ -27,13 +26,6 @@ function compositeKey(tenantId: string, itemId: string): string {
   return `${tenantId}:${itemId}`;
 }
 
-/**
- * A minimal but REAL gRPC server implementing `CatalogService.GetMenuItems`
- * against an in-memory, tenant-scoped item map. Standing up the full catalog
- * app (with its own Postgres) is unnecessary weight for these order e2e
- * tests; this still exercises the genuine gRPC wire path `CatalogGrpcAdapter`
- * calls — proto-loader field mapping, tenant metadata, timeouts included.
- */
 export async function startFakeCatalogGrpcServer(): Promise<FakeCatalogGrpcServer> {
   const items = new Map<string, MenuItemMessage>();
 
@@ -42,9 +34,6 @@ export async function startFakeCatalogGrpcServer(): Promise<FakeCatalogGrpcServe
     catalog: { CatalogService: { service: ServiceDefinition } };
   };
 
-  // Raise the HTTP/2 stream ceiling: the concurrency e2e fires ~100 validate
-  // calls at once over the single client channel, and grpc-js's default
-  // per-connection stream cap would reset the excess ("read ECONNRESET").
   const server = new Server({ 'grpc.max_concurrent_streams': 1000 });
   server.addService(proto.catalog.CatalogService.service, {
     getMenuItems: (

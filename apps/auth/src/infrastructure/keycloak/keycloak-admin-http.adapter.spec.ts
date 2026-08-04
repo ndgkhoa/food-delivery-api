@@ -3,14 +3,6 @@ import { KeycloakAdminError } from '@auth/domain/shared/errors';
 import { KeycloakAdminHttpAdapter } from '@auth/infrastructure/keycloak/keycloak-admin-http.adapter';
 import type { ConfigService } from '@nestjs/config';
 
-/**
- * Unit test for the Keycloak admin adapter with `fetch` stubbed — no container,
- * so it runs in the normal unit suite. Covers the create-then-compensate rollback
- * and the no-upstream-leak behaviour that the Keycloak-backed e2e cannot assert
- * deterministically (it can't force a mid-flow failure).
- */
-
-/** Minimal ConfigService stand-in — the adapter only calls `getOrThrow`. */
 function stubConfig(values: Record<string, string>): ConfigService {
   return {
     getOrThrow: (key: string) => values[key],
@@ -78,7 +70,6 @@ describe('KeycloakAdminHttpAdapter (fetch stubbed)', () => {
       throw new Error(`unexpected ${options?.method} ${url}`);
     });
 
-    // Message is exactly the generic string → the raw upstream body cannot leak.
     await expect(adapter.createUser(input)).rejects.toMatchObject({
       statusCode: 502,
       message: 'Upstream identity provider error',

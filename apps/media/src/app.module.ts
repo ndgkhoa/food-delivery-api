@@ -20,13 +20,6 @@ import { ThumbnailWorker } from '@media/interface/queue/thumbnail.worker';
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
-/**
- * Composition root: wires the domain ports (media repository, object storage,
- * thumbnail queue, image processor) to their infrastructure adapters, registers
- * the application use-case handlers, the HTTP controller, and the background
- * thumbnail worker. The only file allowed to import across every layer — see the
- * hexagonal rules in `.dependency-cruiser.js`.
- */
 @Module({
   imports: [
     SharedConfigModule.forRoot(mediaEnvSchema),
@@ -40,18 +33,12 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
   ],
   controllers: [MediaController],
   providers: [
-    // Application use cases
     CreateUploadHandler,
     CompleteUploadHandler,
     GetMediaHandler,
     GenerateThumbnailHandler,
-    // Background consumer of the thumbnail queue (drives GenerateThumbnailHandler)
     ThumbnailWorker,
-    // RBAC on any @Roles-annotated route (none gated today; open to any
-    // authenticated tenant). Runs before the interceptor, mirroring catalog.
     { provide: APP_GUARD, useClass: RolesGuard },
-    // Every route is tenant-scoped by default — the tenant comes from the verified
-    // identity the gateway propagates (shared-tenancy), never a raw client header.
     { provide: APP_INTERCEPTOR, useClass: TrustedIdentityInterceptor },
   ],
 })

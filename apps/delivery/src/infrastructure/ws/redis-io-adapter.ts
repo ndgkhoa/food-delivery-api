@@ -4,14 +4,6 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
 import type { Server, ServerOptions } from 'socket.io';
 
-/**
- * Socket.IO adapter backed by `@socket.io/redis-adapter`, so a broadcast on ANY
- * delivery instance fans out to clients connected to EVERY instance (WS handlers
- * stay stateless — driver positions + assignments live in Redis, not memory).
- * Uses two DEDICATED ioredis connections (one pub, one sub) — the redis-adapter
- * requires a subscriber connection that never runs other commands, so this does
- * NOT reuse the shared client. Connections are closed on shutdown.
- */
 export class RedisIoAdapter extends IoAdapter {
   private adapterConstructor?: ReturnType<typeof createAdapter>;
   private clients: Redis[] = [];

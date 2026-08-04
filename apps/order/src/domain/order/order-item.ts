@@ -2,9 +2,7 @@ import { InvalidOrderRequestError } from '@order/domain/shared/errors';
 
 export interface OrderItemProps {
   itemId: string;
-  /** Positive integer — units of this item on the order. */
   qty: number;
-  /** Integer cents, sourced from the catalog at order-placement time — never client-supplied. */
   unitPriceCents: number;
   lineTotalCents: number;
 }
@@ -27,15 +25,8 @@ function assertNonNegativeInteger(value: number, label: string): void {
   }
 }
 
-/** Money is stored in `integer` (int4) cents columns; keep every amount within range. */
 export const MAX_MONEY_CENTS = 2_147_483_647;
 
-/**
- * A single line item on an order. `unitPriceCents` is always the catalog's
- * price at placement time (computed server-side, in `PlaceOrderHandler`) —
- * this value object never accepts a client-submitted price. Plain class, no
- * ORM/framework deps.
- */
 export class OrderItem {
   private constructor(private readonly props: OrderItemProps) {}
 
@@ -51,7 +42,6 @@ export class OrderItem {
     return new OrderItem({ ...props, lineTotalCents });
   }
 
-  /** Rehydrate from persistence — data is already validated. */
   static reconstitute(props: OrderItemProps): OrderItem {
     return new OrderItem({ ...props });
   }

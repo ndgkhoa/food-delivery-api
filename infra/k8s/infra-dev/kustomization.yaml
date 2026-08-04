@@ -1,9 +1,3 @@
-# Minimal in-cluster infra for LOCAL k3d verification of the representative
-# subset (gateway + catalog) — Postgres + Redis only, per the plan's scoped
-# risk mitigation (Kafka/Elasticsearch/ClickHouse/Temporal/MinIO/Keycloak are
-# heavy and out of scope for this slice's local run; a full 13-service graph
-# is a cloud/CI concern). Included ONLY by overlays/dev — the prod overlay
-# never references this directory.
 namespace: food-delivery
 resources:
   - postgres

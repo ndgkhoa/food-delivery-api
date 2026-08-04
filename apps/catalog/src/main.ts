@@ -17,10 +17,8 @@ import { Logger as PinoLogger } from 'nestjs-pino';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
-  // Must run before pino-http's own middleware so `genReqId` reads a normalized header.
   app.use(correlationIdMiddleware);
   app.useLogger(app.get(PinoLogger));
-  // Unified error envelope for every 4xx/5xx response across all services.
   app.useGlobalFilters(new GlobalExceptionFilter());
 
   app.setGlobalPrefix('api/v1');
@@ -34,11 +32,6 @@ async function bootstrap() {
 
   setupOpenApi(app);
 
-  // Hybrid app: keep the public HTTP surface AND add an internal gRPC server so
-  // east-west callers (order/inventory) can validate menu items. gRPC is
-  // internal-only — never exposed through Nginx. PROTO_LOADER_OPTIONS maps
-  // snake_case proto fields to camelCase JS (matching the hand-written contract
-  // types) and materialises empty repeated fields as [] rather than undefined.
   const grpcUrl = process.env.CATALOG_GRPC_URL ?? '0.0.0.0:50051';
   app.connectMicroservice<MicroserviceOptions>(
     {
@@ -54,10 +47,6 @@ async function bootstrap() {
   );
   await app.startAllMicroservices();
 
-  // Under k8s a rolling update sends SIGTERM; enabling Nest's shutdown hooks
-  // lets the catalog/review projection Kafka consumers disconnect cleanly via
-  // onModuleDestroy instead of being hard-killed mid-poll (which would strand
-  // an uncommitted offset and cause a duplicate redelivery on the new pod).
   app.enableShutdownHooks();
 
   const port = process.env.PORT ?? 3001;

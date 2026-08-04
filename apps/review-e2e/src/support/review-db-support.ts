@@ -37,7 +37,6 @@ async function findEligibleOrder(orderId: string): Promise<{ order_id: string } 
   });
 }
 
-/** Polls until the `order.events` eligibility consumer has recorded the order, or throws on timeout. */
 export async function waitForEligibility(orderId: string, timeoutMs = 30_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {

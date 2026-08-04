@@ -1,17 +1,10 @@
-# Prunes old GHCR versions of the single `food-delivery-api` image so the
-# package doesn't grow unbounded. Each CD build pushes a tagged image PLUS its
-# cosign signature and SLSA attestation as separate UNTAGGED manifests, so the
-# untagged count climbs ~2 per release. This keeps the most recent N and drops
-# older untagged artifacts (signatures/attestations for superseded images).
-# Runs weekly and on demand. Tagged release images are never touched.
 name: GHCR retention
 
 on:
   schedule:
-    - cron: "0 3 * * 0" # Sundays 03:00 UTC
+    - cron: "0 3 * * 0"
   workflow_dispatch:
 
-# Least-privilege: only the package-delete scope this job needs.
 permissions:
   contents: read
   packages: write
@@ -29,8 +22,5 @@ jobs:
         with:
           package-name: food-delivery-api
           package-type: container
-          # Keep the most recent versions so the live image and its current
-          # signature/attestation are never removed; only older untagged
-          # artifacts are pruned.
           min-versions-to-keep: 20
           delete-only-untagged-versions: true

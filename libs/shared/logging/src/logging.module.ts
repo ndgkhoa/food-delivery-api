@@ -4,15 +4,6 @@ import { LoggerModule } from 'nestjs-pino';
 import { CORRELATION_ID_HEADER } from './correlation-id.constants';
 import { traceContextMixin } from './trace-context.mixin';
 
-/**
- * Structured (pino) logging wired to the correlation ID set by
- * `correlationIdMiddleware`, so every log line for a request can be
- * grepped/traced by `x-correlation-id`. `trace_id`/`span_id` (via
- * `traceContextMixin`) additionally correlate a log line to the OTel trace it
- * ran inside — pivoting Grafana Explore between Loki logs and Jaeger traces.
- * Pretty-prints in non-production for readable local dev output; ships raw
- * JSON otherwise.
- */
 export class SharedLoggingModule {
   static forRoot(): DynamicModule {
     return LoggerModule.forRootAsync({

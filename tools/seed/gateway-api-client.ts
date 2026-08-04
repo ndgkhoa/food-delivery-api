@@ -1,9 +1,3 @@
-/**
- * Minimal REST client for calling the gateway (`GATEWAY_URL`, e.g.
- * `http://localhost:3000/api/v1`) with a bearer token. Every non-2xx response
- * throws `ApiError` carrying the step description + status + raw response
- * body, so a failure mid-seed points straight at which call broke and why.
- */
 export class ApiError extends Error {
   constructor(
     public readonly step: string,
@@ -21,7 +15,6 @@ export class GatewayClient {
     private token: string,
   ) {}
 
-  /** Swaps the bearer token used by subsequent calls (e.g. after logging in as a different seeded user). */
   setToken(token: string): void {
     this.token = token;
   }
@@ -58,7 +51,6 @@ export class GatewayClient {
   }
 }
 
-/** Formats any thrown error for a human-readable warning line (never throws itself). */
 export function describeError(error: unknown): string {
   if (error instanceof ApiError) {
     return error.message;

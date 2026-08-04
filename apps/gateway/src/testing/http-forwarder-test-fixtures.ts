@@ -4,8 +4,6 @@ import type { ForwardTarget } from '@gateway/proxy/http-forwarder';
 import type { ConfigService } from '@nestjs/config';
 import type { Response as ExpressResponse } from 'express';
 
-/** Shared test fixtures for `http-forwarder.spec.ts` — kept separate so the spec stays focused on scenarios, not stub plumbing. */
-
 export const TARGET: ForwardTarget = {
   gatewayPrefix: '/api/v1/catalog',
   baseUrl: 'http://catalog.internal:3001',
@@ -43,12 +41,10 @@ export function resStub(): { res: ExpressResponse; state: Record<string, unknown
   return { res, state };
 }
 
-/** Fake registry: `run` is mocked per test to resolve/reject as the scenario needs. */
 export function breakersStub(run: jest.Mock): CircuitBreakerRegistry {
   return { run, resetTimeoutMs: 10_000 } as unknown as CircuitBreakerRegistry;
 }
 
-/** No `INTERNAL_IDENTITY_SIGNING_KEY` by default — matches every existing test's unsigned expectations. */
 export function configStub(overrides: Record<string, unknown> = {}): ConfigService {
   const values: Record<string, unknown> = { ...overrides };
   return { get: (key: string) => values[key] } as unknown as ConfigService;

@@ -12,7 +12,6 @@ interface OrderResponse {
   id: string;
 }
 
-/** PUTs the tenant's config overrides as its own `admin` user (own-tenant writes never need `platform-admin`). */
 export async function seedTenantConfig(
   config: SeedConfig,
   admin: ProvisionedUser,
@@ -50,7 +49,6 @@ export async function seedTenantStock(
   });
 }
 
-/** Places the demo orders as the tenant's customer, returning both the created ids and the authenticated gateway client (reused to poll status + submit reviews for those SAME orders). */
 export async function placeDemoOrders(
   config: SeedConfig,
   customer: ProvisionedUser,

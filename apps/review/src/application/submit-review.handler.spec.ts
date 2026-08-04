@@ -34,7 +34,6 @@ class FakeEligibleOrderRepository implements ReviewEligibleOrderRepository {
   }
 }
 
-/** Postgres SQLSTATE unique_violation, matching the handler's own detection. */
 class UniqueViolationError extends Error {
   code = '23505';
 }
@@ -42,7 +41,6 @@ class UniqueViolationError extends Error {
 class FakeReviewRepository implements ReviewRepository {
   readonly saved: Review[] = [];
   private readonly seenOrderIds = new Set<string>();
-  /** When set, `save` throws it (simulates a concurrent duplicate winning the unique index). */
   forceDuplicateOn: string | null = null;
 
   async save(review: Review): Promise<Review> {
@@ -128,7 +126,6 @@ describe('SubmitReviewHandler', () => {
     await handler.execute({ tenantId, userId: ownerUserId, orderId: 'order-1', rating: 5 });
     await handler.execute({ tenantId, userId: otherUserId, orderId: 'order-2', rating: 4 });
 
-    // (5 + 4) / 2 = 4.5
     expect(outbox.entries[1].payload).toMatchObject({ avgRating: 4.5, reviewCount: 2 });
   });
 
@@ -141,7 +138,6 @@ describe('SubmitReviewHandler', () => {
     await handler.execute({ tenantId, userId: otherUserId, orderId: 'order-2', rating: 4 });
     await handler.execute({ tenantId, userId: ownerUserId, orderId: 'order-3', rating: 4 });
 
-    // (5 + 4 + 4) / 3 = 4.3333... -> 4.33
     expect(outbox.entries[2].payload).toMatchObject({ avgRating: 4.33, reviewCount: 3 });
   });
 

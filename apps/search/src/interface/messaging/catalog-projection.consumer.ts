@@ -15,21 +15,8 @@ import {
 } from '@search/domain/restaurant-search/restaurant-search.repository';
 
 const CATALOG_EVENTS_TOPIC = 'catalog.events';
-/**
- * A dedicated consumer group, independent of catalog's own `catalog-projection`
- * group — search tails the same topic with its own offsets so the two read
- * models advance separately.
- */
 const PROJECTION_GROUP_ID = 'search-catalog-projection';
 
-/**
- * Consumes `catalog.events` and projects each restaurant event into the ES
- * search index. The subscriber runs the handler inside the tenant scope the
- * envelope carries. No dedupe ledger: ES upserts are idempotent by document id,
- * and per-aggregate ordering (Kafka key = restaurant id → one partition) plus
- * external versioning (see the repository adapter) make a redelivered or
- * out-of-order event a safe no-op — Delete is the terminal state.
- */
 @Injectable()
 export class CatalogProjectionConsumer implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(CatalogProjectionConsumer.name);
@@ -43,9 +30,6 @@ export class CatalogProjectionConsumer implements OnApplicationBootstrap, OnModu
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    // In-process integration tests boot the module graph without a broker; the
-    // compose-based e2e (and real runtime) run outside NODE_ENV=test. Logged
-    // (not silent) so a mis-set NODE_ENV in a real env is visible.
     if (this.config.get<string>('NODE_ENV') === 'test') {
       this.logger.warn(
         `Search projection disabled (NODE_ENV=test): ${CATALOG_EVENTS_TOPIC} not consumed`,

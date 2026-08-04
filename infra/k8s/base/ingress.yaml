@@ -1,8 +1,3 @@
-# Mirrors infra/nginx/nginx.conf: a single blanket reverse proxy to the
-# gateway Service — the gateway itself owns all `/api/v1/*` downstream routing
-# (see gateway-env-schema.ts's *_SERVICE_URL vars), so the Ingress needs no
-# path-prefix rules of its own. Traefik ships as k3d's default ingress
-# controller, so no extra controller install is needed for local verification.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

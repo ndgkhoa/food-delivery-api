@@ -32,9 +32,6 @@ export class CreateRestaurantHandler {
     const tenantId = this.tenantContext.getTenantIdOrThrow();
     const restaurant = Restaurant.create({ id: randomUUID(), tenantId, ...command });
 
-    // Write + audit + outbox share one commit boundary: the aggregate change and
-    // its emitted event are persisted atomically, so a published event always
-    // reflects committed state (no dual-write gap).
     return this.transaction.runInTransaction(async () => {
       const saved = await this.restaurantRepository.save(restaurant);
 

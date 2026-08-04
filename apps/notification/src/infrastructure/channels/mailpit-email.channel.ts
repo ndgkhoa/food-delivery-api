@@ -7,12 +7,6 @@ import type {
 import { bodyFor, subjectFor } from '@notification/domain/notification/notification-copy';
 import { createTransport, type Transporter } from 'nodemailer';
 
-/**
- * Real SMTP send to Mailpit (dev inbox catcher) via nodemailer — the one
- * non-stub channel this slice ships. `MAIL_FROM` is the envelope sender; the
- * subject/body come from the deterministic templates so the e2e can assert
- * exact content in the captured message.
- */
 @Injectable()
 export class MailpitEmailChannel implements NotificationChannel {
   private readonly transporter: Transporter;

@@ -26,7 +26,6 @@ describe('ClickHouseRevenueSeriesQueryAdapter', () => {
     expect(call.query).toContain('{tenant:String}');
     expect(call.query).toContain('{from:DateTime64(3)}');
     expect(call.query).toContain('{to:DateTime64(3)}');
-    // Every dynamic value is bound via query_params, not interpolated into the SQL string.
     expect(call.query).not.toContain('tenant-1');
     expect(call.query_params).toEqual({ tenant: 'tenant-1', from, to });
   });

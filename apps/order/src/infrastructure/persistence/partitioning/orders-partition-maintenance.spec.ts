@@ -52,11 +52,8 @@ describe('OrdersPartitionMaintenanceService', () => {
     const query = jest.fn().mockResolvedValue(undefined);
     const service = buildService('production', query);
 
-    // @nestjs/schedule cron reads real time; drive the ensure logic directly for a fixed month.
     await service.ensureUpcomingPartitions(new Date('2026-07-15T00:00:00Z'));
 
-    // Both the current (July) and next (August) month, so a missed tick / long
-    // outage still gets the month it boots into before serving traffic.
     expect(query).toHaveBeenCalledTimes(2);
     expect(query.mock.calls[0][0]).toContain('"orders_p202607"');
     expect(query.mock.calls[1][0]).toContain('"orders_p202608"');

@@ -11,10 +11,8 @@ import { Logger as PinoLogger } from 'nestjs-pino';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
-  // Must run before pino-http's own middleware so `genReqId` reads a normalized header.
   app.use(correlationIdMiddleware);
   app.useLogger(app.get(PinoLogger));
-  // Unified error envelope for every 4xx/5xx response across all services.
   app.useGlobalFilters(new GlobalExceptionFilter());
 
   app.setGlobalPrefix('api/v1');
@@ -28,9 +26,6 @@ async function bootstrap() {
 
   setupOpenApi(app);
 
-  // Under k8s a rolling update sends SIGTERM; enabling Nest's shutdown hooks
-  // lets TypeORM/Redis close their connections via onModuleDestroy instead of
-  // being hard-killed mid-request.
   app.enableShutdownHooks();
 
   const port = process.env.PORT ?? 3002;

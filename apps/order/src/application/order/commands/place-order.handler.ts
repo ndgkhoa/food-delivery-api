@@ -39,10 +39,8 @@ export interface PlaceOrderCommand {
   items: PlaceOrderItemInput[];
 }
 
-/** The only method this handler needs from `SettingsClient` — narrows the DI type so tests need a minimal fake. */
 export type OrderPricingSettingsClient = Pick<SettingsClient, 'getInt'>;
 
-/** Config keys the order's tenant may override; the second argument to each `getInt` call is the fallback. */
 const DELIVERY_FEE_CONFIG_KEY = 'order.delivery_fee_cents';
 const VAT_RATE_CONFIG_KEY = 'order.vat_rate_bps';
 const DISCOUNT_CONFIG_KEY = 'order.discount_cents';
@@ -51,10 +49,8 @@ const DEFAULT_DELIVERY_FEE_CENTS = 1500;
 const DEFAULT_VAT_RATE_BPS = 1000;
 const DEFAULT_DISCOUNT_CENTS = 0;
 
-/** Postgres SQLSTATE for unique_violation — a concurrent duplicate idempotency key. */
 const PG_UNIQUE_VIOLATION = '23505';
 
-/** True for a Postgres unique_violation, however TypeORM wraps the driver error. */
 function isUniqueViolation(error: unknown): boolean {
   const wrapped = error as { code?: string; driverError?: { code?: string } };
   return (wrapped?.driverError?.code ?? wrapped?.code) === PG_UNIQUE_VIOLATION;
@@ -73,17 +69,6 @@ function assertValidCommand(command: PlaceOrderCommand): void {
   }
 }
 
-/**
- * Places an order as an ASYNCHRONOUS saga. Menu validation stays a synchronous
- * catalog query (never trusts client prices), but reserve/charge no longer run
- * inline: in ONE transaction we claim the idempotency key, insert the PENDING
- * order, open its saga (STARTED), and append the first `ReserveStock` command to
- * the outbox. A polling relay publishes that command to Kafka; inventory and
- * payment replies drive the saga forward on later ticks. The caller gets the
- * PENDING order back immediately and polls `GET /orders/:id` for the terminal
- * state. Because everything commits together, a lost response just replays to
- * the same durable order — the saga, not this call, owns progression.
- */
 @Injectable()
 export class PlaceOrderHandler {
   constructor(
@@ -101,8 +86,6 @@ export class PlaceOrderHandler {
   async execute(command: PlaceOrderCommand): Promise<Order> {
     assertValidCommand(command);
 
-    // 1. Replay: an existing key maps to a durable order whose saga is already
-    //    in flight — return it as-is rather than starting a second saga.
     const existingOrderId = await this.idempotencyRepository.findOrderId(
       command.tenantId,
       command.userId,
@@ -112,15 +95,9 @@ export class PlaceOrderHandler {
       return this.loadExisting(command.tenantId, existingOrderId, command.idempotencyKey);
     }
 
-    // 2. Validate menu against the catalog — price/availability are never trusted from the client.
     const { items: orderItems, restaurantId } = await this.buildOrderItems(command);
-    // settings-client never throws (cold miss / config service down falls back to
-    // the default here, WARN-logged) — placing an order never blocks on config.
     const pricing = await this.resolvePricing(command.tenantId);
     const orderId = randomUUID();
-    // Root trace id for the whole saga: it rides the first ReserveStock command
-    // and is carried through every reply + follow-on command so the saga's
-    // events can be traced end to end.
     const correlationId = randomUUID();
     const pendingOrder = Order.create({
       id: orderId,
@@ -131,9 +108,6 @@ export class PlaceOrderHandler {
       pricing,
     });
 
-    // A discount that meets or exceeds subtotal+fee+VAT floors the charge to 0
-    // (allowed — a full-value promo is legitimate), but a 0-total order is worth
-    // an ops signal so a mis-set discount isn't mistaken for normal free orders.
     if (pendingOrder.totalCents === 0) {
       this.logger.warn(
         `order ${orderId} totals 0 after a ${pricing.discountCents}-cent discount on ` +
@@ -141,10 +115,6 @@ export class PlaceOrderHandler {
       );
     }
 
-    // 3. Durably record intent + start the saga atomically: claim the key, insert
-    //    the PENDING order, open the STARTED saga, and enqueue the ReserveStock
-    //    command — all in ONE transaction so the relay can never publish a
-    //    command for an order that failed to persist.
     try {
       const persistedOrder = await this.transaction.runInTransaction(async () => {
         await this.idempotencyRepository.save(
@@ -166,15 +136,10 @@ export class PlaceOrderHandler {
         );
         return inserted;
       });
-      // Placement, not confirmation: reached only once the transaction has
-      // committed, and once per newly-created (non-replayed) order. Revenue
-      // reflects the order total at placement time.
       recordOrderPlaced(persistedOrder.totalCents);
       return persistedOrder;
     } catch (error) {
       if (isUniqueViolation(error)) {
-        // A concurrent request won the key; its order committed atomically with
-        // the claim, so return that one.
         return this.resolveConcurrentClaim(
           command.tenantId,
           command.userId,
@@ -192,8 +157,6 @@ export class PlaceOrderHandler {
   ): Promise<Order> {
     const order = await this.orderRepository.findById(tenantId, orderId);
     if (!order) {
-      // The claim + order insert are atomic, so a visible mapping should imply a
-      // visible order. Treat the vanishing-small window as transiently retryable.
       throw new IdempotencyConflictError(
         `order for key "${idempotencyKey}" is being created — retry shortly`,
       );
@@ -219,7 +182,6 @@ export class PlaceOrderHandler {
     );
   }
 
-  /** Reads the tenant's delivery-fee/VAT/discount tunables from config, each falling back to its documented default. */
   private async resolvePricing(tenantId: string): Promise<OrderPricingInput> {
     const [deliveryFeeCents, vatRateBps, discountCents] = await Promise.all([
       this.configClient.getInt(DELIVERY_FEE_CONFIG_KEY, tenantId, DEFAULT_DELIVERY_FEE_CENTS),
@@ -229,13 +191,6 @@ export class PlaceOrderHandler {
     return { deliveryFeeCents, vatRateBps, discountCents };
   }
 
-  /**
-   * Resolves every requested item against the catalog (never trusting a
-   * client-submitted price or restaurant) and derives the order's single
-   * restaurant from the resolved items. A cart mixing items from more than
-   * one restaurant is rejected — an order is always placed for exactly one
-   * restaurant, which downstream review eligibility relies on.
-   */
   private async buildOrderItems(
     command: PlaceOrderCommand,
   ): Promise<{ items: OrderItem[]; restaurantId: string }> {
@@ -261,9 +216,6 @@ export class PlaceOrderHandler {
       };
     });
 
-    // `command.items` is non-empty (assertValidCommand) and every entry above
-    // either resolved or threw, so `resolved` — and this array — always has
-    // at least one distinct restaurant id.
     const distinctRestaurantIds = [...new Set(resolved.map((entry) => entry.restaurantId))];
     if (distinctRestaurantIds.length > 1) {
       throw new InvalidOrderRequestError('an order cannot span multiple restaurants');

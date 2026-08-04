@@ -29,7 +29,6 @@ function reaperConfig(maxAttempts = MAX_ATTEMPTS) {
   };
 }
 
-/** Mirrors `libs/shared/persistence/src/advisory-lock.spec.ts`'s fake — no real Postgres needed. */
 function fakeDataSource(tryLockResult: boolean): DataSource {
   const queryRunner = {
     connect: jest.fn().mockResolvedValue(undefined),
@@ -47,7 +46,6 @@ function fakeDataSource(tryLockResult: boolean): DataSource {
   } as unknown as DataSource;
 }
 
-/** Just invokes the callback in-place — no real async-local-storage isolation needed for these tests. */
 class FakeTenantContext implements TenantContextPort {
   readonly runs: TenantRequestContext[] = [];
 
@@ -232,7 +230,6 @@ describe('SagaReaperProvider.sweep', () => {
 
   it('isolates one bad candidate so the rest of the sweep still recovers', async () => {
     const sagaRepo = new FakeSagaRepository();
-    // 'missing-order' has a saga row but no order row (a repo bug/race) — must not block 'order-6'.
     sagaRepo.seed(sagaAged('missing-order', TIMEOUT_MS + 1_000));
     sagaRepo.seed(sagaAged('order-6', TIMEOUT_MS + 1_000));
     const orderRepo = new FakeOrderRepository();

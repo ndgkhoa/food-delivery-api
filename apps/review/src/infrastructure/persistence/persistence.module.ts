@@ -17,10 +17,6 @@ import { TypeOrmReviewEligibleOrderRepository } from '@review/infrastructure/per
 import { TypeOrmTransactionAdapter } from '@review/infrastructure/persistence/transaction/typeorm-transaction.adapter';
 import { buildDataSourceOptions } from '@review/infrastructure/persistence/typeorm-options';
 
-/**
- * Owns the review Postgres connection + binds the domain repository ports
- * (review, eligibility, outbox, dedupe store) to their TypeORM adapters.
- */
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({

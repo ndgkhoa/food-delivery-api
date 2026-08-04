@@ -23,7 +23,6 @@ export class TypeOrmFeatureFlagRepository implements FeatureFlagRepository {
     return orm ? FeatureFlagMapper.toDomain(orm) : null;
   }
 
-  // See TypeOrmConfigEntryRepository.upsert — identical create-or-update-by-id rationale.
   async upsert(flag: FeatureFlag): Promise<FeatureFlag> {
     const saved = await this.repository.save(FeatureFlagMapper.toOrm(flag));
     return FeatureFlagMapper.toDomain(saved);

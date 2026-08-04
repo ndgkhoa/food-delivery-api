@@ -1,34 +1,18 @@
-# Trivy allowlist — every entry below MUST carry a justification comment.
-# Applies to both the CI config/fs scans (ci.yml) and the CD image scan
-# (cd.yml). Renovate keeps base images and dependencies patched, so entries
-# here should be re-reviewed whenever the underlying CVE/finding is fixed
-# upstream and removed once it no longer applies.
+# Kubernetes (development only)
 
-# --- infra/k8s config scan --------------------------------------------------
-# KSV-0014 / KSV-0118: infra-dev/postgres/deployment.yaml runs without a
-# read-only root filesystem / explicit securityContext. infra-dev/ is the
-# LOCAL DEV convenience Postgres only (never applied to prod — the prod
-# overlay points every service at an external managed database instead, see
-# infra/k8s/overlays/prod/kustomization.yaml). Owned by the k8s-manifests
-# phase; hardening it is tracked there, not blocking this CI/CD slice.
+# Dev Postgres: no read-only root filesystem.
 KSV-0014
+
+# Dev Postgres: missing securityContext.
 KSV-0118
 
-# KSV-0046: observability/prometheus-adapter/rbac.yaml grants the
-# custom-metrics ClusterRole read access to all API groups/resources. This
-# is the upstream k8s-prometheus-adapter requirement for discovering custom
-# metrics cluster-wide to serve the HPA custom-metrics API (8c-B) — scoping
-# it down breaks metric discovery. Read-only (get/list/watch), not a write
-# grant. Owned by the k8s-manifests phase.
+# Prometheus Adapter: requires cluster-wide read access.
 KSV-0046
 
-# --- filesystem vulnerability scan (pnpm-lock.yaml) -------------------------
-# Both are transitive devDependencies pulled in deep under @nx/webpack and
-# @nx/jest (build/test tooling only) — never reach the runtime image, which
-# npm-installs only the webpack-bundled app's pruned package.json + pg (see
-# infra/docker/Dockerfile). Fixed versions live several major bumps up the
-# @nx/* toolchain; Renovate will surface the bump once upstream releases it.
-# CVE-2026-14257: brace-expansion ReDoS, via minimatch -> fork-ts-checker-webpack-plugin -> @nx/webpack.
+# Development dependencies
+
+# Transitive dependency via @nx/webpack.
 CVE-2026-14257
-# GHSA-pm4m-ph32-ghv5: js-yaml ReDoS, via babel-plugin-istanbul -> @jest/transform -> @nx/jest.
+
+# Transitive dependency via @nx/jest.
 GHSA-pm4m-ph32-ghv5

@@ -13,7 +13,6 @@ class TenantContextNotSetError extends Error {
   }
 }
 
-/** Async-local-storage adapter for `TenantContextPort` — set once per request by the trusted-identity interceptor. */
 @Injectable()
 export class AlsTenantContextAdapter implements TenantContextPort {
   run<T>(context: TenantRequestContext, callback: () => T): T {

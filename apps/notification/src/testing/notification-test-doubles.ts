@@ -23,7 +23,6 @@ import type { TransactionPort } from '@notification/domain/shared/transaction.po
 
 let sequence = 0;
 
-/** In-memory `notifications` ledger — no DB, backs both dispatch + worker use cases. */
 export class FakeNotificationRepository implements NotificationRepository {
   readonly rows = new Map<string, Notification>();
 
@@ -81,12 +80,6 @@ export class FakeNotificationRepository implements NotificationRepository {
   }
 }
 
-/**
- * Records enqueued jobs per channel — no Redis. Dedupes by `notificationId` to
- * model BullMQ's `jobId` behaviour (a duplicate job for a still-pending id is
- * ignored), so re-driving the same PENDING rows enqueues each job at most once.
- * `failNext` makes the next enqueue throw, to exercise the re-drive path.
- */
 export class FakeNotificationQueue implements NotificationQueuePort {
   readonly enqueued: { channel: ChannelName; payload: NotificationJobPayload }[] = [];
   private readonly seen = new Set<string>();
@@ -105,7 +98,6 @@ export class FakeNotificationQueue implements NotificationQueuePort {
   }
 }
 
-/** Records parked DLQ payloads — no Redis. */
 export class FakeNotificationDlq implements NotificationDlqPort {
   readonly parked: (NotificationJobPayload & { error: string })[] = [];
 
@@ -114,7 +106,6 @@ export class FakeNotificationDlq implements NotificationDlqPort {
   }
 }
 
-/** Deterministic recipient — no dependency on the real stub's derivation. */
 export class FakeRecipientResolver implements RecipientResolverPort {
   constructor(private readonly recipient: Recipient) {}
 
@@ -123,7 +114,6 @@ export class FakeRecipientResolver implements RecipientResolverPort {
   }
 }
 
-/** Dedupe store that records the first event id and rejects a repeat — mirrors the real ledger's behavior. */
 export class FakeProcessedEvents implements ProcessedEventStorePort {
   readonly seen = new Set<string>();
 
@@ -135,10 +125,8 @@ export class FakeProcessedEvents implements ProcessedEventStorePort {
   }
 }
 
-/** Passes work straight through — the real adapter's transaction boundary isn't needed for logic tests. */
 export const passthroughTransaction: TransactionPort = { runInTransaction: (work) => work() };
 
-/** Minimal ConfigService stand-in exposing only `getOrThrow` over a fixed map. */
 export function fakeConfig(values: Record<string, unknown>): ConfigService {
   return {
     getOrThrow: <T>(key: string): T => {
@@ -150,7 +138,6 @@ export function fakeConfig(values: Record<string, unknown>): ConfigService {
   } as unknown as ConfigService;
 }
 
-/** Every channel resolves to the given fixed adapter (usually a jest.fn()-backed test double). */
 export function fixedChannelMap(
   channel: NotificationChannelMap[ChannelName],
 ): NotificationChannelMap {

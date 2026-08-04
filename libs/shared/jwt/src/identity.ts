@@ -1,6 +1,5 @@
 import type { JWTPayload } from 'jose';
 
-/** The trusted identity distilled from a verified access token. */
 export interface VerifiedIdentity {
   sub: string;
   tenantId: string;
@@ -15,8 +14,6 @@ export class MissingIdentityClaimError extends Error {
 }
 
 function extractRoles(payload: JWTPayload): string[] {
-  // Keycloak nests realm roles under `realm_access.roles`; fall back to a flat
-  // `roles` claim for IdPs that expose it directly.
   const realmAccess = payload.realm_access as { roles?: unknown } | undefined;
   const source = Array.isArray(realmAccess?.roles)
     ? realmAccess.roles
@@ -26,12 +23,6 @@ function extractRoles(payload: JWTPayload): string[] {
   return source.filter((role): role is string => typeof role === 'string');
 }
 
-/**
- * Maps a VERIFIED JWT payload to the identity the platform trusts. Only call
- * this on a payload that already passed signature/issuer/audience/expiry checks
- * — it assumes authenticity and merely enforces that the tenant/subject claims
- * required for multi-tenant authorization are present.
- */
 export function extractIdentity(payload: JWTPayload): VerifiedIdentity {
   const sub = payload.sub;
   if (!sub) {

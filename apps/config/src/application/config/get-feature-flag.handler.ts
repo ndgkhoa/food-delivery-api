@@ -7,7 +7,6 @@ import { FeatureFlagNotFoundError } from '@config/domain/shared/errors';
 import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable } from '@nestjs/common';
 
-/** Resolves a single flag for the caller's tenant: tenant override ?? global default. */
 @Injectable()
 export class GetFeatureFlagHandler {
   constructor(

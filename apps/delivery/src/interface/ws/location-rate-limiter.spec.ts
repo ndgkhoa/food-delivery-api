@@ -15,7 +15,6 @@ describe('LocationRateLimiter', () => {
     expect(limiter.allow(0)).toBe(true);
     expect(limiter.allow(500)).toBe(true);
     expect(limiter.allow(600)).toBe(false);
-    // New window at >= 1000ms from the window start.
     expect(limiter.allow(1000)).toBe(true);
     expect(limiter.allow(1200)).toBe(true);
     expect(limiter.allow(1300)).toBe(false);

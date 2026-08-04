@@ -1,25 +1,5 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Adds the CDC outbox + CQRS read model to catalog.
- *
- * `outbox` follows the Debezium Outbox Event Router column convention
- * (aggregatetype/aggregateid/type/payload) so the SMT can route rows to
- * `<aggregatetype>.events` with minimal config. Rows are insert-only: a write
- * handler appends one row in the same transaction as the domain change, and
- * Debezium tails the WAL to publish it — the app never publishes directly.
- *
- * `processed_events` is the projection consumer's dedupe ledger (one row per
- * consumed event id), written in the same transaction as the read-model upsert
- * so "processed" and "applied" commit or roll back together.
- *
- * `read_restaurants` / `read_menu_items` are the denormalized read model the
- * list/get endpoints serve from, kept eventually consistent by the projection.
- *
- * A least-privilege `debezium` role (REPLICATION + SELECT on outbox only) and a
- * publication scoped to the outbox table are provisioned here, guarded so a
- * re-run is safe. `wal_level=logical` is a server flag set in compose, not here.
- */
 export class CreateCatalogOutboxAndReadModel1753660800000 implements MigrationInterface {
   name = 'CreateCatalogOutboxAndReadModel1753660800000';
 
@@ -79,9 +59,6 @@ export class CreateCatalogOutboxAndReadModel1753660800000 implements MigrationIn
       'CREATE INDEX "idx_read_menu_items_restaurant_id" ON "read_menu_items" ("restaurant_id")',
     );
 
-    // Least-privilege CDC role: can stream the WAL (REPLICATION) and read only
-    // the outbox table — never the domain tables. Password is a local-dev
-    // default; real deployments inject it via a secret provider.
     await queryRunner.query(`
       DO $$
       BEGIN
@@ -94,9 +71,6 @@ export class CreateCatalogOutboxAndReadModel1753660800000 implements MigrationIn
     await queryRunner.query('GRANT USAGE ON SCHEMA public TO "debezium"');
     await queryRunner.query('GRANT SELECT ON "outbox" TO "debezium"');
 
-    // Pre-create the publication scoped to outbox so Debezium (autocreate
-    // mode "filtered") finds it instead of needing table-owner privileges at
-    // runtime. Guarded because CREATE PUBLICATION has no IF NOT EXISTS.
     await queryRunner.query(`
       DO $$
       BEGIN
@@ -113,9 +87,6 @@ export class CreateCatalogOutboxAndReadModel1753660800000 implements MigrationIn
     await queryRunner.query('DROP TABLE IF EXISTS "read_menu_items"');
     await queryRunner.query('DROP TABLE IF EXISTS "read_restaurants"');
     await queryRunner.query('DROP TABLE IF EXISTS "processed_events"');
-    // Drop every privilege granted to the role (SELECT on outbox + USAGE on
-    // schema) before the role itself — Postgres refuses DROP ROLE while any
-    // grant still depends on it. DROP OWNED clears them in one shot.
     await queryRunner.query(`
       DO $$
       BEGIN

@@ -4,18 +4,11 @@ export interface MenuItemProps {
   restaurantId: string;
   name: string;
   description: string | null;
-  /** Integer cents, e.g. 1299 = $12.99 — never a float, to avoid rounding errors. */
   priceCents: number;
   isAvailable: boolean;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
-  /**
-   * Optimistic-lock version. Undefined on an aggregate `create()`d but not yet
-   * persisted (TypeORM assigns the real value 1 on insert); `reconstitute()`
-   * always supplies the real persisted value. Backs
-   * `MenuItemRepository.updateVersioned`'s conditional write.
-   */
   version?: number;
 }
 
@@ -53,11 +46,6 @@ function assertValidPriceCents(priceCents: number): void {
   }
 }
 
-/**
- * Plain-class aggregate — no framework/ORM dependency. Constructed only via
- * `create()` (enforces invariants for brand-new menu items) or
- * `reconstitute()` (rehydrates from persistence, already-validated data).
- */
 export class MenuItem {
   private constructor(private readonly props: MenuItemProps) {}
 
@@ -125,12 +113,10 @@ export class MenuItem {
     return this.props.deletedAt;
   }
 
-  /** Defaults to 1 pre-persistence — matches TypeORM's own insert-time default for a fresh row. */
   get version(): number {
     return this.props.version ?? 1;
   }
 
-  /** Returns a new `MenuItem` instance with the changes applied (immutable update). */
   update(changes: UpdateMenuItemProps): MenuItem {
     const name = changes.name !== undefined ? changes.name.trim() : this.props.name;
     assertValidName(name);
@@ -149,7 +135,6 @@ export class MenuItem {
     });
   }
 
-  /** Plain-object snapshot for audit trail (jsonb before/after columns) — not used by persistence mappers. */
   toSnapshot(): Record<string, unknown> {
     return { ...this.props };
   }

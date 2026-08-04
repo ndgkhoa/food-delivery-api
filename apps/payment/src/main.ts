@@ -7,20 +7,11 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '@payment/app.module';
 import { Logger as PinoLogger } from 'nestjs-pino';
 
-/**
- * Payment is no longer headless: it exposes an HTTP surface (the HMAC-verified
- * provider webhook) AND, from the same Nest app, runs its Kafka command consumer,
- * the reply-outbox relay, and the Temporal worker (all started by their bootstrap
- * providers). `rawBody` is enabled so the webhook controller can HMAC-verify the
- * exact request bytes. Shutdown hooks stop the consumer, relay, worker, and close
- * the Temporal connection cleanly on SIGTERM/SIGINT.
- */
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true, rawBody: true });
 
   app.use(correlationIdMiddleware);
   app.useLogger(app.get(PinoLogger));
-  // Unified error envelope for every 4xx/5xx response across all services.
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(

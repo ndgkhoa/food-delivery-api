@@ -1,7 +1,3 @@
-# One NetworkPolicy per gateway-proxied backend: each accepts http traffic
-# ONLY from the gateway pod, on its own http port. `inventory` is
-# deliberately excluded here — it is not gateway-proxied, gRPC-only, and gets
-# its own order-only ingress rule in ingress-grpc.yaml.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

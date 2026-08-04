@@ -5,34 +5,23 @@ import { REDIS_CLIENT } from '@delivery/infrastructure/redis/redis.tokens';
 import { Inject, Injectable } from '@nestjs/common';
 import type Redis from 'ioredis';
 
-/** Tenant-prefixed GEO set key — driver positions never cross tenant boundaries. */
 function driversKey(tenantId: string): string {
   return `geo:${tenantId}:drivers`;
 }
 
-/**
- * Redis GEO adapter for live driver positions (ioredis). A driver id is a member
- * of a per-tenant sorted set whose score encodes its lng/lat geohash, so a
- * position upsert is one `GEOADD` and a radius lookup is one `GEOSEARCH`. The
- * key is tenant-prefixed, so `nearby`/`onlineDriverIds` can only ever see the
- * caller's own drivers.
- */
 @Injectable()
 export class RedisDriverLocationStore implements DriverLocationStore {
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
 
   async push(tenantId: string, driverId: string, location: Location): Promise<void> {
-    // GEOADD takes longitude first, then latitude.
     await this.redis.geoadd(driversKey(tenantId), location.lng, location.lat, driverId);
   }
 
   async remove(tenantId: string, driverId: string): Promise<void> {
-    // A GEO set is a sorted set; ZREM drops the driver from the online roster.
     await this.redis.zrem(driversKey(tenantId), driverId);
   }
 
   async nearby(tenantId: string, origin: Location, radiusMeters: number): Promise<NearbyDriver[]> {
-    // WITHDIST returns each hit as [member, distanceString]; ASC = nearest first.
     const raw = (await this.redis.geosearch(
       driversKey(tenantId),
       'FROMLONLAT',
@@ -52,7 +41,6 @@ export class RedisDriverLocationStore implements DriverLocationStore {
   }
 
   async onlineDriverIds(tenantId: string): Promise<string[]> {
-    // A GEO set is a sorted set, so ZRANGE lists every driver currently reporting.
     return this.redis.zrange(driversKey(tenantId), 0, -1);
   }
 }

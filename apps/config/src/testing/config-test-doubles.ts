@@ -8,7 +8,6 @@ import type { FeatureFlag } from '@config/domain/config/feature-flag';
 import type { FeatureFlagRepository } from '@config/domain/config/feature-flag.repository';
 import type { TenantContextPort, TenantRequestContext } from '@food-delivery-api/shared-tenancy';
 
-/** In-memory repository — no DB. Keyed by (tenantId ?? 'GLOBAL', key). */
 export class FakeConfigEntryRepository implements ConfigEntryRepository {
   readonly rows = new Map<string, ConfigEntry>();
 
@@ -36,7 +35,6 @@ export class FakeConfigEntryRepository implements ConfigEntryRepository {
   }
 }
 
-/** In-memory repository — no DB. Keyed by (tenantId ?? 'GLOBAL', key). */
 export class FakeFeatureFlagRepository implements FeatureFlagRepository {
   readonly rows = new Map<string, FeatureFlag>();
 
@@ -58,7 +56,6 @@ export class FakeFeatureFlagRepository implements FeatureFlagRepository {
   }
 }
 
-/** Records every publish call so tests can assert a change event fired (or didn't) without a real broker. */
 export class FakeConfigEventPublisher implements ConfigEventPublisherPort {
   readonly valueChanges: ConfigChangePayload[] = [];
   readonly flagChanges: ConfigChangePayload[] = [];

@@ -13,12 +13,6 @@ export interface CreateUserTenantLinkProps {
   role: string;
 }
 
-/**
- * Records which Keycloak user belongs to which tenant (with the role they were
- * provisioned under). Keycloak owns the credential/identity; this link is the
- * platform-side registry answer to "which tenant is this user scoped to",
- * mirroring the `tenant_id` attribute stamped on the Keycloak user.
- */
 export class UserTenantLink {
   private constructor(private readonly props: UserTenantLinkProps) {}
 

@@ -1,14 +1,5 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Creates the order schema: orders, order_items, idempotency_keys.
- *
- * `orders.id` has no DB-side default — the app generates it before insert so
- * `PlaceOrderHandler` can claim the idempotency mapping first. `version`
- * backs the optimistic-lock conditional update in `TypeOrmOrderRepository`.
- * `idempotency_keys` is keyed by (tenant_id, user_id, key) as a composite
- * primary key, giving a duplicate claim a real unique_violation.
- */
 export class CreateOrderTables1753747400000 implements MigrationInterface {
   name = 'CreateOrderTables1753747400000';
 

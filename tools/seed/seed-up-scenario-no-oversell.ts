@@ -7,18 +7,8 @@ interface OrderResponse {
   id: string;
 }
 
-/** Concurrent order count — deliberately more than the seeded stock (`LOW_STOCK_QTY` in `seed-scenario-fixtures.ts`) to exercise the no-oversell guarantee. */
 export const NO_OVERSELL_CONCURRENCY = 8;
 
-/**
- * Fires `NO_OVERSELL_CONCURRENCY` concurrent `POST /orders` (1 unit each,
- * distinct `Idempotency-Key`s) against an item seeded with far less stock,
- * via `Promise.allSettled` (a placement failure never aborts the others).
- * Every successfully placed order is polled to a terminal status; the
- * inventory service's atomic conditional decrement
- * (`apps/inventory/src/application/reservation/commands/reserve-stock.handler.ts`)
- * guarantees the CONFIRMED count can never exceed the seeded stock.
- */
 export async function runNoOversellScenario(
   customerGateway: GatewayClient,
   tenantId: string,

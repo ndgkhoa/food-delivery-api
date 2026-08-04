@@ -1,16 +1,9 @@
 import { createServer, type Server } from 'node:http';
 
-/**
- * A tiny real HTTP upstream the circuit-breaker e2e can start, take `down`
- * (stop accepting connections — new connects get ECONNREFUSED, simulating an
- * unreachable downstream) and bring `up` again on the SAME port (simulating
- * recovery) so the gateway's `*_SERVICE_URL` stays valid across the toggle.
- */
 export class ToggleableStubUpstream {
   private server?: Server;
   private port = 0;
 
-  /** Starts listening on a free port and returns its base URL. */
   async start(): Promise<string> {
     this.server = this.buildServer();
     await new Promise<void>((resolve) => this.server?.listen(0, resolve));
@@ -19,7 +12,6 @@ export class ToggleableStubUpstream {
     return `http://127.0.0.1:${this.port}`;
   }
 
-  /** Simulates the downstream going unreachable. */
   async down(): Promise<void> {
     if (!this.server) {
       return;
@@ -31,7 +23,6 @@ export class ToggleableStubUpstream {
     );
   }
 
-  /** Simulates recovery: re-listens on the same port `start()` returned. */
   async up(): Promise<void> {
     if (this.server) {
       return;

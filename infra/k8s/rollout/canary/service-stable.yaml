@@ -1,8 +1,3 @@
-# Selector deliberately has no `track:` — the Rollout's pod template
-# (rollout.yaml) no longer sets that label; Argo Rollouts owns stable/canary
-# routing by patching `rollouts-pod-template-hash` onto this selector itself
-# once the controller reconciles the Rollout named as this Service's
-# canaryService/stableService.
 apiVersion: v1
 kind: Service
 metadata:

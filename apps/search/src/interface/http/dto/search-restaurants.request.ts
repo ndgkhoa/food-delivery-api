@@ -4,11 +4,6 @@ import { IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'cl
 const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
 
-/**
- * Full-text search params. `q` is trimmed and length-bounded so an empty or
- * pathologically long query can never reach Elasticsearch; pagination is capped
- * to keep result windows cheap.
- */
 export class SearchRestaurantsRequest {
   @Transform(trim)
   @IsString()

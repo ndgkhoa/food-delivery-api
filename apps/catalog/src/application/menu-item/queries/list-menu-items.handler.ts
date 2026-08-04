@@ -8,12 +8,6 @@ import type { PaginatedResult, Pagination } from '@catalog/domain/shared/paginat
 import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable } from '@nestjs/common';
 
-/**
- * Lists a restaurant's menu from the CQRS read model. Parent existence +
- * tenant ownership are still validated against the write model (strongly
- * consistent) so a just-created restaurant never spuriously 404s while its
- * projection catches up; only the item rows are served eventually-consistent.
- */
 @Injectable()
 export class ListMenuItemsHandler {
   constructor(
@@ -24,7 +18,6 @@ export class ListMenuItemsHandler {
   ) {}
 
   async execute(restaurantId: string, pagination: Pagination): Promise<PaginatedResult<MenuItem>> {
-    // Confirms the restaurant exists AND belongs to the caller's tenant before listing its menu items.
     await this.getRestaurant.execute(restaurantId);
     const tenantId = this.tenantContext.getTenantIdOrThrow();
 

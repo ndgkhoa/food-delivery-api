@@ -1,6 +1,5 @@
 import { Column, CreateDateColumn, Entity, PrimaryColumn } from 'typeorm';
 
-/** One row per CONFIRMED order carrying a restaurantId — recorded by the `order.events` eligibility consumer. */
 @Entity('review_eligible_orders')
 export class ReviewEligibleOrderOrmEntity {
   @PrimaryColumn({ name: 'order_id', type: 'uuid' })

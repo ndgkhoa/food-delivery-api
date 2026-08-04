@@ -15,13 +15,6 @@ interface ThumbnailJobData {
   mediaId: string;
 }
 
-/**
- * Background consumer of the thumbnail queue: it drives the generate-thumbnail
- * use case for each job. A failed job (all attempts exhausted) leaves the row at
- * UPLOADED — never a false READY — and is logged for operators; BullMQ retains
- * it. Its own Redis connection + worker loop start on boot and drain on
- * shutdown. Skipped under NODE_ENV=test so unit suites need no live Redis.
- */
 @Injectable()
 export class ThumbnailWorker implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(ThumbnailWorker.name);

@@ -7,12 +7,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-/**
- * A single item's stock hold for an order. `status` transitions ACTIVE→RELEASED;
- * the (tenant_id, order_id) index backs reserve idempotency and release lookups.
- * A partial unique index (tenant_id, order_id, item_id) WHERE status = 'ACTIVE'
- * — created in a migration — enforces at most one active hold per order+item.
- */
 @Entity('reservations')
 @Index(['tenantId'])
 @Index(['tenantId', 'orderId'])

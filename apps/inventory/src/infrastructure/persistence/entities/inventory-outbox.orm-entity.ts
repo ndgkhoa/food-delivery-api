@@ -1,11 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
-/**
- * Polling-outbox row for inventory replies: the relay drains unpublished rows,
- * produces them to Kafka (key = order id), then stamps `published_at`. `id`
- * becomes the event id (`x-event-id` + downstream dedupe key). A partial index
- * on unpublished rows keeps the relay's hot path cheap.
- */
 @Entity('inventory_outbox')
 @Index('idx_inventory_outbox_unpublished', ['createdAt'], { where: '"published_at" IS NULL' })
 export class InventoryOutboxOrmEntity {
@@ -39,14 +33,6 @@ export class InventoryOutboxOrmEntity {
   @Column({ type: 'integer', default: 0 })
   attempts!: number;
 
-  /**
-   * W3C traceparent captured synchronously at append time (the request/handler
-   * transaction), so the relay's later publish tick can forward the ORIGINAL
-   * request's trace context instead of starting a fresh one — see
-   * `captureActiveTraceContext` in `@food-delivery-api/shared-observability`.
-   * Null when telemetry is off or no span was active; the producer then falls
-   * back to its own per-hop injection.
-   */
   @Column({ name: 'trace_parent', type: 'varchar', length: 64, nullable: true })
   traceParent!: string | null;
 }

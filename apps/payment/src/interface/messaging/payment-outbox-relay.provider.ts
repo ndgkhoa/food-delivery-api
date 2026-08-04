@@ -15,14 +15,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-/** Topics payment interacts with (consumes commands, produces replies). */
 const PAYMENT_TOPICS = ['payment.commands', 'payment.replies'];
 
-/**
- * Owns the payment stub's polling-outbox relay lifecycle. Ensures its topics
- * exist, then drains `payment_outbox` to Kafka (key = order id). Disabled under
- * NODE_ENV=test.
- */
 @Injectable()
 export class PaymentOutboxRelayProvider implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(PaymentOutboxRelayProvider.name);

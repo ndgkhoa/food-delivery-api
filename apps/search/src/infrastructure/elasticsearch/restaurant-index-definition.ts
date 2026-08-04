@@ -1,20 +1,7 @@
 import type { estypes } from '@elastic/elasticsearch';
 
-/**
- * Small curated Vietnamese synonym set. Accent folding (`asciifolding`) already
- * collapses "phở" → "pho", so these mainly bridge spacing/spelling variants that
- * folding alone cannot (e.g. "banh mi" ↔ "banhmi"). Kept deliberately tiny —
- * grows with real query-log evidence, not speculation.
- */
 const VN_SYNONYMS = ['phở, pho', 'bún, bun', 'bánh mì, banh mi, banhmi'];
 
-/**
- * Index settings for the restaurant read model. `vn_text` lowercases + folds VN
- * diacritics + expands synonyms so accent-insensitive and synonym queries hit.
- * The autocomplete sub-field indexes edge-ngrams (2–15) but SEARCHES with the
- * non-ngram analyzer, so a prefix query matches stored prefixes without the
- * query itself being ngram-exploded.
- */
 export const RESTAURANT_INDEX_SETTINGS: estypes.IndicesIndexSettings = {
   analysis: {
     filter: {
@@ -41,12 +28,6 @@ export const RESTAURANT_INDEX_SETTINGS: estypes.IndicesIndexSettings = {
   },
 };
 
-/**
- * Field mappings. `name` is full-text (`vn_text`) with an `autocomplete`
- * edge-ngram sub-field and a `keyword` sub-field for exact/sort use. `rating`
- * is a float defaulting to 0 that the search `function_score` weights (review
- * data lands later). `tenantId` is a keyword filter term for tenant isolation.
- */
 export const RESTAURANT_INDEX_MAPPINGS: estypes.MappingTypeMapping = {
   properties: {
     tenantId: { type: 'keyword' },

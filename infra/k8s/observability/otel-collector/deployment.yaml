@@ -1,7 +1,3 @@
-# No trace pipeline (unlike the compose profile, which also forwards to
-# Jaeger) — this in-cluster Collector exists solely to turn OTLP metrics into
-# a Prometheus-scrapable endpoint for the HPA custom-metric demo; tracing
-# stays a local/compose-only concern for this learning project.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

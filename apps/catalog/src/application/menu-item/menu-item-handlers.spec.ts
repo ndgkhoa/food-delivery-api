@@ -30,7 +30,6 @@ class FakeRestaurantRepository implements RestaurantRepository {
     return restaurant;
   }
 
-  /** Not exercised by this suite (no restaurant-update tests here) — present only to satisfy the interface. */
   async updateVersioned(restaurant: Restaurant): Promise<Restaurant> {
     this.rows.set(restaurant.id, restaurant);
     return restaurant;
@@ -38,7 +37,6 @@ class FakeRestaurantRepository implements RestaurantRepository {
 
   async findById(id: string, tenantId: string): Promise<Restaurant | null> {
     const row = this.rows.get(id);
-    // Mirrors the real adapter: a soft-deleted parent must not resolve.
     return row && row.tenantId === tenantId && !row.deletedAt ? row : null;
   }
 
@@ -55,10 +53,6 @@ class FakeRestaurantRepository implements RestaurantRepository {
   }
 }
 
-/**
- * In-memory fake — no DB. Backs both the write port and the read-model port off
- * one map so a `save` in a command is visible to the list handler (read model).
- */
 class FakeMenuItemRepository implements MenuItemRepository, ReadMenuItemRepository {
   private readonly rows = new Map<string, MenuItem>();
 
@@ -67,12 +61,6 @@ class FakeMenuItemRepository implements MenuItemRepository, ReadMenuItemReposito
     return menuItem;
   }
 
-  /**
-   * Mimics the real repository's atomic conditional update: rejects when the
-   * stored row's version has already moved past `menuItem.version` (the
-   * version the caller loaded), then bumps it by 1 — so a concurrent-save
-   * race can be simulated in-memory without a DB.
-   */
   async updateVersioned(menuItem: MenuItem): Promise<MenuItem> {
     const current = this.rows.get(menuItem.id);
     if (!current || current.version !== menuItem.version) {
@@ -113,7 +101,6 @@ class FakeMenuItemRepository implements MenuItemRepository, ReadMenuItemReposito
 
   async softDelete(id: string, tenantId: string): Promise<void> {
     const row = this.rows.get(id);
-    // Simulates soft-delete by removing from the visible set.
     if (row && row.tenantId === tenantId) {
       this.rows.delete(id);
     }
@@ -155,7 +142,6 @@ class FakeMenuItemRepository implements MenuItemRepository, ReadMenuItemReposito
   }
 }
 
-/** Records emitted outbox entries so tests can assert an event was appended per write. */
 class FakeOutboxWriter implements OutboxWriter {
   readonly entries: OutboxEntry[] = [];
 
@@ -193,7 +179,6 @@ class FakeAuditPort implements AuditPort {
   }
 }
 
-/** Runs the work directly — the in-memory fakes need no real commit/rollback boundary. */
 class FakeTransactionPort implements TransactionPort {
   runInTransaction<T>(work: () => Promise<T>): Promise<T> {
     return work();
@@ -316,7 +301,6 @@ describe('menu-item application handlers', () => {
 
     await deleteRestaurant.execute(restaurant.id);
 
-    // Parent is gone (404s), and its menu items are no longer visible to menu-item queries.
     await expect(getRestaurant.execute(restaurant.id)).rejects.toThrow(/not found/i);
     const remaining = await menuItemRepository.findAndCountByRestaurant(tenantA, restaurant.id, {
       page: 1,
@@ -378,7 +362,6 @@ describe('menu-item application handlers', () => {
       priceCents: 8500,
     });
 
-    // Both writers load the SAME version before either commits.
     const firstView = await getMenuItem.execute(restaurant.id, menuItem.id);
     const secondView = await getMenuItem.execute(restaurant.id, menuItem.id);
 

@@ -14,18 +14,6 @@ import { THUMBNAIL_QUEUE, type ThumbnailQueuePort } from '@media/domain/media/th
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-/**
- * Confirms a client finished its direct upload. A presigned PUT lets the client
- * write ARBITRARY bytes, so the create-time size is only a declaration — here we
- * re-check the ACTUAL stored size (MinIO-reported, not client-controlled) and
- * delete + reject anything past the byte ceiling, so an oversized blob can never
- * reach and OOM the thumbnail worker. Actual image validity is enforced by sharp
- * in the worker (a non-image fails the job and leaves the row UPLOADED, never a
- * false READY), so content-type — which the client controls on the PUT — is not
- * re-checked here. Only after the size check does the row advance to UPLOADED and
- * a thumbnail job enqueue. Tenant-scoped and idempotent — a READY row is a no-op;
- * an UPLOADED one re-enqueues (deduped by media id).
- */
 @Injectable()
 export class CompleteUploadHandler {
   private readonly maxBytes: number;
@@ -55,8 +43,6 @@ export class CompleteUploadHandler {
       throw new ObjectNotUploadedError(id);
     }
 
-    // The bytes the client actually PUT — NOT the size it declared at create. An
-    // oversized object is deleted so it can't cost storage or OOM the worker.
     if (stat.sizeBytes > this.maxBytes) {
       await this.storage.removeObject(media.objectKey);
       throw new InvalidUploadError(

@@ -1,13 +1,5 @@
 import { DomainException } from '@food-delivery-api/shared-errors';
 
-/**
- * Transport-agnostic domain errors for the order service. Use cases throw
- * these; the shared `GlobalExceptionFilter` reads `code`/`httpStatus`
- * directly off each, so the domain/application layers never depend on
- * `@nestjs/common` HTTP semantics.
- */
-
-/** Raised when a request is malformed at the use-case boundary (empty items, non-positive qty). */
 export class InvalidOrderRequestError extends DomainException {
   readonly code = 'ORDER_INVALID_REQUEST';
   readonly httpStatus = 400;
@@ -17,7 +9,6 @@ export class InvalidOrderRequestError extends DomainException {
   }
 }
 
-/** Raised when a tenant-scoped lookup finds no order with the given id. */
 export class OrderNotFoundError extends DomainException {
   readonly code = 'ORDER_NOT_FOUND';
   readonly httpStatus = 404;
@@ -27,7 +18,6 @@ export class OrderNotFoundError extends DomainException {
   }
 }
 
-/** Raised by `Order`'s state machine when a requested transition is not in the allowed-transitions table. */
 export class IllegalOrderTransitionError extends DomainException {
   readonly code = 'ORDER_ILLEGAL_TRANSITION';
   readonly httpStatus = 409;
@@ -40,11 +30,6 @@ export class IllegalOrderTransitionError extends DomainException {
   }
 }
 
-/**
- * Raised when placing an order references menu items that are missing,
- * belong to another tenant, or are unavailable. Maps to HTTP 422 — the
- * request is well-formed but the referenced items fail business validation.
- */
 export class MenuValidationError extends DomainException {
   readonly code = 'ORDER_MENU_VALIDATION_FAILED';
   readonly httpStatus = 422;
@@ -54,12 +39,6 @@ export class MenuValidationError extends DomainException {
   }
 }
 
-/**
- * Raised when an idempotency key replay cannot be resolved cleanly — either
- * the mapping points at an order row that is not yet visible (a race with the
- * winning concurrent request), or a downstream reserve reports the same
- * order id already holds different reserved contents.
- */
 export class IdempotencyConflictError extends DomainException {
   readonly code = 'ORDER_IDEMPOTENCY_CONFLICT';
   readonly httpStatus = 409;
@@ -69,11 +48,6 @@ export class IdempotencyConflictError extends DomainException {
   }
 }
 
-/**
- * Raised when an optimistic-lock write loses a race (the row's version no
- * longer matches what was read) or when a downstream gRPC call reports
- * transient contention (ABORTED) that the caller should retry. Maps to HTTP 409.
- */
 export class OrderConcurrencyConflictError extends DomainException {
   readonly code = 'ORDER_CONCURRENCY_CONFLICT';
   readonly httpStatus = 409;
@@ -83,7 +57,6 @@ export class OrderConcurrencyConflictError extends DomainException {
   }
 }
 
-/** Raised when a caller who is neither the order's owner nor an admin attempts to act on it. */
 export class OrderForbiddenError extends DomainException {
   readonly code = 'ORDER_FORBIDDEN';
   readonly httpStatus = 403;
@@ -93,12 +66,6 @@ export class OrderForbiddenError extends DomainException {
   }
 }
 
-/**
- * Raised by the saga state machine when a requested transition is not in its
- * allowed-transitions table (e.g. STOCK_RESERVED→STARTED). Only ever thrown on
- * the Kafka messaging edge (never surfaced over HTTP), but still extends
- * `DomainException` for a consistent error hierarchy across the service.
- */
 export class IllegalSagaTransitionError extends DomainException {
   readonly code = 'ORDER_SAGA_ILLEGAL_TRANSITION';
   readonly httpStatus = 409;
@@ -111,11 +78,6 @@ export class IllegalSagaTransitionError extends DomainException {
   }
 }
 
-/**
- * Raised when the optimistic-locked saga transition update affects zero rows —
- * a concurrent reply already advanced the saga past the version this handler
- * read. The redelivered/racing reply is safely abandoned.
- */
 export class SagaConcurrencyConflictError extends DomainException {
   readonly code = 'ORDER_SAGA_CONCURRENCY_CONFLICT';
   readonly httpStatus = 409;
@@ -125,7 +87,6 @@ export class SagaConcurrencyConflictError extends DomainException {
   }
 }
 
-/** Raised when a reply references an order id that has no saga row (should never happen once place-order committed). */
 export class SagaNotFoundError extends DomainException {
   readonly code = 'ORDER_SAGA_NOT_FOUND';
   readonly httpStatus = 404;
@@ -135,16 +96,6 @@ export class SagaNotFoundError extends DomainException {
   }
 }
 
-/**
- * Raised by the stranded-saga reconciler's guarded attempts-increment when the
- * saga is no longer in the state the re-drive decision was made for — a
- * concurrent real reply already advanced (or terminated) it between the
- * reconciler's read and this write. Signals the caller's transaction to roll
- * back so the re-drive command staged alongside it is never appended: acting
- * on a state that already moved on would replay stale intent (e.g. reserving
- * stock again for an order a real reply just cancelled). The reconciler
- * treats this as an expected skip, not a failure.
- */
 export class SagaStateChangedError extends DomainException {
   readonly code = 'ORDER_SAGA_STATE_CHANGED';
   readonly httpStatus = 409;

@@ -4,11 +4,6 @@ import type { TransactionPort } from '@notification/domain/shared/transaction.po
 import { runWithEntityManager } from '@notification/infrastructure/persistence/transaction/transactional-entity-manager';
 import type { DataSource } from 'typeorm';
 
-/**
- * Binds the domain `TransactionPort` to a real Postgres transaction. Publishes
- * the transaction's `EntityManager` on async-local storage so the dedupe write
- * and the notification row batch share one commit boundary.
- */
 @Injectable()
 export class TypeOrmTransactionAdapter implements TransactionPort {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}

@@ -9,13 +9,6 @@ import { AlsTenantContextAdapter } from '@food-delivery-api/shared-tenancy';
 const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(',');
 const REVIEW_EVENTS_TOPIC = 'review.events';
 
-/**
- * Consumes `review.events` FROM THE BEGINNING under a fresh, throwaway
- * consumer group and returns every `RestaurantRatingChanged` seen for
- * `restaurantId` within `timeoutMs` (mirrors messaging-e2e's raw
- * subscriber-based verification style). Independent of review's own outbox
- * relay's consumer group, so it never steals/competes for its offsets.
- */
 export async function collectRatingChangedEvents(
   restaurantId: string,
   expectedCount: number,

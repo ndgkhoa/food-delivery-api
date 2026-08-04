@@ -1,8 +1,3 @@
-# Identical pipeline to infra/otel-collector/config.yaml (the compose
-# `observability` profile) — OTLP in, Prometheus-exporter out — so the same
-# mental model applies in-cluster. Apps opt in by pointing
-# OTEL_EXPORTER_OTLP_ENDPOINT at this Collector's Service (see the dev overlay
-# ConfigMap patch) and setting TELEMETRY_ENABLED=true.
 apiVersion: v1
 kind: ConfigMap
 metadata:

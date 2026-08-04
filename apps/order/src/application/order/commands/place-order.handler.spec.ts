@@ -93,7 +93,6 @@ class FakeSagaRepository implements OrderSagaRepository {
   }
 
   async resetReconcileAttempts(): Promise<'reset' | 'terminal' | 'not_found'> {
-    // Not exercised by place-order tests — the DLQ-replay tool is covered separately.
     return 'not_found';
   }
 }
@@ -128,11 +127,6 @@ class FakeTransaction implements TransactionPort {
   }
 }
 
-/**
- * Minimal stand-in for the settings-client: `seed` sets a value for a key, an
- * unseeded key returns the caller default — mirroring the real client's
- * never-throws, default-on-cold-miss contract without any network/cache.
- */
 class FakeSettingsClient implements OrderPricingSettingsClient {
   private readonly values = new Map<string, number>();
 
@@ -184,8 +178,6 @@ describe('PlaceOrderHandler (async saga)', () => {
     expect(order.status).toBe('PENDING');
     expect(order.restaurantId).toBe('r-1');
     expect(order.subtotalCents).toBe(1000);
-    // No settings-client seed for this tenant — every key falls back to its
-    // documented default: fee 1500, VAT floor(1000 * 1000 / 10000) = 100.
     expect(order.deliveryFeeCents).toBe(1500);
     expect(order.vatCents).toBe(100);
     expect(order.discountCents).toBe(0);
@@ -201,7 +193,6 @@ describe('PlaceOrderHandler (async saga)', () => {
       aggregateId: order.id,
       payload: { orderId: order.id, items: [{ itemId, qty: 2 }] },
     });
-    // The saga's ROOT correlation id is minted once and rides the first command.
     expect(outbox.entries[0].correlationId).toBeDefined();
     expect(outbox.entries[0].correlationId).toBe(saga?.correlationId);
   });
@@ -221,14 +212,14 @@ describe('PlaceOrderHandler (async saga)', () => {
     const { catalogGateway, configClient, handler } = buildHandler();
     catalogGateway.seed({ itemId, restaurantId: 'r-1', priceCents: 500, isAvailable: true });
     configClient.seed('order.delivery_fee_cents', 2000);
-    configClient.seed('order.vat_rate_bps', 500); // 5%
+    configClient.seed('order.vat_rate_bps', 500);
     configClient.seed('order.discount_cents', 100);
 
     const order = await handler.execute(baseCommand());
 
     expect(order.subtotalCents).toBe(1000);
     expect(order.deliveryFeeCents).toBe(2000);
-    expect(order.vatCents).toBe(50); // floor(1000 * 500 / 10000)
+    expect(order.vatCents).toBe(50);
     expect(order.discountCents).toBe(100);
     expect(order.totalCents).toBe(1000 + 2000 + 50 - 100);
   });

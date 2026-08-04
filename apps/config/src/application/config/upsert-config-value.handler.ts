@@ -16,18 +16,9 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 export interface UpsertConfigValueCommand {
   key: string;
   value: number;
-  /** Writes the GLOBAL default (`tenant_id NULL`) instead of the caller's own tenant override. */
   global: boolean;
 }
 
-/**
- * Writes a config value — the caller's own tenant override by default, or the
- * GLOBAL default when `global` is requested (gated on `platform-admin`; the
- * route-level `@Roles('admin','platform-admin')` guard only proves the caller
- * has ONE of the two roles, not which one, so the stricter global-write rule
- * is enforced here). Emits `ConfigValueChanged` best-effort after the write —
- * a publish failure never rolls back the already-committed row.
- */
 @Injectable()
 export class UpsertConfigValueHandler {
   private readonly logger = new Logger(UpsertConfigValueHandler.name);

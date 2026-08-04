@@ -9,25 +9,6 @@ import {
 } from '@food-delivery-api/shared-messaging';
 import { AlsTenantContextAdapter } from '@food-delivery-api/shared-tenancy';
 
-/**
- * End-to-end proof of the Outbox → Debezium → Kafka → projection → read-model
- * pipeline. Unlike the other catalog e2e specs, this one does NOT spin up
- * testcontainers — there is no Node Debezium testcontainer. It runs against a
- * live compose stack with the connector registered:
- *
- *   docker compose -f infra/docker-compose.yml --profile core --profile messaging up -d
- *   ./infra/debezium/register-connectors.sh
- *   pnpm --filter catalog serve        # catalog service on :3001 (projection consumer active)
- *   pnpm nx e2e catalog-e2e --testFile=catalog-outbox-cdc-read-model.e2e-spec.ts
- *
- * Env overrides: CATALOG_BASE_URL (default http://localhost:3001/api/v1),
- * KAFKA_BROKERS (default localhost:9092).
- *
- * Asserts: (1) a write publishes to `catalog.events` with the envelope headers
- * the shared codec requires (x-event-type / x-tenant-id / x-event-id) keyed by
- * the aggregate id; (2) the read model reflects the write within seconds;
- * (3) another tenant cannot read the row.
- */
 const BASE_URL = process.env.CATALOG_BASE_URL ?? 'http://localhost:3001/api/v1';
 const BROKERS = (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(',');
 const CATALOG_EVENTS_TOPIC = 'catalog.events';
@@ -91,8 +72,6 @@ describe('Catalog outbox → Debezium CDC → read model (e2e, compose)', () => 
     const created = (await createRes.json()) as { id: string };
     const restaurantId = created.id;
 
-    // 1) The outbox row was routed to catalog.events with the envelope headers,
-    //    keyed (via the aggregate id header) to the restaurant.
     const event = await waitUntil(async () =>
       received.find(
         (m) =>
@@ -103,14 +82,12 @@ describe('Catalog outbox → Debezium CDC → read model (e2e, compose)', () => 
     expect(event.envelope.eventId).toMatch(/^[0-9a-f-]{36}$/);
     expect(event.topic).toBe(CATALOG_EVENTS_TOPIC);
 
-    // 2) The projection consumer applied it — the read model serves the row.
     const view = await waitUntil(async () => {
       const res = await fetch(`${BASE_URL}/restaurants/${restaurantId}`, { headers: ownerHeaders });
       return res.status === 200 ? ((await res.json()) as { id: string; name: string }) : undefined;
     });
     expect(view).toMatchObject({ id: restaurantId, name: 'CDC Diner' });
 
-    // 3) Tenant isolation: another tenant cannot read the projected row.
     const otherRes = await fetch(`${BASE_URL}/restaurants/${restaurantId}`, {
       headers: { ...ownerHeaders, 'x-tenant-id': otherTenantId },
     });

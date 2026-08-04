@@ -1,13 +1,5 @@
 import sharp from 'sharp';
 
-/**
- * Generates a REAL, viewable demo image instead of a 1x1 placeholder: a solid
- * coloured card with a centered label, rendered from an SVG via `sharp` (the
- * same image library the media service's thumbnailer uses). The uploaded object
- * is then actually visible in a browser or the MinIO console preview. Pixel
- * content is demo-only; what matters is that it's a valid `image/png` on the
- * media service's `ALLOWED_MIME` allowlist.
- */
 export const DEMO_IMAGE_CONTENT_TYPE = 'image/png';
 
 const PALETTE = ['#E4572E', '#F3A712', '#2E86AB', '#3B8C5A', '#8367C7', '#D7263D'];

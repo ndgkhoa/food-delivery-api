@@ -26,32 +26,8 @@ interface UnpublishedRow {
   trace_parent: string | null;
 }
 
-/**
- * Distinct per-service Postgres advisory-lock key so the order relay's drain
- * serializes across HPA replicas. Only needs to be unique within order's own
- * database (each service owns its database), but kept distinct from the other
- * services' keys (payment 4002, inventory 4003, review 4004) for clarity.
- */
 const OUTBOX_RELAY_LOCK_KEY = 4001;
 
-/**
- * Two roles over the same `order_outbox` table:
- * - `OutboxWriter.append` — enlists in the caller's transaction so a command
- *   row commits atomically with the order/saga change that emitted it. Tenant is
- *   read from the tenant context (never the entry) so no call site can spoof it;
- *   the entry's `correlationId` threads the saga's trace id from the triggering
- *   event, and only when absent (the saga's first command) is a root id minted —
- *   the header is always non-null.
- * - `OutboxPort.fetchUnpublished` / `markPublished` — the relay's drain. Claims
- *   a batch with `FOR UPDATE SKIP LOCKED` so overlapping ticks pick DIFFERENT
- *   rows, maps each to a keyed Kafka record (key = order id) with the six
- *   envelope headers, then marks them published. At-least-once: consumers dedupe
- *   by event id (the row `id`).
- * - `OutboxPort.runExclusively` — wraps the relay's whole drain in a session-held
- *   advisory lock so only one HPA replica drains at a time, keeping duplicate
- *   publishes at the inherent crash-between-publish-and-mark-done rate instead
- *   of amplifying with replica count.
- */
 @Injectable()
 export class TypeOrmOrderOutboxAdapter implements OutboxWriter, OutboxPort {
   constructor(
@@ -61,7 +37,6 @@ export class TypeOrmOrderOutboxAdapter implements OutboxWriter, OutboxPort {
     @Inject(TENANT_CONTEXT_PORT) private readonly tenantContext: TenantContextPort,
   ) {}
 
-  /** Enlists in the active transaction so the outbox row commits with its emitter's write. */
   private get repository(): Repository<OrderOutboxOrmEntity> {
     return (
       getTransactionalEntityManager()?.getRepository(OrderOutboxOrmEntity) ?? this.outboxRepository
@@ -83,7 +58,6 @@ export class TypeOrmOrderOutboxAdapter implements OutboxWriter, OutboxPort {
     await this.repository.save(row);
   }
 
-  /** Bumps `attempts` for rows whose relay publish just failed — poison-row visibility. */
   async incrementAttempts(ids: string[]): Promise<void> {
     if (ids.length === 0) {
       return;
@@ -92,8 +66,6 @@ export class TypeOrmOrderOutboxAdapter implements OutboxWriter, OutboxPort {
   }
 
   async fetchUnpublished(limit: number): Promise<OutboxRecord[]> {
-    // Claim + read in one short transaction: the row lock (SKIP LOCKED) is held
-    // only for this select, letting a second relay tick grab a different batch.
     const rows = await this.dataSource.transaction<UnpublishedRow[]>((manager) =>
       manager
         .getRepository(OrderOutboxOrmEntity)
@@ -126,9 +98,6 @@ export class TypeOrmOrderOutboxAdapter implements OutboxWriter, OutboxPort {
         correlationId: row.correlation_id,
         occurredAt: new Date(row.created_at).toISOString(),
       });
-      // Forwards the ORIGINAL request's trace context captured at append time;
-      // the producer's `!headers.traceparent` guard only injects its own
-      // (disconnected) span when this is absent — see `kafka-producer.ts`.
       if (row.trace_parent) {
         headers.traceparent = row.trace_parent;
       }

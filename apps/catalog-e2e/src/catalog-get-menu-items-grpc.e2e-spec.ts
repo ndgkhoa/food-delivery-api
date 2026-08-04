@@ -46,13 +46,6 @@ function buildClient(): CatalogRawClient {
   return new proto.catalog.CatalogService(GRPC_URL, credentials.createInsecure());
 }
 
-/**
- * Proves the catalog hybrid app's gRPC surface: a live catalog (HTTP + gRPC in
- * one process, real migrated Postgres) resolves menu items over a real gRPC
- * channel, tenant-scoped from metadata — and never leaks another tenant's items.
- *
- *   pnpm nx e2e catalog-e2e
- */
 describe('Catalog GetMenuItems gRPC (e2e)', () => {
   let app: INestApplication;
   let db: CatalogTestDatabase;

@@ -1,31 +1,11 @@
 import 'reflect-metadata';
 import { makePng } from './png-fixture';
 
-/**
- * End-to-end proof of the media upload pipeline against REAL infrastructure.
- * Like the other cross-service e2e, this does NOT spin up testcontainers — it
- * drives a live compose stack (MinIO + Postgres + Redis) with the media service
- * running. Run it against:
- *
- *   docker compose -f infra/docker-compose.yml --profile core --profile media up -d
- *   nx run media:migration-run
- *   pnpm --filter media serve          # media on :3006 (HTTP + thumbnail worker)
- *   pnpm nx e2e media-e2e
- *
- * Env override: MEDIA_BASE_URL (default http://localhost:3006/api/v1).
- *
- * Asserts: (1) create-upload → PUT the bytes to the returned presigned URL →
- * complete → poll GET until READY → the presigned original + thumbnail URLs both
- * fetch 200 and the thumbnail is smaller than the original; (2) a disallowed MIME
- * and an over-size upload are rejected at create-upload (no URL issued); (3)
- * tenant isolation — tenant B cannot complete or get tenant A's object.
- */
 const MEDIA_BASE_URL = process.env.MEDIA_BASE_URL ?? 'http://localhost:3006/api/v1';
 
 const tenantA = '77777777-7777-4777-8777-777777777777';
 const tenantB = '88888888-8888-4888-8888-888888888888';
 
-// Mimics what the gateway stamps after verifying a token.
 const headersFor = (tenantId: string): Record<string, string> => ({
   'content-type': 'application/json',
   'x-tenant-id': tenantId,
@@ -74,7 +54,6 @@ describe('Media upload → thumbnail → presigned get (e2e, compose)', () => {
   it('uploads directly to MinIO, generates a smaller thumbnail, and serves both via presigned URLs', async () => {
     const png = makePng(512, 512);
 
-    // 1) create-upload → PENDING row + presigned PUT.
     const createRes = await fetch(`${MEDIA_BASE_URL}/media/uploads`, {
       method: 'POST',
       headers: headersFor(tenantA),
@@ -84,7 +63,6 @@ describe('Media upload → thumbnail → presigned get (e2e, compose)', () => {
     const created = (await createRes.json()) as CreateUploadResponse;
     expect(created.objectKey.startsWith(`${tenantA}/`)).toBe(true);
 
-    // 2) Client PUTs the bytes DIRECTLY to the presigned URL (app never proxies).
     const putRes = await fetch(created.uploadUrl, {
       method: 'PUT',
       headers: { 'content-type': 'image/png' },
@@ -92,14 +70,12 @@ describe('Media upload → thumbnail → presigned get (e2e, compose)', () => {
     });
     expect(putRes.status).toBe(200);
 
-    // 3) complete → verifies the object exists → UPLOADED → enqueues thumbnail.
     const completeRes = await fetch(`${MEDIA_BASE_URL}/media/uploads/${created.id}/complete`, {
       method: 'POST',
       headers: headersFor(tenantA),
     });
     expect(completeRes.status).toBe(201);
 
-    // 4) Poll GET until the worker marks it READY with a thumbnail URL.
     const ready = await waitUntil(async () => {
       const res = await fetch(`${MEDIA_BASE_URL}/media/${created.id}`, {
         headers: headersFor(tenantA),
@@ -111,7 +87,6 @@ describe('Media upload → thumbnail → presigned get (e2e, compose)', () => {
       return media.status === 'READY' && media.thumbnailUrl ? media : undefined;
     });
 
-    // 5) Both presigned GET URLs actually fetch, and the thumbnail is smaller.
     const originalSize = await contentLength(ready.url);
     const thumbnailSize = await contentLength(ready.thumbnailUrl as string);
     expect(thumbnailSize).toBeLessThan(originalSize);
@@ -149,7 +124,6 @@ describe('Media upload → thumbnail → presigned get (e2e, compose)', () => {
       body: png,
     });
 
-    // Tenant B sees the row as non-existent (tenant-scoped lookup) → 404 on both.
     const completeAsB = await fetch(`${MEDIA_BASE_URL}/media/uploads/${created.id}/complete`, {
       method: 'POST',
       headers: headersFor(tenantB),

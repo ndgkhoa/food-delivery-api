@@ -8,11 +8,9 @@ import { Inject, Injectable } from '@nestjs/common';
 export interface ConfigValueListItem {
   key: string;
   value: number;
-  /** Which row this effective value came from — the tenant's own override, or the global default. */
   scope: 'tenant' | 'global';
 }
 
-/** Lists every key visible to the caller's tenant — its own overrides plus every global default, merged (tenant wins on a shared key). */
 @Injectable()
 export class ListConfigValuesHandler {
   constructor(
@@ -28,7 +26,6 @@ export class ListConfigValuesHandler {
     for (const entry of entries) {
       const scope: 'tenant' | 'global' = entry.tenantId === null ? 'global' : 'tenant';
       const existing = byKey.get(entry.key);
-      // A tenant row always wins over a global row for the same key, regardless of read order.
       if (!existing || scope === 'tenant') {
         byKey.set(entry.key, { key: entry.key, value: entry.value, scope });
       }

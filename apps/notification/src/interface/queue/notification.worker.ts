@@ -16,14 +16,6 @@ import {
 import { type Job, Worker } from 'bullmq';
 import IORedis, { type Redis } from 'ioredis';
 
-/**
- * One BullMQ `Worker` per channel queue (email/sms/push), each driving
- * `SendNotificationHandler` for its jobs. A send failure is left to BullMQ's
- * own retry/backoff (configured on the producer side); `HandleSendFailureHandler`
- * runs from the `failed` listener — the only place `attemptsMade` is known —
- * to record FAILED (retryable) or DEAD + notify-dlq (exhausted). Skipped
- * under NODE_ENV=test so unit suites need no live Redis.
- */
 @Injectable()
 export class NotificationWorker implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(NotificationWorker.name);

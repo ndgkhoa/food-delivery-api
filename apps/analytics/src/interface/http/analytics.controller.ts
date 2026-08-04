@@ -9,12 +9,6 @@ import type { TopRestaurantResponse } from '@analytics/interface/http/dto/top-re
 import { TopRestaurantsQueryRequest } from '@analytics/interface/http/dto/top-restaurants-query.request';
 import { Controller, Get, Query } from '@nestjs/common';
 
-/**
- * Read-only dashboard API: every route is tenant-scoped from the trusted
- * identity the gateway verified and propagated (never a raw client header),
- * so a caller only ever sees its own tenant's aggregates. No write routes —
- * analytics never mutates business state.
- */
 @Controller('analytics')
 export class AnalyticsController {
   constructor(

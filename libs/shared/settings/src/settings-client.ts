@@ -2,26 +2,15 @@ import { buildCacheKey, SettingsCache } from './settings-cache';
 import type { SettingsClientLogger } from './settings-client-logger';
 
 export interface SettingsClientOptions {
-  /** Base URL of the config service, e.g. `http://localhost:3008`. */
   configServiceUrl: string;
-  /** How long a resolved value/flag is cached before a background re-fetch. */
   ttlMs: number;
 }
 
 const FETCH_TIMEOUT_MS = 3_000;
-/** Identity this internal caller stamps on its own request — settings-client IS the trust boundary for this one hop, the same way a gRPC caller establishes tenant scope from call metadata rather than an HTTP header. */
 const SYSTEM_ACTOR = 'settings-client';
 
-/** A JSON body absent because the key isn't configured (404) vs a parsed body. */
 type ConfigResponse = { status: 404 } | { status: 200; body: unknown };
 
-/**
- * Fetches AND reads the JSON body under ONE abort timeout. `fetch` resolves as
- * soon as response headers arrive, so reading the body outside this region
- * would leave `res.json()` un-timed — a stalled body would hang `getInt`/
- * `isEnabled` forever and turn config into the hard dependency it must never be.
- * 404 (key not configured) is a normal "absent" signal, not a failure.
- */
 async function requestJsonWithTimeout(
   url: string,
   headers: Record<string, string>,
@@ -46,15 +35,6 @@ function identityHeaders(tenantId: string): Record<string, string> {
   return { 'x-tenant-id': tenantId, 'x-user-id': SYSTEM_ACTOR, 'x-roles': '' };
 }
 
-/**
- * Read-through cache in front of the config service's HTTP API. `getInt`/
- * `isEnabled` NEVER throw: a cold cache miss with the config service
- * unreachable (or erroring) logs a WARN and returns the caller-supplied
- * default — config must never be a hard dependency for a business flow like
- * placing an order. A resolved-but-absent key (404 — no tenant or global row
- * configured) is a normal state, not a failure, so it falls back to the
- * default silently (no WARN).
- */
 export class SettingsClient {
   constructor(
     private readonly options: SettingsClientOptions,
@@ -117,8 +97,6 @@ export class SettingsClient {
     }
     const value = (res.body as { value?: unknown }).value;
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      // A well-formed-looking 200 with a non-numeric value is corrupt, not a
-      // real config — throw so getInt WARNs + falls back rather than caching junk.
       throw new Error(`config service returned a non-numeric value for "${key}"`);
     }
     return value;

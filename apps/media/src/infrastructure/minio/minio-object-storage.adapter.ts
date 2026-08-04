@@ -4,12 +4,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client } from 'minio';
 
-/**
- * MinIO adapter for the object-storage port. Presigned PUT/GET keep bytes off
- * the app entirely (the client transfers directly); `getObject`/`putObject` are
- * used only by the thumbnail worker. `statObject` maps a not-found into `null`
- * so a missing object is a domain-level signal rather than a thrown error.
- */
 @Injectable()
 export class MinioObjectStorage implements ObjectStoragePort {
   private readonly bucket: string;
@@ -67,11 +61,6 @@ export class MinioObjectStorage implements ObjectStoragePort {
   }
 }
 
-/**
- * MinIO surfaces a missing object as an error carrying an S3 `code`. Duck-typed
- * rather than `instanceof S3Error` because the error class is not part of the
- * package's stable public entrypoint.
- */
 function isNotFound(err: unknown): boolean {
   const code = (err as { code?: string } | null)?.code;
   return code === 'NotFound' || code === 'NoSuchKey';

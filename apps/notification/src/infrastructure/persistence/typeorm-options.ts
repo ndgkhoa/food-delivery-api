@@ -13,13 +13,6 @@ export interface NotificationDbEnv {
   DB_NAME: string;
 }
 
-/**
- * Single source of truth for the notification Postgres connection +
- * entity/migration discovery, shared by the runtime `PersistenceModule` (via
- * Nest's `ConfigService`) and the standalone TypeORM CLI `DataSource`.
- *
- * `synchronize` is always false — schema changes ONLY happen via migrations.
- */
 export function buildDataSourceOptions(env: NotificationDbEnv): DataSourceOptions {
   return {
     type: 'postgres',

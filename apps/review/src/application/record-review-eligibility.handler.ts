@@ -11,14 +11,6 @@ import {
 } from '@review/domain/eligibility/review-eligible-order.repository';
 import { TRANSACTION_PORT, type TransactionPort } from '@review/domain/shared/transaction.port';
 
-/**
- * Records an `OrderConfirmed` order as review-eligible. Idempotent by event
- * id: the `processed_events` dedupe marker + the eligibility upsert commit in
- * ONE transaction (mirrors notification's `DispatchOrderEventHandler`), so a
- * redelivered event is a safe no-op rather than a second upsert (which would
- * be harmless here anyway, since the values are identical — the dedupe still
- * avoids the redundant write).
- */
 @Injectable()
 export class RecordReviewEligibilityHandler {
   constructor(

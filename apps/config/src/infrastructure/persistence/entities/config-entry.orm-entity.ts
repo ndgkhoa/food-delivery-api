@@ -12,8 +12,6 @@ export class ConfigEntryOrmEntity {
   @Column({ type: 'varchar', length: 255 })
   key!: string;
 
-  // Postgres bigint maps to a JS string in TypeORM (avoids precision loss); the
-  // mapper converts to/from the domain's numeric value.
   @Column({ type: 'bigint' })
   value!: string;
 

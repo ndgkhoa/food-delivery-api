@@ -1,6 +1,5 @@
 import { IdempotencyKeyOrmEntity } from '@order/infrastructure/persistence/entities/idempotency-key.orm-entity';
 
-/** Trivial by design — the domain has no aggregate for this mapping, only a repository port. */
 export class IdempotencyKeyMapper {
   static toOrm(
     tenantId: string,

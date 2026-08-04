@@ -1,7 +1,3 @@
-# Mirrors infra/postgres/init/01-create-service-databases.sh: creates one
-# database per service so a fresh dev cluster can run migrations without a
-# manual `createdb`. Mounted into /docker-entrypoint-initdb.d, which the
-# official postgres image executes once, only on a brand-new data volume.
 apiVersion: v1
 kind: ConfigMap
 metadata:

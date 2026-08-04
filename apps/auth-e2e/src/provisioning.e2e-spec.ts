@@ -18,19 +18,6 @@ import {
 const REALM = 'food-delivery';
 const AUDIENCE = 'food-delivery-api';
 
-/**
- * Full provisioning e2e against a REAL Keycloak, through the gateway:
- *   admin token → gateway → POST /api/v1/auth/tenants (create tenant)
- *               → POST /api/v1/auth/tenants/:id/users (provision owner)
- *   → mint the owner's token by direct grant
- *   → assert the token carries the assigned role + the tenant's valid UUID tenant_id.
- *
- * Proves the M-2 chain end-to-end: the registry's generated tenant UUID becomes
- * the provisioned user's `tenant_id` claim.
- *
- * NOTE: boots Keycloak (~30-60s) + auth's Postgres + the gateway — run it
- * explicitly, e.g. `pnpm nx e2e auth-e2e --testFile=provisioning.e2e-spec.ts`.
- */
 describe('Auth provisioning via gateway with real Keycloak (e2e)', () => {
   let keycloak: KeycloakHandle;
   let auth: AuthHandle;
@@ -88,7 +75,6 @@ describe('Auth provisioning via gateway with real Keycloak (e2e)', () => {
   });
 
   it('provisions an owner whose minted token carries the role + valid tenant_id', async () => {
-    // 1. Admin creates a tenant.
     const slug = `acme-${Date.now()}`;
     const createRes = await request(gateway.url)
       .post('/api/v1/auth/tenants')
@@ -100,7 +86,6 @@ describe('Auth provisioning via gateway with real Keycloak (e2e)', () => {
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
 
-    // 2. Admin provisions an owner user under that tenant.
     const username = `owner-${Date.now()}`;
     const password = 'sup3r-secret';
     await request(gateway.url)
@@ -109,7 +94,6 @@ describe('Auth provisioning via gateway with real Keycloak (e2e)', () => {
       .send({ username, email: `${username}@acme.test`, role: 'restaurant-owner', password })
       .expect(201);
 
-    // 3. The provisioned owner can mint a token, which carries the role + tenant_id.
     const ownerToken = await mintPasswordToken({ baseUrl: keycloak.baseUrl, username, password });
     const claims = decodeJwt(ownerToken);
     expect(claims.tenant_id).toBe(tenantId);

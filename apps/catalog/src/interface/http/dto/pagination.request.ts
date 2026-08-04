@@ -1,7 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
 
-/** Shared list-endpoint pagination params; reused by restaurants and menu-items. */
 export class PaginationRequest {
   @IsOptional()
   @Type(() => Number)

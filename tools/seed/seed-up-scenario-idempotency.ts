@@ -6,13 +6,6 @@ interface OrderResponse {
   id: string;
 }
 
-/**
- * Places the same order body TWICE with the SAME `Idempotency-Key` header —
- * `PlaceOrderHandler` maps the key to the first durable order and replays it
- * rather than starting a second saga (`apps/order/src/application/order/commands/place-order.handler.ts`).
- * Asserts both calls return the identical order id; only the first call's id
- * is tracked for teardown (the second is the same order, not a new one).
- */
 export async function runIdempotencyScenario(
   customerGateway: GatewayClient,
   tenantId: string,

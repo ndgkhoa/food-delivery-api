@@ -21,13 +21,6 @@ import { SearchController } from '@search/interface/http/search.controller';
 import { CatalogProjectionConsumer } from '@search/interface/messaging/catalog-projection.consumer';
 import { ReviewProjectionConsumer } from '@search/interface/messaging/review-projection.consumer';
 
-/**
- * Composition root: wires the domain search port to its Elasticsearch adapter,
- * registers the query handlers + read controller, and the `catalog.events`
- * projection consumer. The only file allowed to import across every layer — see
- * the hexagonal rules in `.dependency-cruiser.js`. No RolesGuard: search is a
- * public read surface (any authenticated tenant), scoped by the trusted identity.
- */
 @Module({
   imports: [
     SharedConfigModule.forRoot(searchEnvSchema),
@@ -38,18 +31,13 @@ import { ReviewProjectionConsumer } from '@search/interface/messaging/review-pro
   ],
   controllers: [SearchController],
   providers: [
-    // Query use cases
     SearchRestaurantsHandler,
     AutocompleteRestaurantsHandler,
-    // Search read-model port → Elasticsearch adapter
     {
       provide: RESTAURANT_SEARCH_REPOSITORY,
       useClass: ElasticsearchRestaurantSearchRepository,
     },
-    // Provisions the `restaurants` index (create-if-absent) on boot
     RestaurantIndexBootstrap,
-    // Projection: shared Kafka client + subscriber + the consumer that tails
-    // catalog.events into the index (its own consumer group).
     {
       provide: KAFKA_CLIENT,
       useFactory: (config: ConfigService) =>
@@ -61,11 +49,7 @@ import { ReviewProjectionConsumer } from '@search/interface/messaging/review-pro
     },
     KafkaConsumerSubscriber,
     CatalogProjectionConsumer,
-    // Second consumer on the same shared Kafka client: tails `review.events`
-    // (its own consumer group) to keep the ES `rating` field current.
     ReviewProjectionConsumer,
-    // Every route is tenant-scoped by default — the tenant comes from the verified
-    // identity the gateway propagates (shared-tenancy), never a raw client header.
     { provide: APP_INTERCEPTOR, useClass: TrustedIdentityInterceptor },
   ],
 })
