@@ -1,18 +1,18 @@
 import { CompleteUploadHandler } from '@media/application/complete-upload.handler';
 import {
-  FakeMediaObjectRepository,
-  FakeObjectStorage,
-  FakeTenantContext,
-  FakeThumbnailQueue,
-  fakeConfig,
-} from '@media/application/media-test-doubles';
-import {
   InvalidUploadError,
   MediaNotFoundError,
   ObjectNotUploadedError,
 } from '@media/domain/media/errors';
 import { buildObjectKey } from '@media/domain/media/media-keys';
 import { MediaObject, MediaStatus } from '@media/domain/media/media-object';
+import {
+  FakeMediaObjectRepository,
+  FakeObjectStorage,
+  FakeTenantContext,
+  FakeThumbnailQueue,
+  fakeConfig,
+} from '@media/testing/media-test-doubles';
 
 describe('CompleteUploadHandler', () => {
   const tenantId = '11111111-1111-4111-8111-111111111111';
