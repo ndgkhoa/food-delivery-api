@@ -1,8 +1,8 @@
-import { buildCacheKey, ConfigCache } from './config-cache';
+import { buildCacheKey, SettingsCache } from './settings-cache';
 
-describe('ConfigCache', () => {
+describe('SettingsCache', () => {
   it('returns undefined for a miss and the stored value for a hit', () => {
-    const cache = new ConfigCache<number>();
+    const cache = new SettingsCache<number>();
     expect(cache.get(buildCacheKey('t1', 'k'))).toBeUndefined();
 
     cache.set(buildCacheKey('t1', 'k'), 42, 10_000);
@@ -10,13 +10,13 @@ describe('ConfigCache', () => {
   });
 
   it('expires an entry once its TTL elapses', () => {
-    const cache = new ConfigCache<number>();
+    const cache = new SettingsCache<number>();
     cache.set(buildCacheKey('t1', 'k'), 42, -1);
     expect(cache.get(buildCacheKey('t1', 'k'))).toBeUndefined();
   });
 
   it('evict removes only the given tenant+key entry', () => {
-    const cache = new ConfigCache<number>();
+    const cache = new SettingsCache<number>();
     cache.set(buildCacheKey('t1', 'k'), 1, 10_000);
     cache.set(buildCacheKey('t2', 'k'), 2, 10_000);
 
@@ -27,7 +27,7 @@ describe('ConfigCache', () => {
   });
 
   it('evictAllForKey removes every tenant entry for that key but leaves other keys alone', () => {
-    const cache = new ConfigCache<number>();
+    const cache = new SettingsCache<number>();
     cache.set(buildCacheKey('t1', 'k'), 1, 10_000);
     cache.set(buildCacheKey('t2', 'k'), 2, 10_000);
     cache.set(buildCacheKey('t1', 'other'), 3, 10_000);

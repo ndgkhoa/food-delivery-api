@@ -36,7 +36,7 @@ interface OrderLifecyclePayload {
  * `order.events` consumers on the same topic, each with an independent
  * consumer group). Reads from the beginning: a fresh consumer group must
  * replay the whole topic to rebuild the analytics read model from scratch
- * (e.g. after a ClickHouse reset), the same rationale as the config-client
+ * (e.g. after a ClickHouse reset), the same rationale as the settings-client
  * cache-invalidation consumer. Redelivery-safe by the ClickHouse table's
  * ReplacingMergeTree engine, not by a ledger here.
  */

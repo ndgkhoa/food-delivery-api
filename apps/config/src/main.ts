@@ -11,7 +11,7 @@ import { Logger as PinoLogger } from 'nestjs-pino';
 /**
  * Config is an HTTP API for tenant-overridable business tunables + feature
  * flags. Reached by clients only through the gateway's reverse proxy over
- * HTTP; every other service reads it through the shared config-client library
+ * HTTP; every other service reads it through the shared settings-client library
  * (HTTP + a change-event cache), never this process directly.
  */
 async function bootstrap() {

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { CONFIG_CLIENT, type ConfigClient } from '@food-delivery-api/shared-config-client';
 import { recordOrderPlaced } from '@food-delivery-api/shared-observability';
+import { SETTINGS_CLIENT, type SettingsClient } from '@food-delivery-api/shared-settings';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { reserveStockCommand } from '@order/application/saga/saga-commands';
 import {
@@ -39,8 +39,8 @@ export interface PlaceOrderCommand {
   items: PlaceOrderItemInput[];
 }
 
-/** The only method this handler needs from `ConfigClient` — narrows the DI type so tests need a minimal fake. */
-export type OrderPricingConfigClient = Pick<ConfigClient, 'getInt'>;
+/** The only method this handler needs from `SettingsClient` — narrows the DI type so tests need a minimal fake. */
+export type OrderPricingSettingsClient = Pick<SettingsClient, 'getInt'>;
 
 /** Config keys the order's tenant may override; the second argument to each `getInt` call is the fallback. */
 const DELIVERY_FEE_CONFIG_KEY = 'order.delivery_fee_cents';
@@ -93,7 +93,7 @@ export class PlaceOrderHandler {
     @Inject(CATALOG_GATEWAY_PORT) private readonly catalogGateway: CatalogGatewayPort,
     @Inject(OUTBOX_WRITER) private readonly outbox: OutboxWriter,
     @Inject(TRANSACTION_PORT) private readonly transaction: TransactionPort,
-    @Inject(CONFIG_CLIENT) private readonly configClient: OrderPricingConfigClient,
+    @Inject(SETTINGS_CLIENT) private readonly configClient: OrderPricingSettingsClient,
   ) {}
 
   private readonly logger = new Logger(PlaceOrderHandler.name);
@@ -114,7 +114,7 @@ export class PlaceOrderHandler {
 
     // 2. Validate menu against the catalog — price/availability are never trusted from the client.
     const { items: orderItems, restaurantId } = await this.buildOrderItems(command);
-    // config-client never throws (cold miss / config service down falls back to
+    // settings-client never throws (cold miss / config service down falls back to
     // the default here, WARN-logged) — placing an order never blocks on config.
     const pricing = await this.resolvePricing(command.tenantId);
     const orderId = randomUUID();

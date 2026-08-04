@@ -1,10 +1,10 @@
 module.exports = {
-  displayName: 'shared-config-client',
+  displayName: 'shared-settings',
   preset: '../../../jest.preset.js',
   testEnvironment: 'node',
   transform: {
     '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },
   moduleFileExtensions: ['ts', 'js'],
-  coverageDirectory: '../../../coverage/libs/shared/config-client',
+  coverageDirectory: '../../../coverage/libs/shared/settings',
 };

@@ -13,7 +13,7 @@ function describeError(error: unknown): string {
  * dependency — a GET/SET/DEL failure (including a down/unreachable Redis) is
  * logged and the caller falls back to the loader (or simply proceeds without
  * having cached anything). Mirrors the never-throw stance of
- * `ConfigClient` in `@food-delivery-api/shared-config-client`.
+ * `SettingsClient` in `@food-delivery-api/shared-settings`.
  *
  * Values are JSON-serialised. Callers own tenant-namespacing the key (e.g.
  * `catalog:restaurant:{tenantId}:{id}`) — this class has no tenant concept of

@@ -12,7 +12,7 @@ import { InvalidOrderRequestError, MenuValidationError } from '@order/domain/sha
 import type { OutboxCommandEntry, OutboxWriter } from '@order/domain/shared/outbox.port';
 import type { TransactionPort } from '@order/domain/shared/transaction.port';
 import {
-  type OrderPricingConfigClient,
+  type OrderPricingSettingsClient,
   type PlaceOrderCommand,
   PlaceOrderHandler,
 } from './place-order.handler';
@@ -129,11 +129,11 @@ class FakeTransaction implements TransactionPort {
 }
 
 /**
- * Minimal stand-in for the config-client: `seed` sets a value for a key, an
+ * Minimal stand-in for the settings-client: `seed` sets a value for a key, an
  * unseeded key returns the caller default — mirroring the real client's
  * never-throws, default-on-cold-miss contract without any network/cache.
  */
-class FakeConfigClient implements OrderPricingConfigClient {
+class FakeSettingsClient implements OrderPricingSettingsClient {
   private readonly values = new Map<string, number>();
 
   seed(key: string, value: number): void {
@@ -151,7 +151,7 @@ function buildHandler() {
   const sagaRepo = new FakeSagaRepository();
   const catalogGateway = new FakeCatalogGateway();
   const outbox = new FakeOutboxWriter();
-  const configClient = new FakeConfigClient();
+  const configClient = new FakeSettingsClient();
   const handler = new PlaceOrderHandler(
     orderRepo,
     idempotencyRepo,
@@ -184,7 +184,7 @@ describe('PlaceOrderHandler (async saga)', () => {
     expect(order.status).toBe('PENDING');
     expect(order.restaurantId).toBe('r-1');
     expect(order.subtotalCents).toBe(1000);
-    // No config-client seed for this tenant — every key falls back to its
+    // No settings-client seed for this tenant — every key falls back to its
     // documented default: fee 1500, VAT floor(1000 * 1000 / 10000) = 100.
     expect(order.deliveryFeeCents).toBe(1500);
     expect(order.vatCents).toBe(100);

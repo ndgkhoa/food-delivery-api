@@ -1,12 +1,12 @@
 import 'reflect-metadata';
 import {
-  ConfigCache,
-  ConfigClient,
   ConfigEventsConsumer,
-} from '@food-delivery-api/shared-config-client';
+  SettingsCache,
+  SettingsClient,
+} from '@food-delivery-api/shared-settings';
 
 /**
- * End-to-end proof of the config-client read-through cache against REAL
+ * End-to-end proof of the settings-client read-through cache against REAL
  * infrastructure (Kafka + the config service) — same live-stack requirement
  * as the HTTP spec in this project:
  *
@@ -53,14 +53,14 @@ async function waitUntil(probe: () => Promise<boolean>, timeoutMs = 15_000): Pro
 
 const gatedDescribe = process.env.RUN_CONFIG_E2E === '1' ? describe : describe.skip;
 
-gatedDescribe('config-client cache invalidation via config.events (e2e, compose)', () => {
+gatedDescribe('settings-client cache invalidation via config.events (e2e, compose)', () => {
   let consumer: ConfigEventsConsumer;
-  let client: ConfigClient;
+  let client: SettingsClient;
 
   beforeAll(async () => {
-    const valueCache = new ConfigCache<number>();
-    const flagCache = new ConfigCache<boolean>();
-    client = new ConfigClient(
+    const valueCache = new SettingsCache<number>();
+    const flagCache = new SettingsCache<boolean>();
+    client = new SettingsClient(
       { configServiceUrl: CONFIG_SERVICE_URL, ttlMs: 30_000 },
       valueCache,
       flagCache,

@@ -24,7 +24,7 @@ const GLOBAL_TENANT_HEADER = 'global';
 /**
  * Direct Kafka producer for config change notifications — best-effort, NOT a
  * transactional outbox: config writes are low-frequency admin actions and the
- * config-client's short-TTL cache is the self-healing fallback if a publish is
+ * settings-client's short-TTL cache is the self-healing fallback if a publish is
  * ever missed (documented trade-off; see architecture notes for this slice).
  */
 @Injectable()

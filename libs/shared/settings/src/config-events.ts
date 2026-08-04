@@ -1,4 +1,4 @@
-import type { ConfigCache } from './config-cache';
+import type { SettingsCache } from './settings-cache';
 
 /**
  * The `config.events` wire contract this library consumes. Duplicated (not
@@ -26,8 +26,8 @@ export interface ConfigChangeMessage {
  */
 export function evictForConfigChange(
   message: ConfigChangeMessage,
-  valueCache: ConfigCache<number>,
-  flagCache: ConfigCache<boolean>,
+  valueCache: SettingsCache<number>,
+  flagCache: SettingsCache<boolean>,
 ): void {
   if (message.tenantId === null) {
     // The global default changed — no record of which cached tenant entries
