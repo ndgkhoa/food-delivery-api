@@ -29,4 +29,13 @@ describe('LocationUpdateHandler', () => {
     const { handler } = buildHandler();
     expect(await handler.execute(TENANT_A, 'driver-x', { lat: 0, lng: 0 })).toEqual([]);
   });
+
+  it('removes the driver from the online location store when going offline', async () => {
+    const { locations, handler } = buildHandler();
+    locations.seedOnline(TENANT_A, ['driver-1']);
+
+    await handler.goOffline(TENANT_A, 'driver-1');
+
+    expect(await locations.onlineDriverIds(TENANT_A)).toEqual([]);
+  });
 });

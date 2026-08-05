@@ -5,6 +5,7 @@ import {
   STOCK_RESERVED,
 } from '@order/application/saga/handle-inventory-reply.handler';
 import { OrderSaga } from '@order/domain/saga/order-saga';
+import { OrderNotFoundError, SagaNotFoundError } from '@order/domain/shared/errors';
 import {
   buildOrder,
   DEFAULT_CORRELATION_ID,
@@ -17,6 +18,9 @@ import {
   TENANT_ID,
   USER_ID,
 } from '@order/testing/saga-reply-test-doubles';
+
+const STOCK_RELEASED = 'StockReleased';
+const UNKNOWN_EVENT_TYPE = 'SomeUnknownReply';
 
 function buildHandler() {
   const sagaRepo = new FakeSagaRepository();
@@ -115,5 +119,77 @@ describe('HandleInventoryReplyHandler', () => {
 
     expect(sagaRepo.rows.get(orderId)?.state).toBe('STOCK_RESERVED');
     expect(outbox.entries).toHaveLength(0);
+  });
+
+  it('is a no-op when StockReservationFailed arrives after the saga already moved past STARTED', async () => {
+    const { sagaRepo, orderRepo, outbox, handler } = buildHandler();
+    const orderId = randomUUID();
+    sagaRepo.seed(
+      OrderSaga.start({ orderId, tenantId: TENANT_ID }).transition('STOCK_RESERVED', randomUUID()),
+    );
+    orderRepo.seed(buildOrder(orderId, 'RESERVED'));
+
+    await handler.execute(envelope(STOCK_RESERVATION_FAILED, orderId, randomUUID()), { orderId });
+
+    expect(sagaRepo.rows.get(orderId)?.state).toBe('STOCK_RESERVED');
+    expect(outbox.entries).toHaveLength(0);
+  });
+
+  it('on StockReleased: cancels the order and completes the compensation once COMPENSATING', async () => {
+    const { sagaRepo, orderRepo, outbox, handler } = buildHandler();
+    const orderId = randomUUID();
+    sagaRepo.seed(
+      OrderSaga.start({ orderId, tenantId: TENANT_ID })
+        .transition('STOCK_RESERVED', randomUUID())
+        .transition('COMPENSATING', randomUUID()),
+    );
+    orderRepo.seed(buildOrder(orderId, 'RESERVED'));
+
+    await handler.execute(envelope(STOCK_RELEASED, orderId, randomUUID()), { orderId });
+
+    expect(orderRepo.rows.get(orderId)?.status).toBe('CANCELLED');
+    expect(sagaRepo.rows.get(orderId)?.state).toBe('CANCELLED');
+    expect(outbox.entries[0]).toMatchObject({ topic: 'order.events', eventType: 'OrderCancelled' });
+  });
+
+  it('is a no-op when StockReleased arrives outside the COMPENSATING state', async () => {
+    const { sagaRepo, orderRepo, outbox, handler } = buildHandler();
+    const orderId = randomUUID();
+    seedStarted(sagaRepo, orderRepo, orderId);
+
+    await handler.execute(envelope(STOCK_RELEASED, orderId, randomUUID()), { orderId });
+
+    expect(sagaRepo.rows.get(orderId)?.state).toBe('STARTED');
+    expect(outbox.entries).toHaveLength(0);
+  });
+
+  it('ignores an unknown inventory reply type', async () => {
+    const { sagaRepo, orderRepo, outbox, handler } = buildHandler();
+    const orderId = randomUUID();
+    seedStarted(sagaRepo, orderRepo, orderId);
+
+    await handler.execute(envelope(UNKNOWN_EVENT_TYPE, orderId, randomUUID()), { orderId });
+
+    expect(sagaRepo.rows.get(orderId)?.state).toBe('STARTED');
+    expect(outbox.entries).toHaveLength(0);
+  });
+
+  it('throws SagaNotFoundError when no saga exists for the order', async () => {
+    const { handler } = buildHandler();
+    const orderId = randomUUID();
+
+    await expect(
+      handler.execute(envelope(STOCK_RESERVED, orderId, randomUUID()), { orderId }),
+    ).rejects.toThrow(SagaNotFoundError);
+  });
+
+  it('throws OrderNotFoundError when the saga exists but the order row is missing', async () => {
+    const { sagaRepo, handler } = buildHandler();
+    const orderId = randomUUID();
+    sagaRepo.seed(OrderSaga.start({ orderId, tenantId: TENANT_ID }));
+
+    await expect(
+      handler.execute(envelope(STOCK_RESERVED, orderId, randomUUID()), { orderId }),
+    ).rejects.toThrow(OrderNotFoundError);
   });
 });

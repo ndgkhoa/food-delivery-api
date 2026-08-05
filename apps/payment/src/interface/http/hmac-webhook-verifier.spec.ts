@@ -81,6 +81,39 @@ describe('verifyWebhookSignature', () => {
     expect(result).toEqual({ valid: false, reason: 'timestamp outside replay window' });
   });
 
+  it('rejects a missing timestamp header', () => {
+    const result = verifyWebhookSignature({
+      secret: SECRET,
+      rawBody,
+      signatureHeader: `sha256=${sign(rawBody, NOW)}`,
+      timestampHeader: undefined,
+      nowSec: NOW,
+    });
+    expect(result).toEqual({ valid: false, reason: 'missing timestamp header' });
+  });
+
+  it('rejects a signature of a different length than expected (no timing-safe comparison possible)', () => {
+    const result = verifyWebhookSignature({
+      secret: SECRET,
+      rawBody,
+      signatureHeader: 'sha256=abcd',
+      timestampHeader: String(NOW),
+      nowSec: NOW,
+    });
+    expect(result).toEqual({ valid: false, reason: 'signature mismatch' });
+  });
+
+  it('rejects an empty signature after stripping the prefix', () => {
+    const result = verifyWebhookSignature({
+      secret: SECRET,
+      rawBody,
+      signatureHeader: 'sha256=',
+      timestampHeader: String(NOW),
+      nowSec: NOW,
+    });
+    expect(result).toEqual({ valid: false, reason: 'signature mismatch' });
+  });
+
   it('rejects a non-numeric timestamp', () => {
     const result = verifyWebhookSignature({
       secret: SECRET,

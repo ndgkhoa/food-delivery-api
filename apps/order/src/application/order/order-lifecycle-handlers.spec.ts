@@ -188,6 +188,14 @@ describe('ConfirmOrderHandler', () => {
       handler.execute({ tenantId, userId: otherUserId, roles: [], orderId: 'order-1' }),
     ).rejects.toThrow(OrderForbiddenError);
   });
+
+  it('throws OrderNotFoundError for an unknown order', async () => {
+    const handler = new ConfirmOrderHandler(new FakeOrderRepository());
+
+    await expect(
+      handler.execute({ tenantId, userId: ownerId, roles: [], orderId: 'missing' }),
+    ).rejects.toThrow(OrderNotFoundError);
+  });
 });
 
 describe('GetOrderHandler', () => {
@@ -213,5 +221,13 @@ describe('GetOrderHandler', () => {
     await expect(
       handler.execute({ tenantId, userId: otherUserId, roles: [], orderId: 'order-1' }),
     ).rejects.toThrow(OrderForbiddenError);
+  });
+
+  it('throws OrderNotFoundError for an unknown order', async () => {
+    const handler = new GetOrderHandler(new FakeOrderRepository());
+
+    await expect(
+      handler.execute({ tenantId, userId: ownerId, roles: [], orderId: 'missing' }),
+    ).rejects.toThrow(OrderNotFoundError);
   });
 });

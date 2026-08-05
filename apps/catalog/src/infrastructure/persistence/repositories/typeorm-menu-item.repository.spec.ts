@@ -127,6 +127,91 @@ describe('TypeOrmMenuItemRepository (integration)', () => {
     expect(await menuItemRepository.findById(menuItem.id, restaurant.id, tenantA)).toBeNull();
   });
 
+  it('returns an empty array from findManyByIds without querying when given no ids', async () => {
+    const result = await menuItemRepository.findManyByIds([], tenantA);
+
+    expect(result).toEqual([]);
+  });
+
+  it('finds many menu items by id scoped to the tenant', async () => {
+    const restaurant = await buildRestaurant();
+    const pho = await menuItemRepository.save(
+      MenuItem.create({
+        id: crypto.randomUUID(),
+        tenantId: tenantA,
+        restaurantId: restaurant.id,
+        name: 'Pho Bo',
+        priceCents: 8500,
+      }),
+    );
+    const banhMi = await menuItemRepository.save(
+      MenuItem.create({
+        id: crypto.randomUUID(),
+        tenantId: tenantA,
+        restaurantId: restaurant.id,
+        name: 'Banh Mi',
+        priceCents: 5000,
+      }),
+    );
+
+    const found = await menuItemRepository.findManyByIds([pho.id, banhMi.id], tenantA);
+
+    expect(found.map((item) => item.name).sort()).toEqual(['Banh Mi', 'Pho Bo']);
+  });
+
+  it('lists all menu items for a restaurant regardless of pagination', async () => {
+    const restaurant = await buildRestaurant();
+    await menuItemRepository.save(
+      MenuItem.create({
+        id: crypto.randomUUID(),
+        tenantId: tenantA,
+        restaurantId: restaurant.id,
+        name: 'Pho Bo',
+        priceCents: 8500,
+      }),
+    );
+    await menuItemRepository.save(
+      MenuItem.create({
+        id: crypto.randomUUID(),
+        tenantId: tenantA,
+        restaurantId: restaurant.id,
+        name: 'Banh Mi',
+        priceCents: 5000,
+      }),
+    );
+
+    const all = await menuItemRepository.findAllByRestaurant(restaurant.id, tenantA);
+
+    expect(all).toHaveLength(2);
+  });
+
+  it('soft-deletes every menu item belonging to a restaurant', async () => {
+    const restaurant = await buildRestaurant();
+    const pho = await menuItemRepository.save(
+      MenuItem.create({
+        id: crypto.randomUUID(),
+        tenantId: tenantA,
+        restaurantId: restaurant.id,
+        name: 'Pho Bo',
+        priceCents: 8500,
+      }),
+    );
+    const banhMi = await menuItemRepository.save(
+      MenuItem.create({
+        id: crypto.randomUUID(),
+        tenantId: tenantA,
+        restaurantId: restaurant.id,
+        name: 'Banh Mi',
+        priceCents: 5000,
+      }),
+    );
+
+    await menuItemRepository.softDeleteByRestaurant(restaurant.id, tenantA);
+
+    expect(await menuItemRepository.findById(pho.id, restaurant.id, tenantA)).toBeNull();
+    expect(await menuItemRepository.findById(banhMi.id, restaurant.id, tenantA)).toBeNull();
+  });
+
   describe('updateVersioned (optimistic locking)', () => {
     it('increments the version on a normal update against real Postgres', async () => {
       const restaurant = await buildRestaurant();

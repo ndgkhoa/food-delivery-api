@@ -4,7 +4,14 @@ import type { OutboxCommandEntry } from '@inventory/domain/shared/outbox.port';
 import { TypeOrmInventoryOutboxAdapter } from '@inventory/infrastructure/outbox/typeorm-inventory-outbox.adapter';
 import type { InventoryOutboxOrmEntity } from '@inventory/infrastructure/persistence/entities/inventory-outbox.orm-entity';
 import { runWithEntityManager } from '@inventory/infrastructure/persistence/transaction/transactional-entity-manager';
-import type { DataSource, EntityManager, QueryRunner, Repository } from 'typeorm';
+import {
+  type DataSource,
+  type EntityManager,
+  In,
+  IsNull,
+  type QueryRunner,
+  type Repository,
+} from 'typeorm';
 
 jest.mock('@food-delivery-api/shared-observability', () => ({
   captureActiveTraceContext: jest.fn(),
@@ -23,6 +30,11 @@ class FakeOutboxRepository {
     this.saved.push(row);
     return row;
   }
+}
+
+class FakeMutableOutboxRepository {
+  increment = jest.fn().mockResolvedValue({ affected: 1 });
+  update = jest.fn().mockResolvedValue({ affected: 1 });
 }
 
 class FakeQueryBuilder {
@@ -193,6 +205,68 @@ describe('TypeOrmInventoryOutboxAdapter', () => {
       const [record] = await adapter.fetchUnpublished(10);
 
       expect(record.headers.traceparent).toBeUndefined();
+    });
+  });
+
+  describe('incrementAttempts', () => {
+    it('skips the update call when no ids are given', async () => {
+      const outboxRepository = new FakeMutableOutboxRepository();
+      const adapter = new TypeOrmInventoryOutboxAdapter(
+        outboxRepository as unknown as Repository<InventoryOutboxOrmEntity>,
+        fakeDataSource([]),
+        tenantContext,
+      );
+
+      await adapter.incrementAttempts([]);
+
+      expect(outboxRepository.increment).not.toHaveBeenCalled();
+    });
+
+    it('increments the attempts column for the given ids', async () => {
+      const outboxRepository = new FakeMutableOutboxRepository();
+      const adapter = new TypeOrmInventoryOutboxAdapter(
+        outboxRepository as unknown as Repository<InventoryOutboxOrmEntity>,
+        fakeDataSource([]),
+        tenantContext,
+      );
+
+      await adapter.incrementAttempts(['row-1', 'row-2']);
+
+      expect(outboxRepository.increment).toHaveBeenCalledTimes(1);
+      const [criteria, column, delta] = outboxRepository.increment.mock.calls[0];
+      expect(criteria).toEqual({ id: In(['row-1', 'row-2']) });
+      expect(column).toBe('attempts');
+      expect(delta).toBe(1);
+    });
+  });
+
+  describe('markPublished', () => {
+    it('skips the update call when no ids are given', async () => {
+      const outboxRepository = new FakeMutableOutboxRepository();
+      const adapter = new TypeOrmInventoryOutboxAdapter(
+        outboxRepository as unknown as Repository<InventoryOutboxOrmEntity>,
+        fakeDataSource([]),
+        tenantContext,
+      );
+
+      await adapter.markPublished([]);
+
+      expect(outboxRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('marks the given ids as published', async () => {
+      const outboxRepository = new FakeMutableOutboxRepository();
+      const adapter = new TypeOrmInventoryOutboxAdapter(
+        outboxRepository as unknown as Repository<InventoryOutboxOrmEntity>,
+        fakeDataSource([]),
+        tenantContext,
+      );
+
+      await adapter.markPublished(['row-1']);
+
+      expect(outboxRepository.update).toHaveBeenCalledTimes(1);
+      const [criteria] = outboxRepository.update.mock.calls[0];
+      expect(criteria).toEqual({ id: In(['row-1']), publishedAt: IsNull() });
     });
   });
 

@@ -131,4 +131,152 @@ describe('KeycloakAdminHttpAdapter (fetch stubbed)', () => {
 
     await expect(adapter.deleteUser('kc-9')).rejects.toMatchObject({ statusCode: 502 });
   });
+
+  it('throws a 502 KeycloakAdminError when the admin token request itself fails', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes(TOKEN_PATH)) return fakeResponse({ status: 401 });
+      throw new Error(`unexpected token request ${url}`);
+    });
+
+    await expect(adapter.createUser(input)).rejects.toMatchObject({
+      statusCode: 502,
+      message: 'Keycloak admin authentication failed (401)',
+    });
+  });
+
+  it('throws a 409 KeycloakAdminError when the username already exists', async () => {
+    fetchMock.mockImplementation(async (url: string, options?: { method?: string }) => {
+      if (url.includes(TOKEN_PATH))
+        return fakeResponse({ status: 200, body: { access_token: 't' } });
+      if (url.endsWith('/users') && options?.method === 'POST') {
+        return fakeResponse({ status: 409 });
+      }
+      throw new Error(`unexpected ${options?.method} ${url}`);
+    });
+
+    await expect(adapter.createUser(input)).rejects.toMatchObject({
+      statusCode: 409,
+      message: `User "${input.username}" already exists`,
+    });
+  });
+
+  it('throws a 502 KeycloakAdminError when Keycloak omits the Location header on creation', async () => {
+    fetchMock.mockImplementation(async (url: string, options?: { method?: string }) => {
+      if (url.includes(TOKEN_PATH))
+        return fakeResponse({ status: 200, body: { access_token: 't' } });
+      if (url.endsWith('/users') && options?.method === 'POST') {
+        return fakeResponse({ status: 201 });
+      }
+      throw new Error(`unexpected ${options?.method} ${url}`);
+    });
+
+    await expect(adapter.createUser(input)).rejects.toMatchObject({
+      statusCode: 502,
+      message: 'Keycloak did not return a created user id',
+    });
+  });
+
+  it('throws a 400 KeycloakAdminError when the realm role does not exist', async () => {
+    fetchMock.mockImplementation(async (url: string, options?: { method?: string }) => {
+      const method = options?.method ?? 'GET';
+      if (url.includes(TOKEN_PATH))
+        return fakeResponse({ status: 200, body: { access_token: 't' } });
+      if (url.endsWith('/users') && method === 'POST') {
+        return fakeResponse({
+          status: 201,
+          location: 'http://kc.test/admin/realms/food-delivery/users/kc-404',
+        });
+      }
+      if (url.includes('/roles/') && method === 'GET') {
+        return fakeResponse({ status: 404 });
+      }
+      if (url.includes('/users/kc-404') && method === 'DELETE') {
+        return fakeResponse({ status: 204 });
+      }
+      throw new Error(`unexpected ${method} ${url}`);
+    });
+
+    await expect(adapter.createUser(input)).rejects.toMatchObject({
+      statusCode: 400,
+      message: `Realm role "${input.role}" does not exist`,
+    });
+  });
+
+  it('throws a 502 KeycloakAdminError when the realm role lookup fails upstream', async () => {
+    fetchMock.mockImplementation(async (url: string, options?: { method?: string }) => {
+      const method = options?.method ?? 'GET';
+      if (url.includes(TOKEN_PATH))
+        return fakeResponse({ status: 200, body: { access_token: 't' } });
+      if (url.endsWith('/users') && method === 'POST') {
+        return fakeResponse({
+          status: 201,
+          location: 'http://kc.test/admin/realms/food-delivery/users/kc-500',
+        });
+      }
+      if (url.includes('/roles/') && method === 'GET') {
+        return fakeResponse({ status: 503 });
+      }
+      if (url.includes('/users/kc-500') && method === 'DELETE') {
+        return fakeResponse({ status: 204 });
+      }
+      throw new Error(`unexpected ${method} ${url}`);
+    });
+
+    await expect(adapter.createUser(input)).rejects.toMatchObject({
+      statusCode: 502,
+      message: 'Keycloak role lookup failed (503)',
+    });
+  });
+
+  it('creates the user and assigns the realm role end-to-end on the happy path', async () => {
+    fetchMock.mockImplementation(async (url: string, options?: { method?: string }) => {
+      const method = options?.method ?? 'GET';
+      if (url.includes(TOKEN_PATH))
+        return fakeResponse({ status: 200, body: { access_token: 't' } });
+      if (url.endsWith('/users') && method === 'POST') {
+        return fakeResponse({
+          status: 201,
+          location: 'http://kc.test/admin/realms/food-delivery/users/kc-happy',
+        });
+      }
+      if (url.includes('/roles/') && method === 'GET') {
+        return fakeResponse({ status: 200, body: { id: 'role-1', name: 'customer' } });
+      }
+      if (url.includes('/role-mappings/realm') && method === 'POST') {
+        return fakeResponse({ status: 204 });
+      }
+      throw new Error(`unexpected ${method} ${url}`);
+    });
+
+    await expect(adapter.createUser(input)).resolves.toBe('kc-happy');
+  });
+
+  it('surfaces a reconciliation error when role assignment fails and the compensating delete also fails', async () => {
+    fetchMock.mockImplementation(async (url: string, options?: { method?: string }) => {
+      const method = options?.method ?? 'GET';
+      if (url.includes(TOKEN_PATH))
+        return fakeResponse({ status: 200, body: { access_token: 't' } });
+      if (url.endsWith('/users') && method === 'POST') {
+        return fakeResponse({
+          status: 201,
+          location: 'http://kc.test/admin/realms/food-delivery/users/kc-orphan',
+        });
+      }
+      if (url.includes('/roles/') && method === 'GET') {
+        return fakeResponse({ status: 200, body: { id: 'role-1', name: 'customer' } });
+      }
+      if (url.includes('/role-mappings/realm') && method === 'POST') {
+        return fakeResponse({ status: 500 });
+      }
+      if (url.includes('/users/kc-orphan') && method === 'DELETE') {
+        return fakeResponse({ status: 500 });
+      }
+      throw new Error(`unexpected ${method} ${url}`);
+    });
+
+    await expect(adapter.createUser(input)).rejects.toMatchObject({
+      statusCode: 502,
+      message: expect.stringContaining('could not be removed'),
+    });
+  });
 });
