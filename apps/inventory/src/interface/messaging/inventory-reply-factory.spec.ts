@@ -3,12 +3,12 @@ import {
   stockReleasedReply,
   stockReservationFailedReply,
   stockReservedReply,
-} from './inventory-reply-factory';
+} from '@inventory/interface/messaging/inventory-reply-factory';
 
 const orderId = '44444444-4444-4444-8444-444444444444';
 const correlationId = '55555555-5555-4555-8555-555555555555';
 
-describe('inventory reply factory', () => {
+describe('InventoryReplyFactory', () => {
   it('maps a successful reserve to StockReserved keyed by order id, carrying the command correlation id', () => {
     expect(stockReservedReply(orderId, correlationId)).toEqual({
       aggregateId: orderId,

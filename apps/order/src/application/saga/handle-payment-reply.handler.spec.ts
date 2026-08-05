@@ -1,4 +1,9 @@
 import { randomUUID } from 'node:crypto';
+import {
+  HandlePaymentReplyHandler,
+  PAYMENT_FAILED,
+  PAYMENT_SUCCEEDED,
+} from '@order/application/saga/handle-payment-reply.handler';
 import { OrderSaga } from '@order/domain/saga/order-saga';
 import {
   buildOrder,
@@ -13,11 +18,6 @@ import {
   TENANT_ID,
   USER_ID,
 } from '@order/testing/saga-reply-test-doubles';
-import {
-  HandlePaymentReplyHandler,
-  PAYMENT_FAILED,
-  PAYMENT_SUCCEEDED,
-} from './handle-payment-reply.handler';
 
 function buildHandler() {
   const sagaRepo = new FakeSagaRepository();

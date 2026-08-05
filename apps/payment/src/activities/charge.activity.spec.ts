@@ -1,4 +1,4 @@
-import { createChargeActivity } from './charge.activity';
+import { createChargeActivity } from '@payment/activities/charge.activity';
 
 jest.mock('@temporalio/activity', () => ({ log: { info: jest.fn() } }));
 

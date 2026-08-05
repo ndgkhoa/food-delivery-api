@@ -3,9 +3,9 @@ import {
   type ProcessedEventStorePort,
 } from '@food-delivery-api/shared-messaging';
 import type { TenantContextPort, TenantRequestContext } from '@food-delivery-api/shared-tenancy';
+import { createEmitReplyActivity } from '@payment/activities/emit-reply.activity';
 import type { OutboxCommandEntry, OutboxWriter } from '@payment/domain/shared/outbox.port';
 import type { TransactionPort } from '@payment/domain/shared/transaction.port';
-import { createEmitReplyActivity } from './emit-reply.activity';
 
 jest.mock('@temporalio/activity', () => ({ log: { info: jest.fn() } }));
 

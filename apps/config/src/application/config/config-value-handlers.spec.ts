@@ -9,7 +9,7 @@ import {
   FakeTenantContext,
 } from '@config/testing/config-test-doubles';
 
-describe('config value handlers', () => {
+describe('ConfigValueHandlers', () => {
   const tenantId = '11111111-1111-4111-8111-111111111111';
   let repository: FakeConfigEntryRepository;
   let publisher: FakeConfigEventPublisher;

@@ -1,4 +1,4 @@
-import { decideCharge } from './charge-decision';
+import { decideCharge } from '@payment/application/charge/charge-decision';
 
 describe('decideCharge (deterministic stub)', () => {
   it('declines exactly the configured trigger amount', () => {

@@ -1,5 +1,5 @@
 import { OrderSaga } from '@order/domain/saga/order-saga';
-import { FakeSagaRepository, TENANT_ID } from './saga-reply-test-doubles';
+import { FakeSagaRepository, TENANT_ID } from '@order/testing/saga-reply-test-doubles';
 
 const ORDER_ID = '44444444-4444-4444-8444-444444444444';
 

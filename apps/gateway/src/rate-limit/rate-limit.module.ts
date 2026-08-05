@@ -1,6 +1,6 @@
+import { RATE_LIMIT_STORE } from '@gateway/rate-limit/rate-limit-store';
+import { RedisRateLimitStore } from '@gateway/rate-limit/redis-rate-limit-store';
 import { Module } from '@nestjs/common';
-import { RATE_LIMIT_STORE } from './rate-limit-store';
-import { RedisRateLimitStore } from './redis-rate-limit-store';
 
 @Module({
   providers: [{ provide: RATE_LIMIT_STORE, useClass: RedisRateLimitStore }],

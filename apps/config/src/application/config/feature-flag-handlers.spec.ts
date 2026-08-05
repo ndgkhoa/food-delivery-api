@@ -11,7 +11,7 @@ import {
   FakeTenantContext,
 } from '@config/testing/config-test-doubles';
 
-describe('feature flag handlers', () => {
+describe('FeatureFlagHandlers', () => {
   const tenantId = '22222222-2222-4222-8222-222222222222';
   let repository: FakeFeatureFlagRepository;
   let publisher: FakeConfigEventPublisher;
