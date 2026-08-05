@@ -11,8 +11,5 @@ KSV-0046
 
 # Development dependencies
 
-# Transitive dependency via @nx/webpack.
-CVE-2026-14257
-
 # Transitive dependency via @nx/jest.
 GHSA-pm4m-ph32-ghv5
