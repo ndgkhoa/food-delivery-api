@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type { MessageProducer, OutboundKafkaMessage } from './kafka-producer';
 import { type OutboxPort, type OutboxRecord, OutboxRelay } from './outbox-relay';
 
@@ -37,6 +38,19 @@ class FakeProducer implements MessageProducer {
     }
     this.publishBatchCalls.push(messages);
     this.published.push(...messages);
+  }
+}
+
+class NoIncrementAttemptsOutboxPort implements OutboxPort {
+  rows: OutboxRecord[] = [];
+  markPublishedCalls: string[][] = [];
+
+  async fetchUnpublished(limit: number): Promise<OutboxRecord[]> {
+    return this.rows.slice(0, limit);
+  }
+
+  async markPublished(ids: string[]): Promise<void> {
+    this.markPublishedCalls.push(ids);
   }
 }
 
@@ -97,6 +111,34 @@ describe('OutboxRelay.runOnce', () => {
     await expect(relay.runOnce()).rejects.toThrow('broker unavailable');
     expect(outbox.incrementAttemptsCalls).toEqual([['1', '2']]);
     expect(outbox.markPublishedCalls).toHaveLength(0);
+  });
+
+  it('silently skips attempt tracking when the outbox port has no incrementAttempts', async () => {
+    const outbox = new NoIncrementAttemptsOutboxPort();
+    outbox.rows = [buildRow('1')];
+    const producer = new FakeProducer();
+    producer.failNextBatch = true;
+    const relay = new OutboxRelay(outbox, producer);
+
+    await expect(relay.runOnce()).rejects.toThrow('broker unavailable');
+    expect(outbox.markPublishedCalls).toHaveLength(0);
+  });
+
+  it('logs a warning without throwing when incrementAttempts itself fails', async () => {
+    const outbox = new FakeOutboxPort();
+    outbox.rows = [buildRow('1')];
+    jest.spyOn(outbox, 'incrementAttempts').mockRejectedValue(new Error('db unreachable'));
+    const producer = new FakeProducer();
+    producer.failNextBatch = true;
+    const relay = new OutboxRelay(outbox, producer);
+    const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+
+    await expect(relay.runOnce()).rejects.toThrow('broker unavailable');
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to record outbox publish attempts: db unreachable'),
+    );
+    errorSpy.mockRestore();
   });
 
   it('respects the configured batch size', async () => {
@@ -182,6 +224,21 @@ describe('OutboxRelay start/stop loop', () => {
     await jest.advanceTimersByTimeAsync(1000);
 
     expect(producer.published.map((m) => m.key)).toEqual(['order-1', 'order-2']);
+    relay.stop();
+  });
+
+  it('ignores a second start() call while already running', async () => {
+    const outbox = new FakeOutboxPort();
+    const producer = new FakeProducer();
+    const relay = new OutboxRelay(outbox, producer, { intervalMs: 1000 });
+
+    relay.start();
+    relay.start();
+    await jest.advanceTimersByTimeAsync(0);
+    outbox.rows = [buildRow('only-once')];
+    await jest.advanceTimersByTimeAsync(1000);
+
+    expect(producer.published.map((m) => m.key)).toEqual(['order-only-once']);
     relay.stop();
   });
 

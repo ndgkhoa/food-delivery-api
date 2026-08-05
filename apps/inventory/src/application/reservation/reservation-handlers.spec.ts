@@ -3,6 +3,10 @@ import { ReleaseStockHandler } from '@inventory/application/reservation/commands
 import { ReserveStockHandler } from '@inventory/application/reservation/commands/reserve-stock.handler';
 import { Reservation } from '@inventory/domain/reservation/reservation';
 import type { ReservationRepository } from '@inventory/domain/reservation/reservation.repository';
+import {
+  IdempotencyConflictError,
+  InvalidReserveRequestError,
+} from '@inventory/domain/shared/errors';
 import type { TransactionPort } from '@inventory/domain/shared/transaction.port';
 import { Stock } from '@inventory/domain/stock/stock';
 import type { StockRepository } from '@inventory/domain/stock/stock.repository';
@@ -194,6 +198,75 @@ describe('ReserveStockHandler', () => {
 
     expect(second.reservationIds).toEqual(first.reservationIds);
     expect(stockRepo.availableOf(tenantId, itemA)).toBe(7);
+  });
+
+  it('merges duplicate item ids in the request into a single summed reservation', async () => {
+    const { stockRepo, reserve } = buildHandlers();
+    stockRepo.seed(Stock.create({ tenantId, itemId: itemA, available: 10 }));
+
+    const result = await reserve.execute({
+      tenantId,
+      orderId,
+      items: [
+        { itemId: itemA, qty: 2 },
+        { itemId: itemA, qty: 3 },
+      ],
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.reservationIds).toHaveLength(1);
+    expect(stockRepo.availableOf(tenantId, itemA)).toBe(5);
+  });
+
+  it('rejects an empty items list', async () => {
+    const { reserve } = buildHandlers();
+
+    await expect(reserve.execute({ tenantId, orderId, items: [] })).rejects.toThrow(
+      InvalidReserveRequestError,
+    );
+  });
+
+  it.each([0, -1, 1.5])('rejects a non-positive-integer qty (%s)', async (qty) => {
+    const { reserve } = buildHandlers();
+
+    await expect(
+      reserve.execute({ tenantId, orderId, items: [{ itemId: itemA, qty }] }),
+    ).rejects.toThrow(InvalidReserveRequestError);
+  });
+
+  it('rejects a replay with a different item mix than the original reservation', async () => {
+    const { stockRepo, reserve } = buildHandlers();
+    stockRepo.seed(Stock.create({ tenantId, itemId: itemA, available: 10 }));
+    stockRepo.seed(Stock.create({ tenantId, itemId: itemB, available: 10 }));
+    await reserve.execute({ tenantId, orderId, items: [{ itemId: itemA, qty: 3 }] });
+
+    await expect(
+      reserve.execute({ tenantId, orderId, items: [{ itemId: itemB, qty: 3 }] }),
+    ).rejects.toThrow(IdempotencyConflictError);
+  });
+
+  it.each([
+    ['a bare postgres error code', { code: '23505' }],
+    ['a wrapped driver error code', { driverError: { code: '23505' } }],
+  ])('maps a unique-violation on save (%s) to an idempotency conflict', async (_label, dbError) => {
+    const { stockRepo, reservationRepo, reserve } = buildHandlers();
+    stockRepo.seed(Stock.create({ tenantId, itemId: itemA, available: 10 }));
+    jest.spyOn(reservationRepo, 'save').mockRejectedValueOnce(dbError);
+
+    await expect(
+      reserve.execute({ tenantId, orderId, items: [{ itemId: itemA, qty: 3 }] }),
+    ).rejects.toThrow(IdempotencyConflictError);
+  });
+
+  it('rethrows unrecognized errors from within the transaction unchanged', async () => {
+    const { stockRepo, reservationRepo, reserve } = buildHandlers();
+    stockRepo.seed(Stock.create({ tenantId, itemId: itemA, available: 10 }));
+    const boom = new Error('boom');
+    jest.spyOn(reservationRepo, 'save').mockRejectedValueOnce(boom);
+
+    await expect(
+      reserve.execute({ tenantId, orderId, items: [{ itemId: itemA, qty: 3 }] }),
+    ).rejects.toThrow(boom);
   });
 });
 

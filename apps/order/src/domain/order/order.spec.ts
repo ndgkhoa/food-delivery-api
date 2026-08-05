@@ -232,4 +232,35 @@ describe('Order', () => {
       expect(order.isOwnedBy('someone-else')).toBe(false);
     });
   });
+
+  describe('reconstitute', () => {
+    it('rebuilds an order from persisted props without re-deriving pricing', () => {
+      const item = OrderItem.create({ itemId, qty: 1, unitPriceCents: 100 });
+      const createdAt = new Date('2026-01-01T00:00:00.000Z');
+      const updatedAt = new Date('2026-01-02T00:00:00.000Z');
+      const order = Order.reconstitute({
+        id: 'order-1',
+        tenantId,
+        userId,
+        restaurantId,
+        status: 'RESERVED',
+        items: [item],
+        subtotalCents: 100,
+        deliveryFeeCents: 1500,
+        vatCents: 10,
+        discountCents: 0,
+        totalCents: 1610,
+        version: 2,
+        createdAt,
+        updatedAt,
+      });
+
+      expect(order.status).toBe('RESERVED');
+      expect(order.items).toEqual([item]);
+      expect(order.totalCents).toBe(1610);
+      expect(order.version).toBe(2);
+      expect(order.createdAt).toBe(createdAt);
+      expect(order.updatedAt).toBe(updatedAt);
+    });
+  });
 });

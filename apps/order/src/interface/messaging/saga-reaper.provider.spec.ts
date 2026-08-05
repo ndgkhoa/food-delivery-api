@@ -105,7 +105,110 @@ function buildReaper(options: {
   );
 }
 
+describe('SagaReaperProvider.onApplicationBootstrap', () => {
+  it('does not schedule the sweep interval when NODE_ENV=test', () => {
+    const reaper = new SagaReaperProvider(
+      new FakeSagaRepository(),
+      new FakeOrderRepository(),
+      new FakeOutboxWriter(),
+      new FakeTransaction(),
+      new FakeTenantContext(),
+      fakeDataSource(true),
+      reaperConfig() as never,
+    );
+    const setIntervalSpy = jest.spyOn(global, 'setInterval');
+
+    reaper.onApplicationBootstrap();
+
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    setIntervalSpy.mockRestore();
+  });
+
+  it('schedules a recurring, unref-ed sweep interval outside test env, fires it, and onModuleDestroy clears it', async () => {
+    jest.useFakeTimers();
+    const values: Record<string, number | string> = {
+      SAGA_REAPER_TIMEOUT_MS: TIMEOUT_MS,
+      SAGA_REAPER_INTERVAL_MS: INTERVAL_MS,
+      SAGA_RECONCILER_MAX_ATTEMPTS: MAX_ATTEMPTS,
+    };
+    const config = {
+      getOrThrow: <T>(key: string): T => values[key] as unknown as T,
+      get: <T>(_key: string): T => 'production' as unknown as T,
+    };
+    const sagaRepo = new FakeSagaRepository();
+    const sweepSpy = jest.spyOn(sagaRepo, 'findNonTerminal');
+    const reaper = new SagaReaperProvider(
+      sagaRepo,
+      new FakeOrderRepository(),
+      new FakeOutboxWriter(),
+      new FakeTransaction(),
+      new FakeTenantContext(),
+      fakeDataSource(true),
+      config as never,
+    );
+
+    reaper.onApplicationBootstrap();
+    expect(jest.getTimerCount()).toBe(1);
+
+    await jest.advanceTimersByTimeAsync(INTERVAL_MS);
+    expect(sweepSpy).toHaveBeenCalledTimes(1);
+
+    reaper.onModuleDestroy();
+    expect(jest.getTimerCount()).toBe(0);
+
+    jest.useRealTimers();
+  });
+
+  it('is a no-op when destroyed without ever bootstrapping a timer', () => {
+    const reaper = buildReaper({
+      sagaRepo: new FakeSagaRepository(),
+      orderRepo: new FakeOrderRepository(),
+      outbox: new FakeOutboxWriter(),
+    });
+
+    expect(() => reaper.onModuleDestroy()).not.toThrow();
+  });
+});
+
 describe('SagaReaperProvider.sweep', () => {
+  it('finds nothing stranded and returns 0', async () => {
+    const reaper = buildReaper({
+      sagaRepo: new FakeSagaRepository(),
+      orderRepo: new FakeOrderRepository(),
+      outbox: new FakeOutboxWriter(),
+    });
+
+    await expect(reaper.sweep()).resolves.toBe(0);
+  });
+
+  it('skips a candidate whose saga row was deleted concurrently, without throwing', async () => {
+    const sagaRepo = new FakeSagaRepository();
+    sagaRepo.seed(sagaAged('order-8', TIMEOUT_MS + 1_000));
+    const orderRepo = new FakeOrderRepository();
+    orderRepo.seed(buildOrder('order-8', 'PENDING'));
+    const outbox = new FakeOutboxWriter();
+    jest.spyOn(sagaRepo, 'findByOrderId').mockResolvedValue(undefined);
+
+    const reaper = buildReaper({ sagaRepo, orderRepo, outbox });
+
+    await expect(reaper.sweep()).resolves.toBe(1);
+    expect(outbox.entries).toHaveLength(0);
+  });
+
+  it('logs and swallows an unexpected error raised while recovering a candidate', async () => {
+    const sagaRepo = new FakeSagaRepository();
+    sagaRepo.seed(sagaAged('order-9', TIMEOUT_MS + 1_000));
+    const orderRepo = new FakeOrderRepository();
+    orderRepo.seed(buildOrder('order-9', 'PENDING'));
+    const outbox = new FakeOutboxWriter();
+    jest.spyOn(orderRepo, 'findById').mockRejectedValue(new Error('connection reset'));
+
+    const reaper = buildReaper({ sagaRepo, orderRepo, outbox });
+
+    await expect(reaper.sweep()).resolves.toBe(1);
+    expect(outbox.entries).toHaveLength(0);
+  });
+
   it('reports only the non-terminal sagas idle past the timeout', async () => {
     const sagaRepo = new FakeSagaRepository();
     sagaRepo.seed(sagaAged('stale', TIMEOUT_MS + 5_000));

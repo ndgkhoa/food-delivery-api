@@ -7,13 +7,18 @@ import {
 import type { IdempotencyRepository } from '@order/domain/idempotency/idempotency.repository';
 import { Order } from '@order/domain/order/order';
 import type { OrderRepository } from '@order/domain/order/order.repository';
+import { OrderItem } from '@order/domain/order/order-item';
 import type { OrderSaga } from '@order/domain/saga/order-saga';
 import type { OrderSagaRepository } from '@order/domain/saga/order-saga.repository';
 import type {
   CatalogGatewayPort,
   MenuItemSnapshot,
 } from '@order/domain/shared/catalog-gateway.port';
-import { InvalidOrderRequestError, MenuValidationError } from '@order/domain/shared/errors';
+import {
+  IdempotencyConflictError,
+  InvalidOrderRequestError,
+  MenuValidationError,
+} from '@order/domain/shared/errors';
 import type { OutboxCommandEntry, OutboxWriter } from '@order/domain/shared/outbox.port';
 import type { TransactionPort } from '@order/domain/shared/transaction.port';
 
@@ -279,5 +284,120 @@ describe('PlaceOrderHandler (async saga)', () => {
     expect(catalogGateway.calls).toBe(1);
     expect(outbox.entries).toHaveLength(1);
     expect(sagaRepo.rows.size).toBe(1);
+  });
+
+  it('rejects an order with no items', async () => {
+    const { handler } = buildHandler();
+    await expect(handler.execute(baseCommand({ items: [] }))).rejects.toThrow(
+      InvalidOrderRequestError,
+    );
+  });
+
+  it('rejects an item with a non-positive quantity', async () => {
+    const { handler } = buildHandler();
+    await expect(handler.execute(baseCommand({ items: [{ itemId, qty: 0 }] }))).rejects.toThrow(
+      InvalidOrderRequestError,
+    );
+  });
+
+  it('rejects an item with a non-integer quantity', async () => {
+    const { handler } = buildHandler();
+    await expect(handler.execute(baseCommand({ items: [{ itemId, qty: 1.5 }] }))).rejects.toThrow(
+      InvalidOrderRequestError,
+    );
+  });
+
+  it('places a zero-total order (free item, no fee/VAT/discount) without throwing', async () => {
+    const { catalogGateway, configClient, handler } = buildHandler();
+    catalogGateway.seed({ itemId, restaurantId: 'r-1', priceCents: 0, isAvailable: true });
+    configClient.seed('order.delivery_fee_cents', 0);
+    configClient.seed('order.vat_rate_bps', 0);
+    configClient.seed('order.discount_cents', 0);
+
+    const order = await handler.execute(baseCommand());
+
+    expect(order.totalCents).toBe(0);
+  });
+
+  it('rethrows an unrelated persistence error without treating it as a duplicate claim', async () => {
+    const { catalogGateway, idempotencyRepo, handler } = buildHandler();
+    catalogGateway.seed({ itemId, restaurantId: 'r-1', priceCents: 500, isAvailable: true });
+    jest.spyOn(idempotencyRepo, 'save').mockRejectedValue(new Error('disk full'));
+
+    await expect(handler.execute(baseCommand())).rejects.toThrow('disk full');
+  });
+
+  it('resolves a concurrent duplicate claim (direct unique-violation code) by returning the winner’s order', async () => {
+    const { orderRepo, idempotencyRepo, catalogGateway, handler } = buildHandler();
+    catalogGateway.seed({ itemId, restaurantId: 'r-1', priceCents: 500, isAvailable: true });
+    const winningOrder = await orderRepo.insert(
+      Order.create({
+        id: 'winning-order-id',
+        tenantId,
+        userId,
+        restaurantId: 'r-1',
+        items: [OrderItem.create({ itemId, qty: 1, unitPriceCents: 500 })],
+        pricing: { deliveryFeeCents: 0, vatRateBps: 0, discountCents: 0 },
+      }),
+    );
+    jest
+      .spyOn(idempotencyRepo, 'findOrderId')
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(winningOrder.id);
+    jest
+      .spyOn(idempotencyRepo, 'save')
+      .mockRejectedValue(Object.assign(new Error('duplicate key'), { code: '23505' }));
+
+    const order = await handler.execute(baseCommand());
+
+    expect(order.id).toBe('winning-order-id');
+  });
+
+  it('resolves a concurrent duplicate claim (driver-wrapped unique-violation code) the same way', async () => {
+    const { orderRepo, idempotencyRepo, catalogGateway, handler } = buildHandler();
+    catalogGateway.seed({ itemId, restaurantId: 'r-1', priceCents: 500, isAvailable: true });
+    const winningOrder = await orderRepo.insert(
+      Order.create({
+        id: 'winning-order-id-2',
+        tenantId,
+        userId,
+        restaurantId: 'r-1',
+        items: [OrderItem.create({ itemId, qty: 1, unitPriceCents: 500 })],
+        pricing: { deliveryFeeCents: 0, vatRateBps: 0, discountCents: 0 },
+      }),
+    );
+    jest
+      .spyOn(idempotencyRepo, 'findOrderId')
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(winningOrder.id);
+    jest
+      .spyOn(idempotencyRepo, 'save')
+      .mockRejectedValue(
+        Object.assign(new Error('duplicate key'), { driverError: { code: '23505' } }),
+      );
+
+    const order = await handler.execute(baseCommand());
+
+    expect(order.id).toBe('winning-order-id-2');
+  });
+
+  it('throws IdempotencyConflictError when a concurrent winner cannot be located either', async () => {
+    const { idempotencyRepo, catalogGateway, handler } = buildHandler();
+    catalogGateway.seed({ itemId, restaurantId: 'r-1', priceCents: 500, isAvailable: true });
+    jest.spyOn(idempotencyRepo, 'findOrderId').mockResolvedValue(undefined);
+    jest
+      .spyOn(idempotencyRepo, 'save')
+      .mockRejectedValue(Object.assign(new Error('duplicate key'), { code: '23505' }));
+
+    await expect(handler.execute(baseCommand())).rejects.toThrow(IdempotencyConflictError);
+  });
+
+  it('throws IdempotencyConflictError when the idempotency row exists but the order is not persisted yet (race)', async () => {
+    const { idempotencyRepo, handler } = buildHandler();
+    await idempotencyRepo.save(tenantId, userId, 'racing-key', 'order-not-yet-persisted');
+
+    await expect(handler.execute(baseCommand({ idempotencyKey: 'racing-key' }))).rejects.toThrow(
+      IdempotencyConflictError,
+    );
   });
 });

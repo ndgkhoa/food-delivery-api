@@ -18,3 +18,15 @@ comment:
   layout: "reach, diff, flags, files"
   behavior: default
   require_changes: false
+
+ignore:
+  - "**/migrations/**"
+  - "**/src/testing/**"
+  - "**/main.ts"
+  - "**/*.module.ts"
+  - "**/*.generated.ts"
+  - "**/*.g.ts"
+  - "**/*.d.ts"
+  - "**/index.ts"
+  - "**/instrumentation.ts"
+  - "**/typeorm-options.ts"

@@ -173,6 +173,34 @@ describe('KafkaConsumerSubscriber', () => {
     expect(parts.consumer.commitOffsets).toHaveBeenCalledTimes(1);
   });
 
+  it('skips admin topic creation entirely when subscribing with no topics', async () => {
+    const { sut, parts } = build();
+    const handler = jest.fn(async () => undefined);
+
+    await sut.subscribe({ groupId: 'g1', topics: [], handler });
+
+    expect(parts.admin.connect).not.toHaveBeenCalled();
+    expect(parts.admin.createTopics).not.toHaveBeenCalled();
+    expect(parts.consumer.subscribe).toHaveBeenCalledWith({ topics: [] });
+  });
+
+  it('gives up dead-lettering after exhausting DLQ publish retries, leaving the offset uncommitted', async () => {
+    const { sut, parts } = build();
+    parts.producer.send.mockRejectedValue(new Error('broker unavailable'));
+    const handler = jest.fn(async () => undefined);
+    await sut.subscribe({ groupId: 'g1', topics: ['order.events'], handler });
+
+    await eachMessageOf(parts.consumer)({
+      topic: 'order.events',
+      partition: 0,
+      message: kafkaMessage({}),
+    });
+
+    expect(parts.producer.send).toHaveBeenCalledTimes(3);
+    expect(parts.consumer.commitOffsets).not.toHaveBeenCalled();
+    expect(sut.getDropCounts()).toEqual({});
+  }, 10_000);
+
   it('reuses a single dlq producer across dead-letters', async () => {
     const { sut, parts, client } = build();
     const handler = jest.fn(async () => undefined);
