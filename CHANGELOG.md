@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.0](https://github.com/ndgkhoa/food-delivery-api/compare/v1.2.2...v1.3.0) (2026-08-05)
+
+
+### Features
+
+* **infra:** add demo-data seeder with edge-case scenarios ([a50132d](https://github.com/ndgkhoa/food-delivery-api/commit/a50132d8b3958331efec4cf5ff3befe5726f60ed))
+* **infra:** demo-data seeder (+ assets cleanup, ClickHouse port fix) ([345476b](https://github.com/ndgkhoa/food-delivery-api/commit/345476badbabd97a3f66aeecca62daa6769c3e5b))
+
+
+### Bug Fixes
+
+* **infra:** move ClickHouse native port to 9009 to avoid MinIO clash ([e7d5933](https://github.com/ndgkhoa/food-delivery-api/commit/e7d5933b6f33474094ca3b3ab36665e89715e1c4))
+* **infra:** patch fast-uri and brace-expansion transitive CVEs via overrides ([97208a2](https://github.com/ndgkhoa/food-delivery-api/commit/97208a2e90c2c39e8e31e0518da524c92b09511f))
+
 ## [1.2.2](https://github.com/ndgkhoa/food-delivery-api/compare/v1.2.1...v1.2.2) (2026-08-04)
 
 
