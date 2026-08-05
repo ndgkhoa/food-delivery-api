@@ -2,18 +2,18 @@ import type { Request, Response } from 'express';
 import { CORRELATION_ID_HEADER } from './correlation-id.constants';
 import { correlationIdMiddleware } from './correlation-id.middleware';
 
-function createMockReq(headers: Record<string, string | string[]> = {}): Request {
+function buildMockReq(headers: Record<string, string | string[]> = {}): Request {
   return { headers } as unknown as Request;
 }
 
-function createMockRes(): Response & { setHeader: jest.Mock } {
+function buildMockRes(): Response & { setHeader: jest.Mock } {
   return { setHeader: jest.fn() } as unknown as Response & { setHeader: jest.Mock };
 }
 
 describe('correlationIdMiddleware', () => {
   it('generates a new correlation id when the header is missing', () => {
-    const req = createMockReq();
-    const res = createMockRes();
+    const req = buildMockReq();
+    const res = buildMockRes();
     const next = jest.fn();
 
     correlationIdMiddleware(req, res, next);
@@ -25,8 +25,8 @@ describe('correlationIdMiddleware', () => {
   });
 
   it('reuses an existing correlation id from the incoming request', () => {
-    const req = createMockReq({ [CORRELATION_ID_HEADER]: 'upstream-id-123' });
-    const res = createMockRes();
+    const req = buildMockReq({ [CORRELATION_ID_HEADER]: 'upstream-id-123' });
+    const res = buildMockRes();
     const next = jest.fn();
 
     correlationIdMiddleware(req, res, next);
@@ -36,8 +36,8 @@ describe('correlationIdMiddleware', () => {
   });
 
   it('picks the first value when the header is duplicated', () => {
-    const req = createMockReq({ [CORRELATION_ID_HEADER]: ['first-id', 'second-id'] });
-    const res = createMockRes();
+    const req = buildMockReq({ [CORRELATION_ID_HEADER]: ['first-id', 'second-id'] });
+    const res = buildMockRes();
     const next = jest.fn();
 
     correlationIdMiddleware(req, res, next);

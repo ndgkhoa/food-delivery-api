@@ -11,7 +11,7 @@ import {
   TENANT_ID_HEADER,
 } from './event-envelope';
 
-describe('event envelope header codec', () => {
+describe('EventEnvelope', () => {
   const headers: EventEnvelopeHeaders = {
     eventId: 'evt-1',
     eventType: 'order.placed',
