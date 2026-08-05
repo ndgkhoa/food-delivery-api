@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main, develop]
   push:
-    branches: [main]
+    branches: [main, develop]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -49,8 +49,18 @@ jobs:
       - name: Derive base
         uses: nrwl/nx-set-shas@v4
 
-      - name: lint, test, build
-        run: pnpm nx affected -t lint test build --base=${{ env.NX_BASE }} --head=${{ env.NX_HEAD }}
+      - name: Lint & build
+        run: pnpm nx affected -t lint build --base=${{ env.NX_BASE }} --head=${{ env.NX_HEAD }}
+
+      - name: Test with coverage
+        run: pnpm nx affected -t test --base=${{ env.NX_BASE }} --head=${{ env.NX_HEAD }} --coverage --coverageReporters=lcov
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: unittests
+          fail_ci_if_error: false
 
       - name: Biome
         run: pnpm run lint
