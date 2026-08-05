@@ -55,7 +55,7 @@ class FakeLogger implements CacheLogger {
   }
 }
 
-function makeCache(): {
+function buildCache(): {
   cache: RedisCache;
   redis: FakeRedis;
   metrics: CacheMetrics;
@@ -71,7 +71,7 @@ function makeCache(): {
 describe('RedisCache', () => {
   describe('cacheAside', () => {
     it('on a miss, calls the loader, caches the result, and records a miss', async () => {
-      const { cache, redis, metrics } = makeCache();
+      const { cache, redis, metrics } = buildCache();
       const loader = jest.fn().mockResolvedValue({ name: 'Pho 24' });
 
       const result = await cache.cacheAside('key-1', 1000, loader);
@@ -83,7 +83,7 @@ describe('RedisCache', () => {
     });
 
     it('on a hit, never calls the loader and records a hit', async () => {
-      const { cache, metrics } = makeCache();
+      const { cache, metrics } = buildCache();
       const loader = jest.fn().mockResolvedValue({ name: 'first' });
       await cache.cacheAside('key-1', 1000, loader);
 
@@ -95,7 +95,7 @@ describe('RedisCache', () => {
     });
 
     it('falls back to the loader (never throws) when Redis GET fails, and does not cache the miss forever', async () => {
-      const { cache, redis, logger } = makeCache();
+      const { cache, redis, logger } = buildCache();
       redis.failing = true;
       const loader = jest.fn().mockResolvedValue({ name: 'from DB' });
 
@@ -107,7 +107,7 @@ describe('RedisCache', () => {
     });
 
     it('propagates a loader error (the cache never swallows a real data-layer failure)', async () => {
-      const { cache } = makeCache();
+      const { cache } = buildCache();
       const loader = jest.fn().mockRejectedValue(new Error('DB unreachable'));
 
       await expect(cache.cacheAside('key-1', 1000, loader)).rejects.toThrow('DB unreachable');
@@ -116,7 +116,7 @@ describe('RedisCache', () => {
 
   describe('writeThrough / invalidate', () => {
     it('writeThrough sets a value a subsequent cacheAside reads as a hit', async () => {
-      const { cache, metrics } = makeCache();
+      const { cache, metrics } = buildCache();
       await cache.writeThrough('key-1', { name: 'fresh' }, 1000);
 
       const loader = jest.fn();
@@ -128,7 +128,7 @@ describe('RedisCache', () => {
     });
 
     it('invalidate evicts a key so the next read is a miss', async () => {
-      const { cache, redis } = makeCache();
+      const { cache, redis } = buildCache();
       await cache.writeThrough('key-1', { name: 'stale' }, 1000);
 
       await cache.invalidate('key-1');
@@ -137,7 +137,7 @@ describe('RedisCache', () => {
     });
 
     it('writeThrough and invalidate never throw when Redis is down', async () => {
-      const { cache, redis, logger } = makeCache();
+      const { cache, redis, logger } = buildCache();
       redis.failing = true;
 
       await expect(cache.writeThrough('key-1', { name: 'x' }, 1000)).resolves.toBeUndefined();
@@ -146,7 +146,7 @@ describe('RedisCache', () => {
     });
 
     it('invalidatePattern evicts every key matching the prefix, never throws when down', async () => {
-      const { cache, redis } = makeCache();
+      const { cache, redis } = buildCache();
       await cache.writeThrough('catalog:restaurants:tenant-a:list:page=1', [], 1000);
       await cache.writeThrough('catalog:restaurants:tenant-a:list:page=2', [], 1000);
       await cache.writeThrough('catalog:restaurants:tenant-b:list:page=1', [], 1000);
@@ -164,7 +164,7 @@ describe('RedisCache', () => {
 
   describe('tenant key namespacing', () => {
     it('two tenants caching under differently-namespaced keys never collide', async () => {
-      const { cache } = makeCache();
+      const { cache } = buildCache();
       await cache.writeThrough('catalog:restaurant:tenant-a:r1', { owner: 'A' }, 1000);
       await cache.writeThrough('catalog:restaurant:tenant-b:r1', { owner: 'B' }, 1000);
 

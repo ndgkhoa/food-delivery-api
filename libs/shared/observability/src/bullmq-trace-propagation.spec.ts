@@ -132,9 +132,7 @@ describe('injectJobTraceContext', () => {
   });
 
   it('returns data unchanged (no key added) when no traceparent is produced', () => {
-    jest.spyOn(propagation, 'inject').mockImplementationOnce(() => {
-      // no-op: leaves the carrier empty
-    });
+    jest.spyOn(propagation, 'inject').mockImplementationOnce(() => {});
     const data = { mediaId: 'm-1' };
     const result = injectJobTraceContext(data);
     expect(result).toEqual(data);

@@ -1,4 +1,9 @@
 import { randomUUID } from 'node:crypto';
+import {
+  type OrderPricingSettingsClient,
+  type PlaceOrderCommand,
+  PlaceOrderHandler,
+} from '@order/application/order/commands/place-order.handler';
 import type { IdempotencyRepository } from '@order/domain/idempotency/idempotency.repository';
 import { Order } from '@order/domain/order/order';
 import type { OrderRepository } from '@order/domain/order/order.repository';
@@ -11,11 +16,6 @@ import type {
 import { InvalidOrderRequestError, MenuValidationError } from '@order/domain/shared/errors';
 import type { OutboxCommandEntry, OutboxWriter } from '@order/domain/shared/outbox.port';
 import type { TransactionPort } from '@order/domain/shared/transaction.port';
-import {
-  type OrderPricingSettingsClient,
-  type PlaceOrderCommand,
-  PlaceOrderHandler,
-} from './place-order.handler';
 
 const tenantId = '11111111-1111-4111-8111-111111111111';
 const userId = '22222222-2222-4222-8222-222222222222';
@@ -88,9 +88,7 @@ class FakeSagaRepository implements OrderSagaRepository {
     return [];
   }
 
-  async recordReconcileAttempt(): Promise<void> {
-    // Not exercised by place-order tests — the reconciler is covered separately.
-  }
+  async recordReconcileAttempt(): Promise<void> {}
 
   async resetReconcileAttempts(): Promise<'reset' | 'terminal' | 'not_found'> {
     return 'not_found';

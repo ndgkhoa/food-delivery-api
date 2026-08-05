@@ -1,11 +1,11 @@
 import type { TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { BadRequestException } from '@nestjs/common';
+import { SearchRestaurantsHandler } from '@search/application/restaurant-search/queries/search-restaurants.handler';
 import type { RestaurantSearchRepository } from '@search/domain/restaurant-search/restaurant-search.repository';
 import type {
   RestaurantSearchQuery,
   RestaurantSearchResult,
 } from '@search/domain/restaurant-search/restaurant-search-document';
-import { SearchRestaurantsHandler } from './search-restaurants.handler';
 
 describe('SearchRestaurantsHandler', () => {
   const tenantId = '11111111-1111-4111-8111-111111111111';

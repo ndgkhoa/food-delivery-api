@@ -1,4 +1,6 @@
 import type { AuthenticatedRequest } from '@gateway/guards/authenticated-request';
+import { RATE_LIMIT_STORE, type RateLimitStore } from '@gateway/rate-limit/rate-limit-store';
+import { SKIP_RATE_LIMIT_KEY } from '@gateway/rate-limit/skip-rate-limit.decorator';
 import {
   type CanActivate,
   type ExecutionContext,
@@ -11,8 +13,6 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import type { Response } from 'express';
-import { RATE_LIMIT_STORE, type RateLimitStore } from './rate-limit-store';
-import { SKIP_RATE_LIMIT_KEY } from './skip-rate-limit.decorator';
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {

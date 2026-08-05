@@ -4,7 +4,7 @@ import { createTestKeySet, TEST_TENANT_ID, type TestKeySet } from './testing/tes
 const ISSUER = 'https://idp.test/realms/food-delivery';
 const AUDIENCE = 'food-delivery-api';
 
-describe('access token verification', () => {
+describe('AccessTokenVerifier', () => {
   let keys: TestKeySet;
 
   beforeAll(async () => {

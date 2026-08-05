@@ -13,7 +13,7 @@ import {
   recordSagaReconcileRedriven,
 } from './metrics';
 
-describe('business metrics helpers', () => {
+describe('Metrics', () => {
   afterEach(() => {
     jest.restoreAllMocks();
     metrics.disable();

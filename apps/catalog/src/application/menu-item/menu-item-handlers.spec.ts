@@ -185,7 +185,7 @@ class FakeTransactionPort implements TransactionPort {
   }
 }
 
-describe('menu-item application handlers', () => {
+describe('MenuItemHandlers', () => {
   const tenantA = '11111111-1111-4111-8111-111111111111';
   const tenantB = '22222222-2222-4222-8222-222222222222';
 
@@ -264,8 +264,8 @@ describe('menu-item application handlers', () => {
     expect(menuItem.tenantId).toBe(tenantA);
     expect(menuItem.priceCents).toBe(8500);
 
-    const createEntry = auditPort.entries.find((e) => e.action === AuditAction.CREATE);
-    expect(createEntry).toBeDefined();
+    const buildEntry = auditPort.entries.find((e) => e.action === AuditAction.CREATE);
+    expect(buildEntry).toBeDefined();
   });
 
   it('rejects nesting a menu item under a restaurant owned by another tenant', async () => {

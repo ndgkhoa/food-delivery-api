@@ -1,7 +1,10 @@
+import { chargeWorkflow, providerResultSignal } from '@payment/workflows/charge-workflow';
+import type {
+  EmitReplyActivityInput,
+  PaymentActivities,
+} from '@payment/workflows/charge-workflow.types';
 import { TestWorkflowEnvironment } from '@temporalio/testing';
 import { Worker } from '@temporalio/worker';
-import { chargeWorkflow, providerResultSignal } from './charge-workflow';
-import type { EmitReplyActivityInput, PaymentActivities } from './charge-workflow.types';
 
 const gatedDescribe = process.env.RUN_TEMPORAL_TESTS === '1' ? describe : describe.skip;
 

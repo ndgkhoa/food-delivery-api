@@ -1,4 +1,4 @@
-import { paymentEnvSchema } from './payment-env-schema';
+import { paymentEnvSchema } from '@payment/config/payment-env-schema';
 
 const MINIMAL = {
   DB_HOST: 'localhost',

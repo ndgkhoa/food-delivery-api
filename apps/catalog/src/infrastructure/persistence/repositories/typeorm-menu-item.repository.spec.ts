@@ -51,14 +51,14 @@ describe('TypeOrmMenuItemRepository (integration)', () => {
     await truncateCatalogTables(db.dataSource);
   });
 
-  async function createRestaurant(): Promise<Restaurant> {
+  async function buildRestaurant(): Promise<Restaurant> {
     return restaurantRepository.save(
       Restaurant.create({ id: crypto.randomUUID(), tenantId: tenantA, name: 'Pho House' }),
     );
   }
 
   it('persists a menu item and rehydrates it as a domain instance via findById', async () => {
-    const restaurant = await createRestaurant();
+    const restaurant = await buildRestaurant();
     const menuItem = MenuItem.create({
       id: crypto.randomUUID(),
       tenantId: tenantA,
@@ -75,8 +75,8 @@ describe('TypeOrmMenuItemRepository (integration)', () => {
   });
 
   it('scopes findAndCountByRestaurant to the given restaurant and tenant', async () => {
-    const restaurantA = await createRestaurant();
-    const restaurantB = await createRestaurant();
+    const restaurantA = await buildRestaurant();
+    const restaurantB = await buildRestaurant();
 
     await menuItemRepository.save(
       MenuItem.create({
@@ -111,7 +111,7 @@ describe('TypeOrmMenuItemRepository (integration)', () => {
   });
 
   it('excludes soft-deleted menu items from reads', async () => {
-    const restaurant = await createRestaurant();
+    const restaurant = await buildRestaurant();
     const menuItem = await menuItemRepository.save(
       MenuItem.create({
         id: crypto.randomUUID(),
@@ -129,7 +129,7 @@ describe('TypeOrmMenuItemRepository (integration)', () => {
 
   describe('updateVersioned (optimistic locking)', () => {
     it('increments the version on a normal update against real Postgres', async () => {
-      const restaurant = await createRestaurant();
+      const restaurant = await buildRestaurant();
       const menuItem = await menuItemRepository.save(
         MenuItem.create({
           id: crypto.randomUUID(),
@@ -148,7 +148,7 @@ describe('TypeOrmMenuItemRepository (integration)', () => {
     });
 
     it('rejects a stale write against real Postgres: the WHERE version guard genuinely blocks it', async () => {
-      const restaurant = await createRestaurant();
+      const restaurant = await buildRestaurant();
       const created = await menuItemRepository.save(
         MenuItem.create({
           id: crypto.randomUUID(),

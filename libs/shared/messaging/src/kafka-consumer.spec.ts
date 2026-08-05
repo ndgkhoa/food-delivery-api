@@ -6,7 +6,7 @@ import type { DecodedKafkaMessage } from './kafka-consumer';
 import { consumeOneMessage, runHandlerWithRetry } from './kafka-consumer';
 import { type DropReason, MessageDropCounter } from './message-drop-counter';
 
-function makeMessage(overrides: Partial<DecodedKafkaMessage> = {}): DecodedKafkaMessage {
+function buildMessage(overrides: Partial<DecodedKafkaMessage> = {}): DecodedKafkaMessage {
   return {
     envelope: {
       eventId: 'evt-1',
@@ -31,7 +31,7 @@ function silentLogger(): Pick<Logger, 'warn' | 'error'> {
 describe('runHandlerWithRetry', () => {
   it('runs the handler once inside the tenant scope carried by the envelope on success', async () => {
     const tenantContext = new AlsTenantContextAdapter();
-    const message = makeMessage();
+    const message = buildMessage();
     let seenTenantId: string | undefined;
     const handler = jest.fn(async () => {
       seenTenantId = tenantContext.getContext()?.tenantId;
@@ -51,7 +51,7 @@ describe('runHandlerWithRetry', () => {
 
   it('retries a failing handler up to maxAttempts and succeeds once it recovers', async () => {
     const tenantContext = new AlsTenantContextAdapter();
-    const message = makeMessage();
+    const message = buildMessage();
     let attempts = 0;
     const handler = jest.fn(async () => {
       attempts += 1;
@@ -72,7 +72,7 @@ describe('runHandlerWithRetry', () => {
 
   it('reports not-ok after maxAttempts (never throws) so the caller can dead-letter', async () => {
     const tenantContext = new AlsTenantContextAdapter();
-    const message = makeMessage();
+    const message = buildMessage();
     const handler = jest.fn().mockRejectedValue(new Error('always fails'));
     const logger = silentLogger();
 
@@ -94,7 +94,7 @@ interface DlqCall {
   failureReason: string;
 }
 
-function makeConsumeDeps(handler: jest.Mock, dlqOk = true) {
+function buildConsumeDeps(handler: jest.Mock, dlqOk = true) {
   const dropCounter = new MessageDropCounter();
   const dlqCalls: DlqCall[] = [];
   const commit = jest.fn(async () => {});
@@ -132,7 +132,7 @@ function rawMessage(headers: Record<string, string> | undefined): RawInboundMess
 describe('consumeOneMessage dead-letter paths', () => {
   it('dead-letters + counts an undecodable message (missing envelope headers), then commits past', async () => {
     const handler = jest.fn(async () => {});
-    const { deps, dropCounter, dlqCalls, commit } = makeConsumeDeps(handler);
+    const { deps, dropCounter, dlqCalls, commit } = buildConsumeDeps(handler);
 
     await consumeOneMessage(rawMessage(undefined), deps);
 
@@ -145,7 +145,7 @@ describe('consumeOneMessage dead-letter paths', () => {
 
   it('dead-letters + counts a handler that exhausts its retries, and still advances the offset', async () => {
     const handler = jest.fn().mockRejectedValue(new Error('db lock timeout'));
-    const { deps, dropCounter, dlqCalls, commit } = makeConsumeDeps(handler);
+    const { deps, dropCounter, dlqCalls, commit } = buildConsumeDeps(handler);
 
     await consumeOneMessage(
       rawMessage(
@@ -171,7 +171,7 @@ describe('consumeOneMessage dead-letter paths', () => {
 
   it('commits without dead-lettering when the handler succeeds', async () => {
     const handler = jest.fn(async () => {});
-    const { deps, dropCounter, dlqCalls, commit } = makeConsumeDeps(handler);
+    const { deps, dropCounter, dlqCalls, commit } = buildConsumeDeps(handler);
 
     await consumeOneMessage(
       rawMessage(
@@ -195,7 +195,7 @@ describe('consumeOneMessage dead-letter paths', () => {
 
   it('does NOT commit or count when the dead-letter write itself fails (message redelivers, not lost)', async () => {
     const handler = jest.fn().mockRejectedValue(new Error('db lock timeout'));
-    const { deps, dropCounter, dlqCalls, commit } = makeConsumeDeps(handler, false);
+    const { deps, dropCounter, dlqCalls, commit } = buildConsumeDeps(handler, false);
 
     await consumeOneMessage(
       rawMessage(

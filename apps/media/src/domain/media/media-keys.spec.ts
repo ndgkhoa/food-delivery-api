@@ -1,6 +1,6 @@
 import { buildObjectKey, buildThumbnailKey } from '@media/domain/media/media-keys';
 
-describe('media object keys', () => {
+describe('MediaKeys', () => {
   const tenantId = '11111111-1111-4111-8111-111111111111';
   const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 

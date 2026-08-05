@@ -1,6 +1,9 @@
+import { type ChargeActivityDeps, createChargeActivity } from '@payment/activities/charge.activity';
+import {
+  createEmitReplyActivity,
+  type EmitReplyActivityDeps,
+} from '@payment/activities/emit-reply.activity';
 import type { PaymentActivities } from '@payment/workflows/charge-workflow.types';
-import { type ChargeActivityDeps, createChargeActivity } from './charge.activity';
-import { createEmitReplyActivity, type EmitReplyActivityDeps } from './emit-reply.activity';
 
 export type PaymentActivitiesDeps = ChargeActivityDeps & EmitReplyActivityDeps;
 

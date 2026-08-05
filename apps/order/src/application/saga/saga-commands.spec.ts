@@ -7,12 +7,12 @@ import {
   PAYMENT_COMMANDS_TOPIC,
   releaseStockCommand,
   reserveStockCommand,
-} from './saga-commands';
+} from '@order/application/saga/saga-commands';
 
 const orderId = '44444444-4444-4444-8444-444444444444';
 const correlationId = '55555555-5555-4555-8555-555555555555';
 
-describe('saga command factories', () => {
+describe('SagaCommandFactories', () => {
   it('reserveStockCommand targets inventory.commands, keyed by order id, carrying the root correlation id', () => {
     const items = [{ itemId: 'i-1', qty: 2 }];
     expect(reserveStockCommand(orderId, items, correlationId)).toEqual({

@@ -50,7 +50,7 @@ class FakeRedis {
   }
 }
 
-function makeLock(
+function buildLock(
   waitTimeoutMs?: number,
   retryDelayMs?: number,
 ): {
@@ -67,7 +67,7 @@ describe('RedisDistributedLock', () => {
 
   describe('acquire / release', () => {
     it('returns a fencing token on success and null when the key is already held', async () => {
-      const { lock } = makeLock();
+      const { lock } = buildLock();
 
       const first = await lock.acquire('k', ttl);
       const second = await lock.acquire('k', ttl);
@@ -77,7 +77,7 @@ describe('RedisDistributedLock', () => {
     });
 
     it('issues strictly increasing fencing tokens across acquisitions', async () => {
-      const { lock } = makeLock();
+      const { lock } = buildLock();
 
       const first = await lock.acquire('k', ttl);
       await lock.release('k', first as string);
@@ -87,7 +87,7 @@ describe('RedisDistributedLock', () => {
     });
 
     it('only lets the token holder release (compare-and-del)', async () => {
-      const { lock, redis } = makeLock();
+      const { lock, redis } = buildLock();
       const token = (await lock.acquire('k', ttl)) as string;
 
       const releasedByImpostor = await lock.release('k', 'not-the-token');
@@ -102,7 +102,7 @@ describe('RedisDistributedLock', () => {
 
   describe('withLocks', () => {
     it('acquires keys in deterministic sorted order', async () => {
-      const { lock, redis } = makeLock();
+      const { lock, redis } = buildLock();
 
       await lock.withLocks(['item-c', 'item-a', 'item-b'], ttl, async () => undefined);
 
@@ -110,7 +110,7 @@ describe('RedisDistributedLock', () => {
     });
 
     it('runs the callback with all locks held and releases them afterwards', async () => {
-      const { lock, redis } = makeLock();
+      const { lock, redis } = buildLock();
       let heldDuringCallback = false;
 
       const result = await lock.withLocks(['a', 'b'], ttl, async () => {
@@ -125,7 +125,7 @@ describe('RedisDistributedLock', () => {
     });
 
     it('blocks then throws when a key stays contended past the wait budget', async () => {
-      const { lock, redis } = makeLock(60, 10);
+      const { lock, redis } = buildLock(60, 10);
       await lock.acquire('b', ttl);
 
       await expect(lock.withLocks(['a', 'b'], ttl, async () => 'never')).rejects.toBeInstanceOf(
@@ -137,7 +137,7 @@ describe('RedisDistributedLock', () => {
     });
 
     it('waits for a contended key and proceeds once it is released within the budget', async () => {
-      const { lock, redis } = makeLock(1000, 10);
+      const { lock, redis } = buildLock(1000, 10);
       const heldToken = (await lock.acquire('b', ttl)) as string;
       setTimeout(() => {
         void lock.release('b', heldToken);
@@ -151,7 +151,7 @@ describe('RedisDistributedLock', () => {
     });
 
     it('releases locks even when the callback throws', async () => {
-      const { lock, redis } = makeLock();
+      const { lock, redis } = buildLock();
 
       await expect(
         lock.withLocks(['a', 'b'], ttl, async () => {

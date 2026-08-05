@@ -1,5 +1,8 @@
 import { createHmac } from 'node:crypto';
-import { DEFAULT_WEBHOOK_TOLERANCE_SEC, verifyWebhookSignature } from './hmac-webhook-verifier';
+import {
+  DEFAULT_WEBHOOK_TOLERANCE_SEC,
+  verifyWebhookSignature,
+} from '@payment/interface/http/hmac-webhook-verifier';
 
 const SECRET = 'test-secret';
 const NOW = 1_700_000_000;
