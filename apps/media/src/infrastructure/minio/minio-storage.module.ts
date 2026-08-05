@@ -4,10 +4,6 @@ import { MinioClientModule } from '@media/infrastructure/minio/minio-client.modu
 import { MinioObjectStorage } from '@media/infrastructure/minio/minio-object-storage.adapter';
 import { Module } from '@nestjs/common';
 
-/**
- * Binds the object-storage port to the MinIO adapter and runs the bucket
- * bootstrap on boot. Owns the MinIO client via `MinioClientModule`.
- */
 @Module({
   imports: [MinioClientModule],
   providers: [{ provide: OBJECT_STORAGE, useClass: MinioObjectStorage }, BucketBootstrap],

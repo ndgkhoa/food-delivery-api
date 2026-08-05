@@ -1,7 +1,3 @@
-# Grafana datasource provisioning (as-code, no click-ops) for the
-# `observability` compose profile. Fixed UIDs so the dashboard JSON files
-# under infra/grafana/dashboards can reference them by id, and so the Loki
-# derived field below can target the Jaeger datasource by uid.
 apiVersion: 1
 
 datasources:
@@ -27,10 +23,6 @@ datasources:
     url: http://loki:3100
     editable: false
     jsonData:
-      # Regex-extracts trace_id straight out of the raw pino JSON log line
-      # (libs/shared/logging's trace-context.mixin adds it — no Loki-side
-      # label/parsing needed) and turns it into a "Jaeger" link in Explore, so
-      # a log line pivots directly to its trace.
       derivedFields:
         - datasourceUid: jaeger
           matcherRegex: '"trace_id":"(\w+)"'

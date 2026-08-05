@@ -1,28 +1,3 @@
-# Blue-green cutover runbook (Argo Rollouts-managed, no manual patch):
-#
-# 1. Apply the controller once per cluster, then this directory:
-#    `kubectl apply -k infra/k8s/argo-rollouts && kubectl apply -k infra/k8s/rollout/blue-green`.
-#    The `gateway` Rollout (rollout.yaml) starts fully promoted — this
-#    Service's selector is patched by the controller to the active
-#    ReplicaSet's `rollouts-pod-template-hash`.
-# 2. Ship a new revision: bump `image:` in rollout.yaml and re-apply. The
-#    controller scales up the new (preview) ReplicaSet behind
-#    service-preview.yaml's `gateway-preview` Service while this Service
-#    keeps serving the old (active) one.
-# 3. Verify the preview is healthy on its own, then promote:
-#    `kubectl argo rollouts get rollout gateway -n food-delivery --watch`
-#    `kubectl argo rollouts promote gateway -n food-delivery`
-#    — the controller flips this Service's selector to the new ReplicaSet.
-# 4. Rollback (before `scaleDownDelaySeconds` retires the old ReplicaSet):
-#    `kubectl argo rollouts undo gateway -n food-delivery`
-#
-# Selector deliberately has no `version:` — the Rollout's pod template no
-# longer sets that label; the controller owns active/preview routing by
-# patching `rollouts-pod-template-hash` onto this selector itself.
-#
-# Overwrites infra/k8s/base/gateway/service.yaml's `gateway` Service (same
-# name/namespace) for the duration of the demo. Scale that base Deployment
-# to 0 for a clean demo so it isn't just idling alongside the Rollout.
 apiVersion: v1
 kind: Service
 metadata:

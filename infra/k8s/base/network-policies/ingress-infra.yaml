@@ -1,10 +1,3 @@
-# Shared in-namespace infra, one policy per dependency. kafka, temporal, and
-# keycloak have no base Deployment yet (infra-dev only ships postgres+redis;
-# temporal/keycloak/kafka are provisioned elsewhere or not yet at all) — their
-# policies select by label and stay inert (match zero pods) until such a
-# Deployment exists in this namespace. Harmless and forward-looking rather
-# than deleted, so the ingress rule ships with the service instead of being
-# an afterthought.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -50,11 +43,6 @@ spec:
       ports:
         - protocol: TCP
           port: 6379
-# NOTE: the OpenTelemetry collector runs in the `observability` namespace, not
-# here, so its ingress protection ships with the observability manifests — not
-# in this file. App pods reach it via the cross-namespace OTLP egress carve-out
-# (03-allow-otlp-egress-to-observability.yaml), the one legitimate flow out of
-# this namespace besides DNS.
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -95,7 +83,6 @@ spec:
     - Ingress
   ingress:
     - from:
-        # Only payment talks to Temporal (TEMPORAL_ADDRESS is set on payment alone).
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: payment
@@ -119,7 +106,6 @@ spec:
     - Ingress
   ingress:
     - from:
-        # gateway, auth, and delivery each carry KEYCLOAK_URL.
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: gateway

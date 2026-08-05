@@ -9,14 +9,6 @@ import {
 
 const CERTS_PATH = `/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs`;
 
-/**
- * ONE key set shared across every suite in the run. The delivery service caches
- * the JWKS it fetches (keyed by `kid`), so if each suite minted its own key pair
- * under the same default `kid`, only the first suite's tokens would verify and
- * the rest would fail the signature check. jest runs these serially in a single
- * worker without resetting the module registry, so this singleton is created
- * once and every suite serves + signs with the same keys.
- */
 let sharedKeySet: Promise<TestKeySet> | undefined;
 function sharedTestKeySet(): Promise<TestKeySet> {
   if (!sharedKeySet) {
@@ -30,14 +22,6 @@ function sharedTestKeySet(): Promise<TestKeySet> {
   return sharedKeySet;
 }
 
-/**
- * Stands up a real RS256 JWKS the delivery service can fetch to verify WS
- * handshake tokens — no live Keycloak needed. The delivery service is started
- * (by the orchestrator) with `KEYCLOAK_URL=http://localhost:8899` so its derived
- * JWKS URI resolves to this server's certs endpoint. Tokens minted with `sign`
- * carry a real signature over this key set, so the service accepts them exactly
- * as it would a genuine Keycloak token.
- */
 export class DeliveryJwksServer {
   private server?: Server;
   private keySet?: TestKeySet;
@@ -56,7 +40,6 @@ export class DeliveryJwksServer {
     await new Promise<void>((resolve) => this.server?.listen(JWKS_SERVER_PORT, resolve));
   }
 
-  /** Mints a signed access token for a driver/customer with the given tenant + roles. */
   sign(params: { sub: string; tenantId: string; roles: string[] }): Promise<string> {
     if (!this.keySet) {
       throw new Error('DeliveryJwksServer.start() must run before sign()');

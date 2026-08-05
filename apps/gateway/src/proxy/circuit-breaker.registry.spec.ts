@@ -1,7 +1,6 @@
 import { CircuitBreakerRegistry } from '@gateway/proxy/circuit-breaker.registry';
 import type { ConfigService } from '@nestjs/config';
 
-/** Low threshold + volume so a couple of failures deterministically open the breaker. */
 function configStub(overrides: Record<string, unknown> = {}): ConfigService {
   const values: Record<string, unknown> = {
     CB_ENABLED: true,
@@ -22,13 +21,11 @@ describe('CircuitBreakerRegistry', () => {
     const registry = new CircuitBreakerRegistry(configStub());
     const action = jest.fn().mockRejectedValue(new Error('downstream down'));
 
-    // CB_VOLUME_THRESHOLD=2: neither failure alone opens it, the 2nd does.
     await expect(registry.run('catalog', action)).rejects.toThrow('downstream down');
     await expect(registry.run('catalog', action)).rejects.toThrow('downstream down');
     expect(action).toHaveBeenCalledTimes(2);
 
     await expect(registry.run('catalog', action)).rejects.toMatchObject({ code: 'EOPENBREAKER' });
-    // The action was NOT invoked a 3rd time — the breaker rejected fast.
     expect(action).toHaveBeenCalledTimes(2);
   });
 
@@ -40,15 +37,12 @@ describe('CircuitBreakerRegistry', () => {
     await expect(registry.run('order', failing)).rejects.toThrow();
     await expect(registry.run('order', failing)).rejects.toMatchObject({ code: 'EOPENBREAKER' });
 
-    // Real wait past CB_RESET_TIMEOUT_MS (50ms) so opossum allows one half-open probe.
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     const recovered = jest.fn().mockResolvedValue('ok');
     await expect(registry.run('order', recovered)).resolves.toBe('ok');
     expect(recovered).toHaveBeenCalledTimes(1);
 
-    // Closed now — the next failure is actually attempted (not an immediate
-    // EOPENBREAKER), proving the probe closed the circuit rather than reopening it bare.
     const nextCall = jest.fn().mockRejectedValue(new Error('downstream down again'));
     await expect(registry.run('order', nextCall)).rejects.toThrow('downstream down again');
     expect(nextCall).toHaveBeenCalledTimes(1);

@@ -9,17 +9,9 @@ import { Inject, Injectable } from '@nestjs/common';
 export interface NearbyDriversParams {
   lat: number;
   lng: number;
-  /** Requested radius (metres); the query bounds it to `maxRadiusMeters`. */
   radiusMeters: number;
 }
 
-/**
- * Lists drivers near a point for the caller's tenant, nearest first. The origin
- * is validated as a real coordinate and the radius is clamped to the configured
- * maximum so a caller cannot force an unbounded GEO scan. Tenant scoping is the
- * caller's responsibility (passed from the trusted identity) — the store keys
- * are always tenant-prefixed.
- */
 @Injectable()
 export class NearbyDriversQuery {
   constructor(

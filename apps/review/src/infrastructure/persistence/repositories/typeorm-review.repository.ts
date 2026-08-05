@@ -25,7 +25,6 @@ export class TypeOrmReviewRepository implements ReviewRepository {
     return getTransactionalEntityManager()?.getRepository(ReviewOrmEntity) ?? this.ormRepository;
   }
 
-  /** Raw insert — a duplicate `order_id` throws the driver's unique-violation, translated by the caller. */
   async save(review: Review): Promise<Review> {
     await this.repository.insert({
       id: review.id,
@@ -40,12 +39,6 @@ export class TypeOrmReviewRepository implements ReviewRepository {
     return review;
   }
 
-  /**
-   * Recomputes from the `reviews` table (not an incremental counter) so the
-   * aggregate is always correct regardless of how many times a submit is
-   * retried. Runs on the SAME (possibly transactional) manager as `save`, so
-   * it sees a review just inserted in this transaction.
-   */
   async aggregateForRestaurant(
     tenantId: string,
     restaurantId: string,

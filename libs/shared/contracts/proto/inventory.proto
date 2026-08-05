@@ -2,10 +2,6 @@ syntax = "proto3";
 
 package inventory;
 
-// Internal east-west contract owned by the inventory service. Reserve/Release
-// are the only writes to stock; the order service calls them inline over gRPC
-// (synchronous by design in this slice — the coupling motivates the later Saga).
-// Tenant scope travels in gRPC metadata (`x-tenant-id`).
 service InventoryService {
   rpc Reserve (ReserveRequest) returns (ReserveResponse);
   rpc Release (ReleaseRequest) returns (ReleaseResponse);
@@ -17,14 +13,12 @@ message ReserveItem {
 }
 
 message ReserveRequest {
-  // Informational only; the authoritative tenant is read from gRPC metadata.
   string tenant_id = 1;
   string order_id = 2;
   repeated ReserveItem items = 3;
 }
 
 message ReserveResponse {
-  // false when any item lacked stock — the whole reserve is all-or-nothing.
   bool ok = 1;
   repeated string reservation_ids = 2;
 }

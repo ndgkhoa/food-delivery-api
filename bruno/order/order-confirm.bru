@@ -1,22 +1,19 @@
 meta {
   name: Order - confirm
   type: http
-  seq: 3
+  seq: 4
 }
 
 post {
   url: {{gateway}}/orders/:orderId/confirm
+  body: none
   auth: bearer
 }
 
 params:path {
-  orderId: 
+  orderId: 018d9385-04b9-4c81-ba06-34c9505b5c74
 }
 
 auth:bearer {
   token: {{token}}
-}
-
-docs {
-  RESERVED to CONFIRMED. Owner or admin. Optimistic-lock conflict returns 409.
 }

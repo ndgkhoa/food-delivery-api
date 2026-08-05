@@ -12,11 +12,6 @@ interface AssignmentBody {
   driverId: string | null;
 }
 
-/**
- * Compose e2e — needs `core` + `messaging` + the `delivery` service running.
- * Produces an `OrderConfirmed` to `order.events` and asserts the delivery
- * consumer assigns the online driver, queryable over HTTP.
- */
 describe('order.events OrderConfirmed → assignment (compose e2e)', () => {
   const jwks = new DeliveryJwksServer();
 
@@ -30,7 +25,6 @@ describe('order.events OrderConfirmed → assignment (compose e2e)', () => {
     const driverId = randomUUID();
     const orderId = randomUUID();
 
-    // A driver must be online (reporting a position) to be assignable.
     const token = await jwks.sign({ sub: driverId, tenantId: TENANT_A, roles: ['driver'] });
     const socket = connectClient(token);
     await waitForConnect(socket);
@@ -43,7 +37,6 @@ describe('order.events OrderConfirmed → assignment (compose e2e)', () => {
       userId: randomUUID(),
       totalCents: 1500,
     });
-    // Redelivery: the same order confirmed twice must still yield ONE assignment.
     await produceOrderConfirmed({
       orderId,
       tenantId: TENANT_A,

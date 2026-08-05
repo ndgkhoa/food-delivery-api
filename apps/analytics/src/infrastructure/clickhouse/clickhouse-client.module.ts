@@ -3,12 +3,6 @@ import { type ClickHouseClient, createClient } from '@clickhouse/client';
 import { Inject, Module, type OnApplicationShutdown, type Provider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-/**
- * Wraps `@clickhouse/client` in a Nest provider (hexagonal — mirrors how
- * search wraps `@elastic/elasticsearch`) instead of coupling adapters
- * directly to the SDK. The client is a singleton HTTP connection pool; it is
- * closed on shutdown so a redeploy drains cleanly.
- */
 const clickHouseClientProvider: Provider = {
   provide: CLICKHOUSE_CLIENT,
   useFactory: (config: ConfigService): ClickHouseClient =>

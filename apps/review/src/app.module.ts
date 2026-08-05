@@ -17,13 +17,6 @@ import { ReviewsController } from '@review/interface/http/reviews.controller';
 import { OrderEventsConsumer } from '@review/interface/messaging/order-events.consumer';
 import { ReviewOutboxRelayProvider } from '@review/interface/messaging/review-outbox-relay.provider';
 
-/**
- * Composition root: wires ports (domain) to adapters (infrastructure),
- * registers application use-case handlers, the HTTP controller, and the
- * Kafka messaging edge (eligibility consumer + outbox relay). This is the
- * only file allowed to import across all layers — see dependency-cruiser
- * layer rules in `.dependency-cruiser.js`.
- */
 @Module({
   imports: [
     SharedConfigModule.forRoot(reviewEnvSchema),
@@ -38,18 +31,12 @@ import { ReviewOutboxRelayProvider } from '@review/interface/messaging/review-ou
   ],
   controllers: [ReviewsController],
   providers: [
-    // Review use cases
     SubmitReviewHandler,
     RecordReviewEligibilityHandler,
-    // Kafka edge: subscriber/admin helpers + the eligibility consumer + outbox relay
     KafkaConsumerSubscriber,
     KafkaTopicAdmin,
     OrderEventsConsumer,
     ReviewOutboxRelayProvider,
-    // Every route is tenant-scoped by default — the tenant comes from the verified
-    // identity the gateway propagates (shared-tenancy), never a raw client header.
-    // No RolesGuard: any authenticated tenant may submit a review; ownership is
-    // enforced by the handler against the eligibility record, not a role.
     { provide: APP_INTERCEPTOR, useClass: TrustedIdentityInterceptor },
   ],
 })

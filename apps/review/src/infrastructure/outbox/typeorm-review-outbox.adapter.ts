@@ -26,29 +26,8 @@ interface UnpublishedRow {
   trace_parent: string | null;
 }
 
-/**
- * Distinct per-service Postgres advisory-lock key so the review relay's drain
- * serializes across HPA replicas. Only needs to be unique within review's own
- * database (each service owns its database), but kept distinct from the other
- * services' keys (order 4001, payment 4002, inventory 4003) for clarity.
- */
 const OUTBOX_RELAY_LOCK_KEY = 4004;
 
-/**
- * Two roles over the same `review_outbox` table, mirroring order's
- * `TypeOrmOrderOutboxAdapter`:
- * - `OutboxWriter.append` — enlists in the caller's transaction so the
- *   `RestaurantRatingChanged` row commits atomically with the review insert.
- *   Tenant is read from the tenant context (never the entry) so no call site
- *   can spoof it.
- * - `OutboxPort.fetchUnpublished` / `markPublished` — the relay's drain, with
- *   `FOR UPDATE SKIP LOCKED` so overlapping ticks claim DIFFERENT rows.
- *   At-least-once: consumers dedupe by event id (the row `id`) where needed
- *   (catalog/search's rating projections are naturally idempotent either way).
- * - `OutboxPort.runExclusively` — wraps the whole drain in a session-held
- *   advisory lock so only one HPA replica drains at a time, avoiding
- *   duplicate-publish amplification across replicas.
- */
 @Injectable()
 export class TypeOrmReviewOutboxAdapter implements OutboxWriter, OutboxPort {
   constructor(
@@ -119,9 +98,6 @@ export class TypeOrmReviewOutboxAdapter implements OutboxWriter, OutboxPort {
         correlationId: row.correlation_id,
         occurredAt: new Date(row.created_at).toISOString(),
       });
-      // Forwards the ORIGINAL request's trace context captured at append time;
-      // the producer's `!headers.traceparent` guard only injects its own
-      // (disconnected) span when this is absent — see `kafka-producer.ts`.
       if (row.trace_parent) {
         headers.traceparent = row.trace_parent;
       }

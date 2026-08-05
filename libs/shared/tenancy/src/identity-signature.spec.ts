@@ -20,7 +20,6 @@ const IDENTITY = {
 };
 const NOW = 1_700_000_000_000;
 
-/** Builds the exact header set the gateway forwarder would stamp for `IDENTITY` at `ts`. */
 function signedHeaders(ts: number, key = KEY): Record<string, string> {
   return {
     [TENANT_ID_HEADER]: IDENTITY.tenantId,
@@ -86,9 +85,6 @@ describe('IdentitySignatureVerifier (enforced)', () => {
   });
 
   it('verifies the raw x-roles bytes, not a parsed-then-rejoined copy', () => {
-    // A raw roles value with an empty segment would be altered by parse+rejoin
-    // (empties dropped) but is exactly what the signer covered — so it must
-    // still verify. Proves the canonical string uses the header bytes verbatim.
     const ts = NOW;
     const rawRoles = 'restaurant-owner,,admin';
     const headers = {

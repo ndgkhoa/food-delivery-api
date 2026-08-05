@@ -15,13 +15,6 @@ import { PaymentWebhookController } from '@payment/interface/http/payment-webhoo
 import { PaymentCommandConsumer } from '@payment/interface/messaging/payment-command.consumer';
 import { PaymentOutboxRelayProvider } from '@payment/interface/messaging/payment-outbox-relay.provider';
 
-/**
- * Composition root for payment: config + persistence (outbox + dedupe ledger),
- * tenancy (consume-time tenant scope), the Kafka messaging edge (command consumer
- * that starts the durable charge workflow + the reply outbox relay), the Temporal
- * edge (`TemporalClientModule` — client, worker hosting the charge workflow +
- * activities), and the HTTP webhook surface that signals the workflow.
- */
 @Module({
   imports: [
     SharedConfigModule.forRoot(paymentEnvSchema),

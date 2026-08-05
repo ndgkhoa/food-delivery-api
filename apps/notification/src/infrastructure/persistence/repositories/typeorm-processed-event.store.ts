@@ -16,12 +16,6 @@ function isUniqueViolation(error: unknown): boolean {
   return code === UNIQUE_VIOLATION || driverCode === UNIQUE_VIOLATION;
 }
 
-/**
- * Records consumed `order.events` event ids in the same transaction as the
- * notification row batch. A re-delivered event's insert collides on the PK;
- * that unique-violation is translated into `DuplicateEventError` so the
- * idempotent consumer skips re-dispatching.
- */
 @Injectable()
 export class TypeOrmProcessedEventStore implements ProcessedEventStorePort {
   constructor(

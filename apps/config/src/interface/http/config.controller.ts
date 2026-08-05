@@ -14,14 +14,6 @@ import { UpsertFeatureFlagRequest } from '@config/interface/http/dto/upsert-feat
 import { Roles } from '@food-delivery-api/shared-tenancy';
 import { Body, Controller, Get, Param, Put } from '@nestjs/common';
 
-/**
- * Tunable business config (`config_entries`) + boolean feature flags
- * (`feature_flags`) — two separate concerns, never conflated. Reads resolve
- * tenant override ?? global default for the caller's tenant; writes require
- * `admin` (own-tenant override) or `platform-admin` (global default) — see
- * `config-roles.ts`. `flags/:key` routes are 2-segment paths so they never
- * collide with the 1-segment `:key` value routes below them.
- */
 @Controller('config')
 export class ConfigController {
   constructor(

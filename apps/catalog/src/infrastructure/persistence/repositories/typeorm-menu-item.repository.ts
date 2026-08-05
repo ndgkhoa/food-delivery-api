@@ -16,7 +16,6 @@ export class TypeOrmMenuItemRepository implements MenuItemRepository {
     private readonly ormRepository: Repository<MenuItemOrmEntity>,
   ) {}
 
-  /** Enlists in the active transaction when one is open, else uses the default connection. */
   private get repository(): Repository<MenuItemOrmEntity> {
     return getTransactionalEntityManager()?.getRepository(MenuItemOrmEntity) ?? this.ormRepository;
   }
@@ -27,16 +26,6 @@ export class TypeOrmMenuItemRepository implements MenuItemRepository {
     return MenuItemMapper.toDomain(saved);
   }
 
-  /**
-   * Atomic conditional `UPDATE ... SET version = version + 1 WHERE id = :id
-   * AND restaurant_id = :restaurantId AND tenant_id = :tenantId AND version =
-   * :version` — see `TypeOrmRestaurantRepository.updateVersioned` for why a
-   * raw conditional query is used instead of TypeORM's managed `save()`
-   * (whose automatic version check only engages via an explicit optimistic
-   * lock read, which has a load-then-write gap). Zero affected rows means a
-   * concurrent writer already moved the version on since this aggregate was
-   * loaded — a real conflict, not a missing row.
-   */
   async updateVersioned(menuItem: MenuItem): Promise<MenuItem> {
     const result = await this.repository
       .createQueryBuilder()
@@ -79,7 +68,6 @@ export class TypeOrmMenuItemRepository implements MenuItemRepository {
   }
 
   async findManyByIds(ids: string[], tenantId: string): Promise<MenuItem[]> {
-    // `In([])` would generate `IN (NULL)` in some drivers — short-circuit instead.
     if (ids.length === 0) {
       return [];
     }

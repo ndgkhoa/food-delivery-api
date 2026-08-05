@@ -111,12 +111,9 @@ describe('DispatchOrderEventHandler', () => {
     const { repository, queue, handler } = build();
     queue.failNext = true;
 
-    // First delivery: rows commit, then the first enqueue throws — the event is
-    // not swallowed, it propagates so the consumer will redeliver.
     await expect(handler.execute(envelope(ORDER_CONFIRMED), payload)).rejects.toThrow();
     expect(repository.rows.size).toBe(3);
 
-    // Redelivery: create is deduped, but the still-PENDING rows are re-enqueued.
     await handler.execute(envelope(ORDER_CONFIRMED), payload);
 
     expect(repository.rows.size).toBe(3);

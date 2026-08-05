@@ -3,7 +3,6 @@ import type { ReadMenuItemRow } from '@catalog/domain/read-model/read-menu-item.
 import { ReadMenuItemOrmEntity } from '@catalog/infrastructure/persistence/entities/read-menu-item.orm-entity';
 
 export class ReadMenuItemMapper {
-  /** Read rows only ever hold live menu items, so `deletedAt` is always null. */
   static toDomain(orm: ReadMenuItemOrmEntity): MenuItem {
     return MenuItem.reconstitute({
       id: orm.id,

@@ -1,7 +1,3 @@
-# --cert-dir points at an emptyDir: the adapter generates its own self-signed
-# serving cert on start (no CA to manage for a learning cluster); the
-# matching APIService sets insecureSkipTLSVerify — same trade-off upstream's
-# own example manifests make.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

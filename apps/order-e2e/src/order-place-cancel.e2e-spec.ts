@@ -5,17 +5,6 @@ import { bootOrderStack, type OrderStack, shutdownOrderStack } from './support/b
 import { buildIdentityHeaders } from './support/build-identity-headers';
 import { DEFAULT_DELIVERY_FEE_CENTS, DEFAULT_VAT_RATE_BPS } from './support/saga-e2e-support';
 
-/**
- * Proves the ASYNC place-order contract against real Postgres (order +
- * inventory) + a real broker: placing an order no longer reserves inline — it
- * returns PENDING and, in ONE transaction, opens the saga (STARTED) and enqueues
- * a `ReserveStock` command to the outbox. The saga's cross-service progression
- * (relay + inventory/payment consumers) is OFF in this in-process stack
- * (NODE_ENV=test), so this asserts the provable-here portion; the full
- * happy-path lands in the compose e2e.
- *
- *   pnpm nx e2e order-e2e
- */
 describe('Order place (async saga contract) + cancel (e2e)', () => {
   let stack: OrderStack;
 
@@ -74,8 +63,6 @@ describe('Order place (async saga contract) + cancel (e2e)', () => {
     expect(response.status).toBe(201);
     expect(response.body.status).toBe('PENDING');
     expect(response.body.restaurantId).toBe(restaurantId);
-    // subtotal 2400 (2 x 1200) + the config-client's fallback defaults (no
-    // config service running in this in-process stack): fee + VAT, discount 0.
     const subtotalCents = 2400;
     const vatCents = Math.floor((subtotalCents * DEFAULT_VAT_RATE_BPS) / 10000);
     expect(response.body.totalCents).toBe(subtotalCents + DEFAULT_DELIVERY_FEE_CENTS + vatCents);

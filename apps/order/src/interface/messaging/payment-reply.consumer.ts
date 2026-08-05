@@ -17,12 +17,6 @@ interface PaymentReplyPayload {
   reason?: string;
 }
 
-/**
- * Tails `payment.replies` and drives the saga's payment legs (confirm on
- * success, begin compensation on failure). Same guarantees as the inventory
- * reply consumer: decoded + tenant-scoped by the subscriber, deduped +
- * optimistic-locked by the handler. Disabled under NODE_ENV=test.
- */
 @Injectable()
 export class PaymentReplyConsumer implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(PaymentReplyConsumer.name);

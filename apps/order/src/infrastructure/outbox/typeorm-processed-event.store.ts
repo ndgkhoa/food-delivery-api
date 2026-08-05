@@ -16,12 +16,6 @@ function isUniqueViolation(error: unknown): boolean {
   return code === UNIQUE_VIOLATION || driverCode === UNIQUE_VIOLATION;
 }
 
-/**
- * Records consumed reply event ids in the same transaction as the saga
- * transition. A re-delivered reply's insert collides on the PK; that
- * unique-violation is translated into `DuplicateEventError` so the idempotent
- * consumer skips re-applying the transition.
- */
 @Injectable()
 export class TypeOrmProcessedEventStore implements ProcessedEventStorePort {
   constructor(
@@ -29,7 +23,6 @@ export class TypeOrmProcessedEventStore implements ProcessedEventStorePort {
     private readonly store: Repository<ProcessedEventOrmEntity>,
   ) {}
 
-  /** Enlists in the active transaction so "processed" commits atomically with the effect. */
   private get repository(): Repository<ProcessedEventOrmEntity> {
     return getTransactionalEntityManager()?.getRepository(ProcessedEventOrmEntity) ?? this.store;
   }

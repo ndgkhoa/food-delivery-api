@@ -2,14 +2,6 @@ import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import { buildIdentityHeaders } from './build-identity-headers';
 
-/**
- * Shared harness for the compose-based order-saga e2e specs. These specs need
- * the LIVE stack (order + inventory + payment services with their relays +
- * consumers active) plus `core`+`messaging` — they do NOT spin testcontainers.
- * The helpers here seed the catalog + inventory databases directly (schemas are
- * stable), drive the saga through the order HTTP API, and poll to a terminal
- * state. See each spec's header for the exact bring-up commands.
- */
 const ORDER_BASE_URL = process.env.ORDER_BASE_URL ?? 'http://localhost:3003/api/v1';
 
 const DB = {
@@ -19,20 +11,11 @@ const DB = {
   password: process.env.DB_PASSWORD ?? 'abc123456',
 };
 
-/** Order total (cents) the deterministic payment stub DECLINES — must match the running stub. */
 export const FAIL_AT_CENTS = Number(process.env.PAYMENT_STUB_FAIL_AT_CENTS ?? 66600);
 
-/** The order pricing model's documented config defaults, assumed un-overridden for these tenants. */
 export const DEFAULT_DELIVERY_FEE_CENTS = 1500;
 export const DEFAULT_VAT_RATE_BPS = 1000;
 
-/**
- * Inverts the order pricing formula (`subtotal + fee + floor(subtotal * vatRateBps /
- * 10000)`) to find the qty=1 item price whose resulting order total exactly
- * equals `targetTotalCents` under the given fee/VAT (the config defaults
- * unless overridden). Lets a spec target a specific ORDER TOTAL — e.g. the
- * payment stub's decline threshold — without hand-computing subtotal math.
- */
 export function priceForTotal(
   targetTotalCents: number,
   feeCents = DEFAULT_DELIVERY_FEE_CENTS,
@@ -49,7 +32,6 @@ export function priceForTotal(
   throw new Error(`priceForTotal: no integer subtotal produces total ${targetTotalCents}`);
 }
 
-/** Kafka brokers the injection helpers connect to (duplicate/DLQ). */
 export const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(',');
 
 export async function withDb<T>(
@@ -118,7 +100,6 @@ export async function sagaState(orderId: string): Promise<string | undefined> {
   });
 }
 
-/** Reads the outbox `attempts` counters for an order's saga rows (publish-failure visibility). */
 export async function orderOutboxAttempts(orderId: string): Promise<number[]> {
   return withDb('order', async (db) => {
     const res = await db.query<{ attempts: number }>(
@@ -153,10 +134,6 @@ async function getOrderStatus(tenantId: string, userId: string, orderId: string)
   return ((await res.json()) as { status: string }).status;
 }
 
-/**
- * Polls `GET /orders/:id` until the status is one of `terminal`, or throws with
- * the last-seen status when the bounded timeout elapses (clear diagnostics).
- */
 export async function pollOrderUntil(
   tenantId: string,
   userId: string,

@@ -3,11 +3,6 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { apiReference } from '@scalar/nestjs-api-reference';
 import type { Request, Response } from 'express';
 
-/**
- * Publishes the delivery OpenAPI spec at `/api/v1/openapi.json` and a Scalar
- * reference UI at `/api/v1/reference`, mirroring the other services. Only the
- * HTTP read surface is documented here; live tracking is WebSocket.
- */
 export function setupOpenApi(app: INestApplication): void {
   const config = new DocumentBuilder()
     .setTitle('Delivery Service API')

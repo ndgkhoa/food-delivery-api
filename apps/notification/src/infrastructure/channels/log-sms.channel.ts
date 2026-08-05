@@ -4,11 +4,6 @@ import type {
   NotificationMessage,
 } from '@notification/domain/notification/notification-channel.port';
 
-/**
- * STUB SMS channel: logs deterministically instead of calling a real provider.
- * A real Twilio (or similar) adapter lands later behind this same
- * `NotificationChannel` port — no consumer/worker change required.
- */
 @Injectable()
 export class LogSmsChannel implements NotificationChannel {
   private readonly logger = new Logger(LogSmsChannel.name);

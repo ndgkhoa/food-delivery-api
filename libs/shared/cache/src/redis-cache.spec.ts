@@ -3,12 +3,6 @@ import type { CacheLogger } from './cache-logger';
 import { CacheMetrics } from './cache-metrics';
 import { RedisCache } from './redis-cache';
 
-/**
- * In-memory Redis stand-in implementing exactly the commands `RedisCache`
- * uses. `failing` flips every command to reject, simulating a down/unreachable
- * Redis so the never-throw fallback path can be exercised without a real
- * connection.
- */
 class FakeRedis {
   private readonly store = new Map<string, string>();
   failing = false;
@@ -45,7 +39,6 @@ class FakeRedis {
     if (this.failing) {
       throw new Error('ECONNREFUSED');
     }
-    // Minimal glob: only the `*` suffix form used by this repo's call sites.
     const prefix = pattern.replace(/\*$/, '');
     return [...this.store.keys()].filter((key) => key.startsWith(prefix));
   }

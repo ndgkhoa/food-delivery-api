@@ -185,8 +185,6 @@ describe('syncRestaurantCache', () => {
       findById: jest.fn().mockRejectedValue(new Error('read model unavailable')),
     } as unknown as ReadRestaurantRepository;
 
-    // The projecting transaction already committed; a cache-sync failure must
-    // NOT propagate (which would dead-letter/redeliver a durable projection).
     await expect(
       syncRestaurantCache(
         'RestaurantUpdated',

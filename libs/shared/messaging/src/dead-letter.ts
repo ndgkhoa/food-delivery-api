@@ -2,15 +2,12 @@ import type { RawKafkaHeaders } from './event-envelope';
 import type { OutboundKafkaMessage } from './kafka-producer';
 import type { DropReason } from './message-drop-counter';
 
-/** Suffix appended to a source topic to name its dead-letter topic. */
 export const DEAD_LETTER_TOPIC_SUFFIX = '.dlq';
 
-/** Names the dead-letter topic for a source topic (`inventory.replies` -> `inventory.replies.dlq`). */
 export function deadLetterTopic(sourceTopic: string): string {
   return `${sourceTopic}${DEAD_LETTER_TOPIC_SUFFIX}`;
 }
 
-/** The minimal inbound-message shape the DLQ path needs — a subset of the vendor message. */
 export interface RawInboundMessage {
   topic: string;
   partition: number;
@@ -22,10 +19,6 @@ export interface RawInboundMessage {
   };
 }
 
-/**
- * Flattens raw Kafka header values (Buffer | Buffer[] | string) into strings so
- * the original headers survive into the DLQ payload for replay/inspection.
- */
 function rawHeadersToStrings(headers: RawKafkaHeaders | undefined): Record<string, string> {
   const out: Record<string, string> = {};
   if (!headers) {
@@ -41,13 +34,6 @@ function rawHeadersToStrings(headers: RawKafkaHeaders | undefined): Record<strin
   return out;
 }
 
-/**
- * Builds the dead-letter message for a message a consumer could not process.
- * Preserves the ORIGINAL bytes (key + headers + value, base64 so any payload
- * round-trips), the source coordinates (topic/partition/offset), and why it
- * failed — everything a replay tool needs. The DLQ message is keyed by the
- * original key so same-key records stay co-partitioned/ordered on the DLQ too.
- */
 export function buildDeadLetterMessage(
   raw: RawInboundMessage,
   reason: DropReason,

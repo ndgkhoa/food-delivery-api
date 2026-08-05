@@ -13,16 +13,6 @@ import { RolesGuard } from '@food-delivery-api/shared-tenancy';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 
-/**
- * Composition root: wires ports (domain) to adapters (infrastructure), registers
- * application use-case handlers, and registers HTTP controllers (interface).
- * The only file allowed to import across all layers — see the dependency-cruiser
- * layer rules in `.dependency-cruiser.js`.
- *
- * The registry admin API is platform-scoped (not caller-tenant-scoped), so it
- * does NOT wire the tenancy interceptor — only `RolesGuard`, which reads the
- * gateway-stamped `x-roles`/`x-user-id` headers to enforce `@Roles('admin')`.
- */
 @Module({
   imports: [
     SharedConfigModule.forRoot(authEnvSchema),

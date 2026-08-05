@@ -17,8 +17,6 @@ function contextForRequest(request: Partial<AuthenticatedRequest>): {
   request: AuthenticatedRequest;
 } {
   const req = { headers: {}, ...request } as AuthenticatedRequest;
-  // Reflector reads metadata off real handler/class refs — a no-op fn + empty
-  // class carry no @Public() metadata, so the guard treats the route as protected.
   const handlerRef = (): void => undefined;
   class ClassRef {}
   const context = {

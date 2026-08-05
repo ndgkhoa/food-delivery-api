@@ -13,8 +13,8 @@ post {
 body:form-urlencoded {
   grant_type: password
   client_id: {{client}}
-  username: customer-user
-  password: customer-pass
+  username: demo-acme-customer
+  password: demo-acme-Customer1!
 }
 
 script:post-response {
@@ -22,8 +22,4 @@ script:post-response {
     bru.setEnvVar("token", res.body.access_token);
     bru.setEnvVar("refreshToken", res.body.refresh_token);
   }
-}
-
-docs {
-  Seeded customer. Use for placing/reading own orders + reading the catalog.
 }

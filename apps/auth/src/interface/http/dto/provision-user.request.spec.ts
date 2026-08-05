@@ -5,11 +5,6 @@ import {
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 
-/**
- * Edge validation for the provisioning DTO. The `@IsIn(PROVISIONABLE_ROLES)`
- * decorator is the first line of defence that keeps an arbitrary/unknown realm
- * role from ever reaching Keycloak — a rejection here surfaces as HTTP 400.
- */
 describe('ProvisionUserRequest validation', () => {
   const base = {
     username: 'olivia',

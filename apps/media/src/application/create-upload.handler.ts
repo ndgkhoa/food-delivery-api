@@ -22,12 +22,6 @@ export interface CreateUploadResult {
   uploadUrl: string;
 }
 
-/**
- * Issues a presigned PUT so the client uploads DIRECTLY to object storage. Order
- * matters: the MIME/size policy is enforced FIRST, so a disallowed request never
- * creates a metadata row nor an upload URL. The row is written PENDING; it only
- * advances once completion verifies the bytes exist.
- */
 @Injectable()
 export class CreateUploadHandler {
   private readonly allowedMimes: string[];

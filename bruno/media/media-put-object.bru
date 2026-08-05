@@ -1,0 +1,19 @@
+meta {
+  name: Media - put object
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{uploadUrl}}
+  body: file
+  auth: none
+}
+
+headers {
+  Content-Type: image/png
+}
+
+body:file {
+  file: @file(/Users/nguyendangkhoa/Downloads/colorful-butterfly-realistic-isolated-transparent-background-png-file_1304044-3924.png) @contentType(image/png)
+}

@@ -1,0 +1,28 @@
+meta {
+  name: Media - create upload
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{gateway}}/media/uploads
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "contentType": "image/png",
+    "sizeBytes": 204800
+  }
+}
+
+script:post-response {
+  if (res.body && res.body.uploadUrl) {
+    bru.setEnvVar("uploadUrl", res.body.uploadUrl);
+  }
+}

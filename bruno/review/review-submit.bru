@@ -1,0 +1,23 @@
+meta {
+  name: Review - submit
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{gateway}}/reviews
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "orderId": "6b718742-f1a1-4917-8d11-8fc5538bb756",
+    "rating": 5,
+    "comment": "Great food and fast delivery!"
+  }
+}

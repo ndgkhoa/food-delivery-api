@@ -3,13 +3,6 @@ import { Inject, Module, type OnApplicationShutdown, type Provider } from '@nest
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
-/**
- * Wraps a single ioredis client (the `core`-profile Redis at REDIS_URL) in a
- * Nest provider — the GEO driver-location store and the assignment store share
- * it. `maxRetriesPerRequest: null` keeps a command from failing fast during a
- * brief Redis blip (mirrors the shared locking client). The connection is quit
- * on shutdown so a redeploy drains cleanly.
- */
 const redisClientProvider: Provider = {
   provide: REDIS_CLIENT,
   useFactory: (config: ConfigService): Redis =>

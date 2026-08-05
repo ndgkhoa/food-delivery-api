@@ -23,15 +23,6 @@ import { TenancyModule, TrustedIdentityInterceptor } from '@food-delivery-api/sh
 import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 
-/**
- * Composition root: wires the ClickHouse-backed ports (ingest writer + the
- * three dashboard query ports) to their adapters, registers the query/ingest
- * use cases, the read-only HTTP controller, and the `order.events` ingest
- * consumer. The only file allowed to import across every layer — see the
- * hexagonal rules in `.dependency-cruiser.js`. No RolesGuard: any
- * authenticated tenant may read its own dashboards, scoped by the trusted
- * identity — there is nothing here to gate by role.
- */
 @Module({
   imports: [
     SharedConfigModule.forRoot(analyticsEnvSchema),
@@ -46,25 +37,17 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
   ],
   controllers: [AnalyticsController],
   providers: [
-    // Dashboard query use cases
     GetRevenueSeriesHandler,
     GetTopRestaurantsHandler,
     GetSummaryHandler,
-    // Ingest use case
     IngestOrderEventHandler,
-    // ClickHouse read model: schema bootstrap (create-if-absent) + the write
-    // adapter + the three query adapters bound to their domain ports.
     OrdersFactSchemaBootstrap,
     { provide: ORDERS_FACT_WRITER, useClass: ClickHouseOrdersFactWriterAdapter },
     { provide: REVENUE_SERIES_QUERY, useClass: ClickHouseRevenueSeriesQueryAdapter },
     { provide: TOP_RESTAURANTS_QUERY, useClass: ClickHouseTopRestaurantsQueryAdapter },
     { provide: SUMMARY_QUERY, useClass: ClickHouseSummaryQueryAdapter },
-    // Kafka edge: subscriber helper + the ingest consumer.
     KafkaConsumerSubscriber,
     OrderEventsConsumer,
-    // Every route is tenant-scoped by default — the tenant comes from the
-    // verified identity the gateway propagates (shared-tenancy), never a raw
-    // client header.
     { provide: APP_INTERCEPTOR, useClass: TrustedIdentityInterceptor },
   ],
 })

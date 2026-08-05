@@ -16,7 +16,6 @@ export interface CreateTenantProps {
 
 const MAX_NAME_LENGTH = 255;
 const MAX_SLUG_LENGTH = 255;
-// Lowercase kebab: url-safe tenant identifier used in admin tooling and (later) subdomains.
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 function assertValidName(name: string): void {
@@ -40,13 +39,6 @@ function assertValidSlug(slug: string): void {
   }
 }
 
-/**
- * Plain-class aggregate for a platform tenant — no framework/ORM dependency.
- * Constructed only via `create()` (enforces invariants for a brand-new tenant,
- * whose `id` is always a freshly generated UUID) or `reconstitute()` (rehydrates
- * already-validated persisted data). The generated UUID `id` is what every
- * provisioned Keycloak user carries as its `tenant_id` claim.
- */
 export class Tenant {
   private constructor(private readonly props: TenantProps) {}
 

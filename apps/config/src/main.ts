@@ -8,22 +8,13 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Logger as PinoLogger } from 'nestjs-pino';
 
-/**
- * Config is an HTTP API for tenant-overridable business tunables + feature
- * flags. Reached by clients only through the gateway's reverse proxy over
- * HTTP; every other service reads it through the shared config-client library
- * (HTTP + a change-event cache), never this process directly.
- */
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
-  // Must run before pino-http's own middleware so `genReqId` reads a normalized header.
   app.use(correlationIdMiddleware);
   app.useLogger(app.get(PinoLogger));
-  // Unified error envelope for every 4xx/5xx response across all services.
   app.useGlobalFilters(new GlobalExceptionFilter());
 
-  // Drains the Postgres pool + Kafka producer on SIGTERM/SIGINT.
   app.enableShutdownHooks();
 
   app.setGlobalPrefix('api/v1');

@@ -1,6 +1,5 @@
 const BASE_URL = process.env.ANALYTICS_BASE_URL ?? 'http://localhost:3010/api/v1';
 
-/** Response shapes mirroring apps/analytics/src/interface/http/dto/*.response.ts. */
 export interface RevenuePoint {
   day: string;
   revenueCents: number;
@@ -18,9 +17,6 @@ export interface Summary {
 }
 
 function tenantHeaders(tenantId: string): Record<string, string> {
-  // No gateway in this compose combo — the service is called directly, so the
-  // "verified" trusted identity is supplied straight, exactly like the other
-  // services' compose e2e specs (e.g. catalog-e2e, review-e2e).
   return { 'x-tenant-id': tenantId, 'x-user-id': 'analytics-e2e', 'x-roles': 'customer' };
 }
 
@@ -71,7 +67,6 @@ export function fetchSummary(tenantId: string, from: string, to: string): Promis
   return getJson<Summary>(`/analytics/summary?from=${from}&to=${to}`, tenantId);
 }
 
-/** Polls `/analytics/summary` until the predicate holds (the ingest consumer lags the produce call by a beat). */
 export function pollSummaryUntil(
   tenantId: string,
   from: string,

@@ -1,7 +1,7 @@
 meta {
   name: Order - cancel
   type: http
-  seq: 4
+  seq: 5
 }
 
 post {
@@ -15,8 +15,4 @@ params:path {
 
 auth:bearer {
   token: {{token}}
-}
-
-docs {
-  PENDING or RESERVED to CANCELLED; releases the inventory hold. Owner or admin.
 }

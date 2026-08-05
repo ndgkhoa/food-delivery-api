@@ -17,13 +17,6 @@ interface InventoryReplyPayload {
   reason?: string;
 }
 
-/**
- * Tails `inventory.replies` and drives the saga's stock legs. The shared
- * subscriber decodes the envelope, re-establishes the reply's tenant scope, and
- * commits the offset after the handler runs; the handler itself owns the
- * dedupe + optimistic-locked transition in one transaction, so a redelivery is
- * a no-op. Disabled under NODE_ENV=test (no broker in unit/integration).
- */
 @Injectable()
 export class InventoryReplyConsumer implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(InventoryReplyConsumer.name);

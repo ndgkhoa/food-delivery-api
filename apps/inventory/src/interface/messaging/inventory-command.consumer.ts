@@ -39,15 +39,6 @@ interface ReleaseCommandPayload {
   orderId: string;
 }
 
-/**
- * Consumes `inventory.commands` and replies over the outbox. The reserve/release
- * use cases are already idempotent by order id (atomic conditional decrement +
- * ACTIVE-hold gate), so they run in their own locked transaction first; the
- * REPLY is then appended under a `processed_events` dedupe keyed by the command
- * event id, so a re-delivered command replies at most once. Disabled under
- * NODE_ENV=test (no broker). The subscriber re-establishes tenant scope from the
- * command header before the handler runs.
- */
 @Injectable()
 export class InventoryCommandConsumer implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(InventoryCommandConsumer.name);
@@ -82,7 +73,6 @@ export class InventoryCommandConsumer implements OnApplicationBootstrap, OnModul
 
   private async handleCommand(envelope: EventEnvelopeHeaders, payload: unknown): Promise<void> {
     const reply = await this.runEffect(envelope, payload);
-    // Effect done (idempotent); append the reply once per command event id.
     await this.transaction.runInTransaction(async () => {
       await IdempotentConsumer.runOnce(this.processedEvents, envelope.eventId, undefined, () =>
         this.outbox.append(reply),

@@ -38,12 +38,6 @@ async function notificationRowsForEvent(eventId: string): Promise<NotificationRo
   });
 }
 
-/**
- * Polls the notification rows for an event until at least `expectedCount` rows
- * exist and every one has reached a terminal status, or throws with the
- * last-seen rows when the bounded timeout elapses (clear diagnostics for
- * slow/failed sends).
- */
 export async function pollNotificationRowsUntil(
   eventId: string,
   expectedCount: number,

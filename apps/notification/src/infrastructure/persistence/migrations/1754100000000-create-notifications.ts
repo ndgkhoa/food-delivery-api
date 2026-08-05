@@ -1,11 +1,5 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Creates the notification service's own tables: `notifications` (one row per
- * event+channel, advanced PENDING -> SENT | FAILED | DEAD by the per-channel
- * BullMQ worker) and `processed_events` (dedupes the `order.events` consumer
- * by event id, written in the same transaction as the row batch).
- */
 export class CreateNotifications1754100000000 implements MigrationInterface {
   name = 'CreateNotifications1754100000000';
 

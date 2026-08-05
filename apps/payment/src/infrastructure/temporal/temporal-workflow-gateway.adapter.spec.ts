@@ -25,7 +25,6 @@ class FakeOutbox implements OutboxWriter {
   }
 }
 
-/** Passes work straight through — the real adapter's tx boundary isn't needed for logic tests. */
 const passthroughTransaction: TransactionPort = { runInTransaction: (work) => work() };
 
 class FakeTenantContext implements TenantContextPort {
@@ -107,7 +106,6 @@ describe('TemporalWorkflowGatewayAdapter', () => {
 
       await adapter.startCharge(buildInput());
 
-      // The charge activity itself never runs a second time — only one `start` call ever happens.
       expect(start).toHaveBeenCalledTimes(1);
       expect(outbox.entries).toHaveLength(1);
       expect(outbox.entries[0]).toMatchObject({

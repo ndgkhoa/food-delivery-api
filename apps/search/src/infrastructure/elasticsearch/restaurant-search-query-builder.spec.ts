@@ -3,7 +3,6 @@ import {
   buildRestaurantSearchBody,
 } from '@search/infrastructure/elasticsearch/restaurant-search-query-builder';
 
-/** Narrow shape of the bool query the builders produce (avoids `estypes` optionality noise in asserts). */
 interface BoolQuery {
   bool: {
     filter: Array<{ term: { tenantId: string } }>;
@@ -22,7 +21,6 @@ describe('buildRestaurantSearchBody', () => {
       limit: 20,
     });
 
-    // page 3 of 20 → skip the first 40 hits.
     expect(body.from).toBe(40);
     expect(body.size).toBe(20);
 
@@ -35,9 +33,7 @@ describe('buildRestaurantSearchBody', () => {
       boost_mode: string;
     };
     expect(functionScore.query.multi_match.query).toBe('pho');
-    // name weighted 3x over description.
     expect(functionScore.query.multi_match.fields).toEqual(['name^3', 'description']);
-    // rating boost is additive on top of relevance.
     expect(functionScore.functions[0].field_value_factor.field).toBe('rating');
     expect(functionScore.functions[0].field_value_factor.modifier).toBe('ln1p');
     expect(functionScore.boost_mode).toBe('sum');

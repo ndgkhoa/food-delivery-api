@@ -1,14 +1,5 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Creates the payment stub's polling outbox + dedupe ledger. The stub owns no
- * domain tables yet (real payments/attempts arrive with the Temporal workflow
- * later) — here it only needs to reply to charge commands reliably.
- *
- * `payment_outbox` is drained by an in-app relay (`FOR UPDATE SKIP LOCKED`) that
- * publishes each reply and stamps `published_at`. `processed_events` dedupes
- * consumed command event ids, written in the same transaction as the reply.
- */
 export class CreatePaymentOutbox1753747700000 implements MigrationInterface {
   name = 'CreatePaymentOutbox1753747700000';
 

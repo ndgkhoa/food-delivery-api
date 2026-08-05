@@ -5,7 +5,6 @@ import type { ObjectStoragePort, StoredObjectStat } from '@media/domain/media/ob
 import type { ThumbnailQueuePort } from '@media/domain/media/thumbnail-queue.port';
 import type { ConfigService } from '@nestjs/config';
 
-/** In-memory repository — no DB. Backs both the request-scoped and worker lookups. */
 export class FakeMediaObjectRepository implements MediaObjectRepository {
   readonly rows = new Map<string, MediaObject>();
 
@@ -24,15 +23,10 @@ export class FakeMediaObjectRepository implements MediaObjectRepository {
   }
 }
 
-/**
- * In-memory object store. Presigned URLs are synthetic; `putBytes` seeds an
- * object so `statObject` reports it present (simulating a completed client PUT).
- */
 export class FakeObjectStorage implements ObjectStoragePort {
   readonly objects = new Map<string, { body: Buffer; contentType: string }>();
   readonly removed: string[] = [];
 
-  /** Seeds an object as a completed client PUT — content type simulates what MinIO stat would report. */
   putBytes(objectKey: string, body: Buffer, contentType = 'image/png'): void {
     this.objects.set(objectKey, { body, contentType });
   }
@@ -71,7 +65,6 @@ export class FakeObjectStorage implements ObjectStoragePort {
   }
 }
 
-/** Records enqueued media ids so tests can assert a thumbnail job was queued. */
 export class FakeThumbnailQueue implements ThumbnailQueuePort {
   readonly enqueued: string[] = [];
 
@@ -105,7 +98,6 @@ export class FakeTenantContext implements TenantContextPort {
   }
 }
 
-/** Minimal ConfigService stand-in exposing only `getOrThrow` over a fixed map. */
 export function fakeConfig(values: Record<string, unknown>): ConfigService {
   return {
     getOrThrow: <T>(key: string): T => {

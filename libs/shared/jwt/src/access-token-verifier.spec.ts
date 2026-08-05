@@ -52,7 +52,7 @@ describe('access token verification', () => {
       aud: AUDIENCE,
       exp: now + 3600,
     });
-    const forged = `${header}.${body}.`; // unsigned "none" token
+    const forged = `${header}.${body}.`;
     await expect(verify(forged)).rejects.toThrow();
   });
 

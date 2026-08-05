@@ -1,9 +1,3 @@
-# Same scrape approach as infra/prometheus/prometheus.yml (the compose
-# `observability` profile): pull from the OTel Collector's Prometheus
-# exporter. honor_labels: true keeps each series' own `job` label (stamped
-# from the emitting service's OTel service.name) instead of every metric
-# collapsing under `job=otel-collector` — prometheus-adapter's rules query
-# below relies on the real per-service labels surviving the scrape.
 apiVersion: v1
 kind: ConfigMap
 metadata:

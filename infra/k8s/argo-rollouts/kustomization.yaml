@@ -1,20 +1,3 @@
-# Argo Rollouts controller — a cluster add-on (like the observability
-# stack), kept separate from base/overlays. Pinned to v1.9.1 so the
-# controller version is reproducible instead of tracking upstream `stable`.
-#
-# `namespace: argo-rollouts` is REQUIRED: the upstream install.yaml does NOT
-# stamp a namespace on its namespaced objects (it expects `kubectl apply -n
-# argo-rollouts`), so without this transformer the controller Deployment +
-# ConfigMap + Secret + ServiceAccount land in `default`. The transformer only
-# touches namespaced kinds — the CRDs and ClusterRole(Binding)s stay
-# cluster-scoped.
-#
-# `manifests/install.yaml?ref=v1.9.1` under github.com/argoproj/argo-rollouts
-# is a single raw file, not a kustomize root — kustomize's git loader expects
-# a directory with its own kustomization.yaml and errors with "expecting
-# directory" (verified via `kubectl kustomize` against both forms). The
-# equivalent pinned raw-content URL below is what kustomize's remote-resource
-# loader actually accepts for a single manifest file.
 namespace: argo-rollouts
 resources:
   - namespace.yaml

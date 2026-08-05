@@ -1,0 +1,19 @@
+meta {
+  name: Search - autocomplete restaurants
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{gateway}}/search/restaurants/autocomplete?q=pho
+  body: none
+  auth: bearer
+}
+
+params:query {
+  q: pho
+}
+
+auth:bearer {
+  token: {{token}}
+}

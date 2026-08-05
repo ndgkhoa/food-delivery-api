@@ -21,11 +21,6 @@ import { TypeOrmOrderSagaRepository } from '@order/infrastructure/persistence/re
 import { TypeOrmTransactionAdapter } from '@order/infrastructure/persistence/transaction/typeorm-transaction.adapter';
 import { buildDataSourceOptions } from '@order/infrastructure/persistence/typeorm-options';
 
-/**
- * Owns the order Postgres connection + binds the domain repository ports (order,
- * idempotency, saga, outbox, dedupe store) to their TypeORM adapters. Any module
- * needing these ports imports this module.
- */
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({
@@ -37,8 +32,6 @@ import { buildDataSourceOptions } from '@order/infrastructure/persistence/typeor
           DB_USERNAME: config.getOrThrow<string>('DB_USERNAME'),
           DB_PASSWORD: config.getOrThrow<string>('DB_PASSWORD'),
           DB_NAME: config.getOrThrow<string>('DB_NAME'),
-          // Optional: absent in single-node dev/e2e, where the env schema
-          // leaves it unset and the data source's slave pool falls back to master.
           DB_REPLICA_HOST: config.get<string>('DB_REPLICA_HOST'),
           DB_REPLICA_PORT: config.get<number>('DB_REPLICA_PORT'),
         }),

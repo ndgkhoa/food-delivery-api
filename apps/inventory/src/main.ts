@@ -13,21 +13,11 @@ import { NestFactory } from '@nestjs/core';
 import { type MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { Logger as PinoLogger } from 'nestjs-pino';
 
-/**
- * Inventory's primary surface is gRPC (order's manual cancel/release path
- * calls it east-west) — the hybrid HTTP listener added here exists SOLELY so
- * k8s can probe `GET /api/v1/health`; inventory has no other HTTP routes.
- * PROTO_LOADER_OPTIONS maps snake_case proto fields to camelCase JS (matching
- * the hand-written contract types the controller implements) and materialises
- * empty repeated fields as [] rather than undefined.
- */
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
-  // Must run before pino-http's own middleware so `genReqId` reads a normalized header.
   app.use(correlationIdMiddleware);
   app.useLogger(app.get(PinoLogger));
-  // Unified error envelope for the health-check HTTP surface (inventory's primary edge is gRPC).
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.setGlobalPrefix('api/v1');
 
@@ -46,9 +36,6 @@ async function bootstrap() {
   );
   await app.startAllMicroservices();
 
-  // Under k8s a rolling update sends SIGTERM; enabling Nest's shutdown hooks lets
-  // the gRPC server + Kafka consumers drain via their onModuleDestroy handlers
-  // instead of being hard-killed mid-request/mid-poll.
   app.enableShutdownHooks();
 
   const port = process.env.PORT ?? 3011;

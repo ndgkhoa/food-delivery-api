@@ -9,11 +9,6 @@ export class OrderMapper {
       id: orm.id,
       tenantId: orm.tenantId,
       userId: orm.userId,
-      // A NULL column means this row predates the restaurantId invariant — the
-      // aggregate's field is a required `string`, so it reconstitutes as ''
-      // rather than null. Such a straggler order is never newly reviewable
-      // (review eligibility only starts from a post-migration OrderConfirmed
-      // event), so this placeholder never leaks into a real feature.
       restaurantId: orm.restaurantId ?? '',
       status: orm.status as OrderStatus,
       items: itemRows.map((item) =>
@@ -35,11 +30,6 @@ export class OrderMapper {
     });
   }
 
-  /**
-   * Builds the brand-new order row for the FIRST insert. `version` is left
-   * unset so the DB column default (1) applies and is read back after insert
-   * — `Order.create()`'s transient `version: 0` is never written.
-   */
   static toNewOrderOrm(order: Order): OrderOrmEntity {
     const orm = new OrderOrmEntity();
     orm.id = order.id;
@@ -55,7 +45,6 @@ export class OrderMapper {
     return orm;
   }
 
-  /** Builds the (immutable, write-once) item rows for the FIRST insert of an order. */
   static toNewOrderItemOrms(order: Order): OrderItemOrmEntity[] {
     return order.items.map((item) => {
       const orm = new OrderItemOrmEntity();

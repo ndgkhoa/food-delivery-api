@@ -1,0 +1,26 @@
+meta {
+  name: Config - upsert value
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{gateway}}/config/:key
+  body: json
+  auth: bearer
+}
+
+params:path {
+  key: order.delivery_fee_cents
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "value": 500,
+    "global": false
+  }
+}

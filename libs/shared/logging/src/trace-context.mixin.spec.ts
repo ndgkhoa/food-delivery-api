@@ -8,12 +8,6 @@ import {
 } from '@opentelemetry/sdk-trace-base';
 import { traceContextMixin } from './trace-context.mixin';
 
-/**
- * A real (in-memory) tracer provider registered as the global OTel API
- * implementation, mirroring `kafka-trace-propagation.spec.ts` — exercises
- * `trace.getActiveSpan()` against a real span context instead of the no-op
- * default. No Collector/network involved.
- */
 function registerTestTracing(): { contextManager: AsyncHooksContextManager } {
   trace.disable();
   context.disable();

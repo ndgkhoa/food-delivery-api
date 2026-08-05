@@ -1,0 +1,24 @@
+meta {
+  name: Delivery - nearby drivers
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{gateway}}/delivery/orders/:orderId/nearby-drivers?lat=10.7829&lng= 106.6949
+  body: none
+  auth: bearer
+}
+
+params:query {
+  lat: 10.7829
+  lng:  106.6949
+}
+
+params:path {
+  orderId: 6b718742-f1a1-4917-8d11-8fc5538bb756
+}
+
+auth:bearer {
+  token: {{token}}
+}

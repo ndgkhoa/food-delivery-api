@@ -1,5 +1,3 @@
-// Conventional Commits with a mandatory scope, e.g. `feat(catalog): add restaurant CRUD`.
-// Scope list mirrors the bounded contexts + shared libs defined in development-workflow.md.
 export default {
   extends: ['@commitlint/config-conventional'],
   rules: {
@@ -30,7 +28,7 @@ export default {
         'shared-cache',
         'shared-messaging',
         'shared-observability',
-        'shared-config-client',
+        'shared-settings',
         'shared-contracts',
         'shared-errors',
         'shared-persistence',

@@ -12,7 +12,6 @@ import { IdentitySignatureVerifier, signIdentity } from './identity-signature';
 import { TrustedIdentityInterceptor } from './trusted-identity.interceptor';
 
 const SIGNING_KEY = 'a-test-signing-key-at-least-32-chars-long';
-/** Enforcement off — mirrors `NODE_ENV=test`, matching how every other service suite stamps raw headers. */
 const NOT_ENFORCED_VERIFIER = new IdentitySignatureVerifier({
   key: undefined,
   enforced: false,
@@ -156,8 +155,6 @@ describe('TrustedIdentityInterceptor (signature enforcement on)', () => {
       [TENANT_ID_HEADER]: identity.tenantId,
       [USER_ID_HEADER]: identity.sub,
       [IDENTITY_TS_HEADER]: String(ts),
-      // Signed for a DIFFERENT tenant — simulates a direct-to-service caller
-      // that forged x-tenant-id without knowing the signing key.
       [IDENTITY_SIG_HEADER]: signIdentity(SIGNING_KEY, { ...identity, tenantId: 'other' }, ts),
     });
     const next: CallHandler = { handle: () => of(null) };

@@ -11,7 +11,6 @@ export interface ConfirmOrderCommand {
   orderId: string;
 }
 
-/** Confirms a reserved order (RESERVED → CONFIRMED) via an optimistic-lock save. */
 @Injectable()
 export class ConfirmOrderHandler {
   constructor(@Inject(ORDER_REPOSITORY) private readonly orderRepository: OrderRepository) {}

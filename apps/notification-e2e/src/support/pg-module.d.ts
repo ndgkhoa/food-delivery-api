@@ -1,10 +1,3 @@
-/**
- * Minimal ambient typing for the `pg` client, scoped to this e2e's usage. The
- * runtime package is present (a transitive dep of TypeORM's pg driver) but
- * ships no bundled types and `@types/pg` isn't installed — this declares just
- * the surface the spec touches so the e2e compiles standalone (mirrors
- * order-e2e's identical shim).
- */
 declare module 'pg' {
   export interface QueryResult<TRow = Record<string, unknown>> {
     rows: TRow[];

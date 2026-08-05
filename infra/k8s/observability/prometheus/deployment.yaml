@@ -1,7 +1,3 @@
-# No PVC — an emptyDir + a short 6h retention is deliberate: this Prometheus
-# exists to feed prometheus-adapter live custom-metric data for the HPA demo,
-# not to be a durable TSDB (that's out of scope for a learning project; a
-# real deployment would use the Prometheus Operator + persistent storage).
 apiVersion: apps/v1
 kind: Deployment
 metadata:

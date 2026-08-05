@@ -10,17 +10,8 @@ import { type GatewayHandle, startGateway } from './support/service-harness';
 
 const REALM = 'food-delivery';
 const AUDIENCE = 'food-delivery-api';
-// Session routes never forward to catalog, so a placeholder base URL is fine.
 const CATALOG_PLACEHOLDER_URL = 'http://localhost:1';
 
-/**
- * Session proxy against a REAL Keycloak: refresh-token rotation + backchannel
- * logout. The realm export enables `revokeRefreshToken` + `refreshTokenMaxReuse:0`,
- * so a rotated (or logged-out) refresh token is invalidated on reuse.
- *
- * NOTE: boots a Keycloak container (~30-60s) — run explicitly, e.g.
- * `pnpm nx e2e gateway-e2e --testFile=auth-session.e2e-spec.ts`.
- */
 describe('Gateway auth session proxy with real Keycloak (e2e)', () => {
   let keycloak: KeycloakHandle;
   let gateway: GatewayHandle;
@@ -62,7 +53,6 @@ describe('Gateway auth session proxy with real Keycloak (e2e)', () => {
     expect(rotated.body.refresh_token).toBeDefined();
     expect(rotated.body.refresh_token).not.toBe(refreshToken);
 
-    // Reusing the OLD refresh token is rejected (rotation + max-reuse 0 → 401).
     await request(gateway.url).post('/api/v1/auth/refresh').send({ refreshToken }).expect(401);
   });
 

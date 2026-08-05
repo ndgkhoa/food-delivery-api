@@ -1,6 +1,5 @@
 export interface ConfigEntryProps {
   id: string;
-  /** `null` = the GLOBAL default; a tenant row overrides it. */
   tenantId: string | null;
   key: string;
   value: number;
@@ -27,7 +26,6 @@ function assertValidKey(key: string): void {
   }
 }
 
-/** Config values are integers (cents / basis-points) — a jsonb value is YAGNI while every tunable is a plain number. */
 function assertValidValue(value: number): void {
   if (!Number.isInteger(value)) {
     throw new Error('Config value must be an integer');
@@ -37,12 +35,6 @@ function assertValidValue(value: number): void {
   }
 }
 
-/**
- * Plain-class aggregate for one config row — no framework/ORM dependency.
- * Constructed only via `create()` (a brand-new row) or `reconstitute()`
- * (rehydrated from persistence). `withValue` returns a new immutable instance
- * so a caller never mutates a shared reference.
- */
 export class ConfigEntry {
   private constructor(private readonly props: ConfigEntryProps) {}
 
@@ -77,7 +69,6 @@ export class ConfigEntry {
     return this.props.updatedAt;
   }
 
-  /** Returns a new instance with the value replaced — id/tenantId/key never change once created. */
   withValue(value: number): ConfigEntry {
     assertValidValue(value);
     return new ConfigEntry({ ...this.props, value, updatedAt: new Date() });

@@ -12,17 +12,10 @@ import { ConfigService } from '@nestjs/config';
 export interface MediaView {
   id: string;
   status: MediaStatus;
-  /** Presigned GET for the original — absent while still PENDING (nothing uploaded yet). */
   url?: string;
   thumbnailUrl?: string;
 }
 
-/**
- * Returns the current status plus short-TTL presigned GET URLs the client uses
- * to download DIRECTLY from storage: the original once the bytes exist (not
- * PENDING), and the thumbnail once READY. Tenant-scoped — a caller only sees its
- * own tenant's media.
- */
 @Injectable()
 export class GetMediaHandler {
   private readonly presignTtlSeconds: number;

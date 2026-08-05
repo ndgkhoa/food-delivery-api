@@ -16,21 +16,10 @@ import { firstValueFrom, type Observable, timeout } from 'rxjs';
 
 const CALL_TIMEOUT_MS = 5000;
 
-/**
- * The hand-written `CatalogGrpcClient` contract (shared-contracts) omits the
- * metadata parameter for brevity; the actual Nest gRPC client proxy accepts
- * it as an optional second argument. Declared locally so this adapter's
- * outbound tenant metadata is honestly typed without widening the shared type.
- */
 interface CatalogGrpcClientWithMetadata {
   getMenuItems(request: GetMenuItemsRequest, metadata?: Metadata): Observable<MenuItemsResponse>;
 }
 
-/**
- * Binds `CatalogGatewayPort` to a real gRPC call against the catalog
- * service. The tenant travels in metadata (never the request body) — the
- * same trust boundary catalog's gRPC edge enforces on the way in.
- */
 @Injectable()
 export class CatalogGrpcAdapter implements CatalogGatewayPort, OnModuleInit {
   private client!: CatalogGrpcClientWithMetadata;

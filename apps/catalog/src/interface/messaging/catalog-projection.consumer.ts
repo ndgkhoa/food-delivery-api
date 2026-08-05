@@ -29,13 +29,6 @@ import { ConfigService } from '@nestjs/config';
 const CATALOG_EVENTS_TOPIC = 'catalog.events';
 const PROJECTION_GROUP_ID = 'catalog-projection';
 
-/**
- * Consumes `catalog.events` and projects each event into the read model. The
- * subscriber already runs the handler inside the tenant scope carried by the
- * envelope. Per message we open one transaction and, inside it, dedupe by event
- * id (`processed_events`) before applying the effect — so "processed" and the
- * read-model change commit or roll back together, making re-delivery a no-op.
- */
 @Injectable()
 export class CatalogProjectionConsumer implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(CatalogProjectionConsumer.name);
@@ -53,9 +46,6 @@ export class CatalogProjectionConsumer implements OnApplicationBootstrap, OnModu
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    // In-process integration tests boot the module graph without a broker; the
-    // compose-based e2e (and real runtime) run outside NODE_ENV=test. Logged
-    // (not silent) so a mis-set NODE_ENV in a real env is visible, not a ghost.
     if (this.config.get<string>('NODE_ENV') === 'test') {
       this.logger.warn(
         `Read-model projection disabled (NODE_ENV=test): ${CATALOG_EVENTS_TOPIC} not consumed`,
@@ -75,9 +65,6 @@ export class CatalogProjectionConsumer implements OnApplicationBootstrap, OnModu
             }),
           );
         });
-        // Write-through/evict AFTER the commit — Redis has no transactional tie
-        // to Postgres, so syncing before commit could warm the cache with a
-        // value a rollback then makes wrong.
         await syncRestaurantCache(
           envelope.eventType,
           envelope.aggregateId,

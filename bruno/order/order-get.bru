@@ -1,16 +1,17 @@
 meta {
   name: Order - get by id
   type: http
-  seq: 2
+  seq: 3
 }
 
 get {
   url: {{gateway}}/orders/:orderId
+  body: none
   auth: bearer
 }
 
 params:path {
-  orderId: 
+  orderId: 6b718742-f1a1-4917-8d11-8fc5538bb756
 }
 
 auth:bearer {

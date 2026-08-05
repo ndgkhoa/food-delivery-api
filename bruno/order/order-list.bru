@@ -1,0 +1,19 @@
+meta {
+  name: Order - list
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{gateway}}/orders?limit=20
+  body: none
+  auth: bearer
+}
+
+params:query {
+  limit: 20
+}
+
+auth:bearer {
+  token: {{token}}
+}

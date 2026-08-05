@@ -6,15 +6,6 @@ import {
   stopOrderTestDatabase,
 } from '@order/testing/order-test-database';
 
-/**
- * Verifies the payoff of partitioning `orders` by month: a `created_at`-bounded
- * query only touches the covering partition, not every partition (and not the
- * DEFAULT). Boots just the order Postgres (no Kafka/gRPC/inventory — this is a
- * storage-layer check, not a saga one), seeds rows across two different
- * months, then asserts the query plan's touched relations.
- *
- *   pnpm nx e2e order-e2e
- */
 describe('Order partition pruning (e2e)', () => {
   let db: OrderTestDatabase;
 
@@ -29,20 +20,12 @@ describe('Order partition pruning (e2e)', () => {
   it('prunes a created_at-bounded scan to only the covering monthly partition', async () => {
     const tenantId = randomUUID();
 
-    // The migration only pre-creates partitions for the current + next
-    // month when `orders` is empty at migration time (as it is here) — so
-    // this test seeds THIS month and NEXT month rather than hardcoded
-    // calendar months, to always land on partitions the migration actually
-    // created.
     const now = new Date();
     const thisMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
     const nextMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
     const thisMonthTag = yyyyMm(thisMonthStart);
     const nextMonthTag = yyyyMm(nextMonthStart);
 
-    // Two rows a month apart — one falls inside the query's bounded range,
-    // one deliberately outside it, so a plan that failed to prune would
-    // surface as scanning both partitions instead of one.
     await insertOrder(db, { tenantId, createdAt: addDays(thisMonthStart, 5).toISOString() });
     await insertOrder(db, { tenantId, createdAt: addDays(nextMonthStart, 5).toISOString() });
 
@@ -54,10 +37,7 @@ describe('Order partition pruning (e2e)', () => {
     );
     const planText = plan.map((row: { 'QUERY PLAN': string }) => row['QUERY PLAN']).join('\n');
 
-    // This month's partition is scanned...
     expect(planText).toMatch(new RegExp(`orders_p${thisMonthTag}`));
-    // ...but next month's partition and the DEFAULT partition are pruned
-    // away — the planner never even mentions them in the plan.
     expect(planText).not.toMatch(new RegExp(`orders_p${nextMonthTag}`));
     expect(planText).not.toMatch(/orders_default/);
   });

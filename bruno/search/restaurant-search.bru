@@ -1,0 +1,19 @@
+meta {
+  name: Search - restaurants
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{gateway}}/search/restaurants?q=pho
+  body: none
+  auth: bearer
+}
+
+params:query {
+  q: pho
+}
+
+auth:bearer {
+  token: {{token}}
+}

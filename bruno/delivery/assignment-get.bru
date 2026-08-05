@@ -1,0 +1,19 @@
+meta {
+  name: Delivery - order assignment
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{gateway}}/delivery/orders/:orderId/assignment
+  body: none
+  auth: bearer
+}
+
+params:path {
+  orderId: 6b718742-f1a1-4917-8d11-8fc5538bb756
+}
+
+auth:bearer {
+  token: {{token}}
+}

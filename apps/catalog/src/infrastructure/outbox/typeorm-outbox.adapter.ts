@@ -7,14 +7,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
-/**
- * Appends one outbox row per write. Tenant is read from the tenant context
- * (never from the entry) so no call site can spoof it — the same invariant the
- * audit writer enforces. A fresh `correlationid` is minted per event: request
- * correlation isn't propagated into the service layer yet, and the column must
- * be non-null so the routed message always carries an `x-correlation-id`
- * header the consumer's fail-closed decoder requires.
- */
 @Injectable()
 export class TypeOrmOutboxAdapter implements OutboxWriter {
   constructor(
@@ -23,7 +15,6 @@ export class TypeOrmOutboxAdapter implements OutboxWriter {
     @Inject(TENANT_CONTEXT_PORT) private readonly tenantContext: TenantContextPort,
   ) {}
 
-  /** Enlists in the active transaction so the outbox row commits atomically with its write. */
   private get repository(): Repository<OutboxOrmEntity> {
     return getTransactionalEntityManager()?.getRepository(OutboxOrmEntity) ?? this.outboxRepository;
   }

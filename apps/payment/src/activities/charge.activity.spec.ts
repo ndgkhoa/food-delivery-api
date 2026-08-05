@@ -1,7 +1,5 @@
 import { createChargeActivity } from './charge.activity';
 
-// The activity calls @temporalio/activity's `log`, which needs an activity
-// context. Stub it so the pure decision logic can be unit-tested standalone.
 jest.mock('@temporalio/activity', () => ({ log: { info: jest.fn() } }));
 
 describe('createChargeActivity', () => {

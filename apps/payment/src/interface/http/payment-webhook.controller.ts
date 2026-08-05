@@ -22,13 +22,6 @@ import {
 import { PaymentWebhookDto } from '@payment/interface/http/payment-webhook.dto';
 import type { Request } from 'express';
 
-/**
- * Provider webhook surface (POST /api/v1/payment/webhook). Verifies the HMAC
- * signature over the RAW body + timestamp before trusting anything, then signals
- * the durable charge workflow (`charge-{orderId}`) with the async provider
- * result. An unsigned, tampered, or replayed callback is rejected with 401 —
- * never trust an unauthenticated provider callback.
- */
 @Controller('payment')
 export class PaymentWebhookController {
   private readonly logger = new Logger(PaymentWebhookController.name);

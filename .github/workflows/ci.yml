@@ -1,25 +1,15 @@
 name: CI
 
-# Runs on every PR into develop/main and on every push to those branches —
-# this is the fast, per-commit gate (nx-affected + workspace lint gates +
-# workflow/Dockerfile/IaC scanning). Image builds live in cd.yml (post-merge
-# only) since building all 13 service images on every PR is expensive.
 on:
   pull_request:
     branches: [main, develop]
-  # Post-merge verification runs on main only. develop is already gated by the
-  # pull_request run before every merge, so also running push CI on develop just
-  # doubled the checks on develop→main sync PRs (develop is both the pushed
-  # branch and the PR head) for no extra signal.
   push:
-    branches: [main]
+    branches: [main, develop]
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# Least-privilege default; the trivy job elevates security-events for SARIF
-# upload only where it runs.
 permissions:
   contents: read
 
@@ -29,13 +19,11 @@ env:
 
 jobs:
   affected:
-    name: nx affected (lint, test, build) + workspace gates
+    name: Nx affected checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          # nx affected and nx-set-shas need full history to diff against
-          # the base branch — a shallow clone can't resolve the merge base.
           fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
@@ -50,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Cache Nx computation cache
+      - name: Cache Nx
         uses: actions/cache@v4
         with:
           path: .nx/cache
@@ -58,30 +46,40 @@ jobs:
           restore-keys: |
             nx-${{ runner.os }}-
 
-      - name: Derive base/head SHAs for nx affected
+      - name: Derive base
         uses: nrwl/nx-set-shas@v4
 
-      - name: nx affected — lint, test, build
-        run: pnpm nx affected -t lint test build --base=${{ env.NX_BASE }} --head=${{ env.NX_HEAD }}
+      - name: Lint & build
+        run: pnpm nx affected -t lint build --base=${{ env.NX_BASE }} --head=${{ env.NX_HEAD }}
 
-      - name: Biome (format + lint + imports)
+      - name: Test with coverage
+        run: pnpm nx affected -t test --base=${{ env.NX_BASE }} --head=${{ env.NX_HEAD }} --coverage --coverageReporters=lcov
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: unittests
+          fail_ci_if_error: false
+
+      - name: Biome
         run: pnpm run lint
 
-      - name: dependency-cruiser (bounded-context boundaries)
+      - name: dependency-cruiser
         run: pnpm run cruiser
 
-      - name: Knip (unused files/exports/deps)
+      - name: Knip
         run: pnpm run knip
 
   actionlint:
-    name: actionlint (self-lint the workflows)
+    name: actionlint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: raven-actions/actionlint@v2
 
   hadolint:
-    name: hadolint (Dockerfile)
+    name: hadolint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -89,21 +87,8 @@ jobs:
         with:
           dockerfile: infra/docker/Dockerfile
 
-  # Trivy runs in ADVISORY mode here (exit-code 0): every finding is uploaded to
-  # the Security tab for visibility, but it does not hard-gate CI. Rationale: the
-  # IaC config findings are dev-only infra (the in-cluster Postgres/Redis + the
-  # metrics-adapter RBAC, none of which the prod overlay deploys) whose SEVERITY
-  # drifts with Trivy's misconfig-checks bundle — it's fetched fresh from an OCI
-  # registry, versioned independently of the pinned binary, so the same manifests
-  # grade clean on one checks bundle and HIGH on another, making a blocking gate
-  # non-reproducible. The filesystem vuln findings are transitive dev-tooling CVEs
-  # (@nx/webpack, @nx/jest) that never reach a runtime image. The MEANINGFUL
-  # runtime-vuln gate is the CD image scan (cd.yml), which scans the actual
-  # shipped image (prod deps only) and DOES block. Renovate + the Security tab
-  # track the advisory findings. (Hardening this to blocking with a pinned checks
-  # bundle is a documented follow-up.)
   trivy-scan:
-    name: trivy (IaC config + filesystem vulnerabilities)
+    name: trivy
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -130,8 +115,6 @@ jobs:
           category: trivy-config-k8s
 
       - name: Trivy config scan — infra/docker
-        # Run even if an earlier scan failed, so one finding doesn't hide the
-        # rest and every SARIF still uploads; the job still fails on any finding.
         if: always()
         uses: aquasecurity/trivy-action@v0.36.0
         with:

@@ -19,13 +19,6 @@ export interface CreateReservationProps {
   qty: number;
 }
 
-/**
- * Reservation aggregate — a single item's hold for an order. Created ACTIVE by a
- * successful reserve. The ACTIVE→RELEASED transition is a conditional UPDATE in
- * the repository (ReservationRepository.releaseIfActive) so it's the atomic gate
- * that lets a hold's stock be returned exactly once under concurrent releases.
- * Plain class, no ORM/framework deps.
- */
 export class Reservation {
   private constructor(private readonly props: ReservationProps) {}
 

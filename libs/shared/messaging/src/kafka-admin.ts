@@ -10,12 +10,6 @@ export interface KafkaTopicSpec {
 export const DEFAULT_TOPIC_PARTITIONS = 3;
 export const DEFAULT_TOPIC_REPLICATION_FACTOR = 1;
 
-/**
- * Idempotently ensures topics exist with the repo's standard shape (3
- * partitions, RF=1 by default — enough to exercise keyed-partition ordering
- * on a single-broker dev cluster). Safe to call on every service boot:
- * `createTopics` is a no-op for topics that already exist.
- */
 @Injectable()
 export class KafkaTopicAdmin {
   private readonly logger = new Logger(KafkaTopicAdmin.name);

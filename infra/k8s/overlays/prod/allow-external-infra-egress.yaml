@@ -1,18 +1,3 @@
-# PROD-ONLY. The prod overlay repoints every datastore/broker/auth endpoint at
-# EXTERNAL managed services (prod-postgres.internal.example.com, kafka, redis,
-# temporal, ES, ClickHouse, MinIO, https://auth.example.com, SMTP). Those
-# resolve to IPs OUTSIDE the pod/service CIDR, so the base default-deny egress
-# (which only permits egress within food-delivery + DNS + the observability
-# OTLP carve-out) would drop every one of those connections — each app would
-# fail on startup and never become Ready. This policy is the prod counterpart
-# of the base within-namespace egress: it allows egress to external hosts on the
-# managed-infra ports.
-#
-# TEMPLATE VALUE — `cidr: 0.0.0.0/0` here so the overlay applies cleanly, but a
-# real rollout MUST scope `cidr` to the actual managed-infra subnet(s) (and may
-# trim the port list to the services it truly uses). Left broad-but-port-scoped
-# rather than all-traffic so it is still a carve-out, not an open door. DNS (base
-# `01`) and in-cluster OTLP (base `03`) are handled separately.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -30,14 +15,14 @@ spec:
         - ipBlock:
             cidr: 0.0.0.0/0
       ports:
-        - { protocol: TCP, port: 5432 }   # postgres
-        - { protocol: TCP, port: 6379 }   # redis
-        - { protocol: TCP, port: 9092 }   # kafka
-        - { protocol: TCP, port: 7233 }   # temporal
-        - { protocol: TCP, port: 9200 }   # elasticsearch
-        - { protocol: TCP, port: 8123 }   # clickhouse
-        - { protocol: TCP, port: 9000 }   # minio
-        - { protocol: TCP, port: 443 }    # keycloak/es/clickhouse/minio over TLS
-        - { protocol: TCP, port: 587 }    # smtp (submission)
-        - { protocol: TCP, port: 465 }    # smtp (implicit TLS)
-        - { protocol: TCP, port: 25 }     # smtp
+        - { protocol: TCP, port: 5432 }
+        - { protocol: TCP, port: 6379 }
+        - { protocol: TCP, port: 9092 }
+        - { protocol: TCP, port: 7233 }
+        - { protocol: TCP, port: 9200 }
+        - { protocol: TCP, port: 8123 }
+        - { protocol: TCP, port: 9000 }
+        - { protocol: TCP, port: 443 }
+        - { protocol: TCP, port: 587 }
+        - { protocol: TCP, port: 465 }
+        - { protocol: TCP, port: 25 }

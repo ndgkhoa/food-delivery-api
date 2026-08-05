@@ -10,12 +10,6 @@ import {
 import { Controller, UseInterceptors } from '@nestjs/common';
 import { GrpcMethod } from '@nestjs/microservices';
 
-/**
- * gRPC delivery edge for the catalog. Runs in the SAME Nest app as the HTTP
- * controllers (hybrid app wired in `main.ts`); the gRPC tenant interceptor
- * establishes tenant scope from metadata, then this delegates to the same
- * tenant-scoped application query the HTTP reads use.
- */
 @Controller()
 @UseInterceptors(GrpcTenantContextInterceptor)
 export class CatalogGrpcController implements CatalogGrpcService {

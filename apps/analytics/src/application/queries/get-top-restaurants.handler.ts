@@ -7,17 +7,12 @@ import {
 import { TENANT_CONTEXT_PORT, type TenantContextPort } from '@food-delivery-api/shared-tenancy';
 import { Inject, Injectable } from '@nestjs/common';
 
-/** Validated, bounded query params the controller passes down (tenant is added here). */
 export interface GetTopRestaurantsParams {
   from: string;
   to: string;
   limit: number;
 }
 
-/**
- * Top-restaurants dashboard: CONFIRMED orders grouped by restaurant and
- * ranked by revenue, scoped to the caller's tenant from the verified identity.
- */
 @Injectable()
 export class GetTopRestaurantsHandler {
   constructor(
@@ -25,8 +20,6 @@ export class GetTopRestaurantsHandler {
     @Inject(TENANT_CONTEXT_PORT) private readonly tenantContext: TenantContextPort,
   ) {}
 
-  // async so a synchronous validation throw (invalid/inverted range) becomes a
-  // rejected promise, not an exception thrown out of the call itself.
   async execute(params: GetTopRestaurantsParams): Promise<TopRestaurantEntry[]> {
     const range = parseDateRangeOrThrow(params.from, params.to);
     const tenantId = this.tenantContext.getTenantIdOrThrow();

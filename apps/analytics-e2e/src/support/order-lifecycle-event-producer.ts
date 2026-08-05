@@ -16,21 +16,12 @@ export interface OrderLifecycleEvent {
   userId: string;
   tenantId: string;
   totalCents: number;
-  /** Omitted entirely (not sent as `''`) to simulate a pre-invariant straggler order. */
   restaurantId?: string;
   eventType?: string;
-  /** Reuse a fixed eventId to simulate a genuine redelivery of the SAME event. */
   eventId?: string;
   correlationId?: string;
 }
 
-/**
- * Produces an order lifecycle event to `order.events` with the six envelope
- * headers the analytics ingest consumer requires, matching order's real
- * producer payload shape (`orderId`, `userId`, `status`, `totalCents`,
- * `restaurantId`). Returns the eventId so a test can redeliver the identical
- * event to prove the ReplacingMergeTree dedupe.
- */
 export async function produceOrderLifecycleEvent(event: OrderLifecycleEvent): Promise<string> {
   const eventId = event.eventId ?? randomUUID();
   const eventType = event.eventType ?? ORDER_CONFIRMED;

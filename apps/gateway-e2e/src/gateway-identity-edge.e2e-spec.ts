@@ -21,11 +21,6 @@ const AUDIENCE = 'food-delivery-api';
 const TENANT_A = TEST_TENANT_ID;
 const TENANT_B = '44444444-4444-4444-8444-444444444444';
 
-/**
- * End-to-end proof of the identity edge: client → gateway (JWT verify) →
- * catalog. No Keycloak — the gateway's remote JWKS resolver is replaced with a
- * locally-generated key set so we can mint real RS256 tokens.
- */
 describe('Gateway identity edge (e2e)', () => {
   let keys: TestKeySet;
   let catalog: CatalogHandle;
@@ -88,7 +83,6 @@ describe('Gateway identity edge (e2e)', () => {
     });
     const tokenB = await keys.sign({ sub: 'owner-b', tenantId: TENANT_B });
 
-    // Client tries to smuggle tenant B via a raw header while authenticating as tenant A.
     await request(gateway.url)
       .post('/api/v1/catalog/restaurants')
       .set('authorization', `Bearer ${tokenA}`)
@@ -96,14 +90,12 @@ describe('Gateway identity edge (e2e)', () => {
       .send({ name: 'Tenant A Kitchen' })
       .expect(201);
 
-    // Tenant B sees nothing — the spoofed header was ignored; the token claim won.
     const bList = await request(gateway.url)
       .get('/api/v1/catalog/restaurants')
       .set('authorization', `Bearer ${tokenB}`)
       .expect(200);
     expect(bList.body.data).toHaveLength(0);
 
-    // Tenant A sees exactly the record it created.
     const aList = await request(gateway.url)
       .get('/api/v1/catalog/restaurants')
       .set('authorization', `Bearer ${tokenA}`)

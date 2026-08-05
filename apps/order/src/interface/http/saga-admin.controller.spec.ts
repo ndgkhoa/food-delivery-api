@@ -17,8 +17,6 @@ import { SagaAdminController } from './saga-admin.controller';
 const TENANT_ID = '11111111-1111-4111-8111-111111111111';
 const ORDER_ID = '44444444-4444-4444-8444-444444444444';
 
-/** Only `resetReconcileAttempts` is exercised by this controller; every other
- * port method is unreachable from this route, so it fails loudly if ever called. */
 class StubSagaRepository implements OrderSagaRepository {
   outcome: 'reset' | 'terminal' | 'not_found' = 'reset';
   lastCall: { tenantId: string; orderId: string } | undefined;

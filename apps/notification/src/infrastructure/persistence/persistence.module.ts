@@ -11,10 +11,6 @@ import { TypeOrmProcessedEventStore } from '@notification/infrastructure/persist
 import { TypeOrmTransactionAdapter } from '@notification/infrastructure/persistence/transaction/typeorm-transaction.adapter';
 import { buildDataSourceOptions } from '@notification/infrastructure/persistence/typeorm-options';
 
-/**
- * Owns the notification Postgres connection + binds the notification
- * repository, dedupe store, and transaction ports to their TypeORM adapters.
- */
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({

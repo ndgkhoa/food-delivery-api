@@ -3,12 +3,6 @@ import 'reflect-metadata';
 import { buildDataSourceOptions } from '@catalog/infrastructure/persistence/typeorm-options';
 import { DataSource } from 'typeorm';
 
-/**
- * Standalone DataSource for the `typeorm-ts-node-commonjs` CLI (migration
- * generate/run/revert scripts in root package.json). Reads straight from
- * `process.env` (loaded via `dotenv/config`) since the CLI runs outside
- * Nest's DI container and can't use `ConfigService`.
- */
 const dataSourceOptions = buildDataSourceOptions({
   DB_HOST: process.env.DB_HOST ?? 'localhost',
   DB_PORT: Number(process.env.DB_PORT ?? 5432),

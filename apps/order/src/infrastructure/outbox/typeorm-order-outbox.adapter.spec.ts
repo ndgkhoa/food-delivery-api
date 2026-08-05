@@ -14,7 +14,6 @@ const mockCaptureActiveTraceContext = captureActiveTraceContext as jest.MockedFu
   typeof captureActiveTraceContext
 >;
 
-/** Captures saved rows and echoes `create` so assertions can inspect the persisted shape. */
 class FakeOutboxRepository {
   readonly saved: OrderOutboxOrmEntity[] = [];
   create(row: Partial<OrderOutboxOrmEntity>): OrderOutboxOrmEntity {
@@ -26,7 +25,6 @@ class FakeOutboxRepository {
   }
 }
 
-/** Chainable stand-in for TypeORM's `SelectQueryBuilder`, returning canned raw rows. */
 class FakeQueryBuilder {
   constructor(private readonly rows: Record<string, unknown>[]) {}
   select(): this {
@@ -61,7 +59,6 @@ function fakeDataSource(rows: Record<string, unknown>[]): DataSource {
   } as unknown as DataSource;
 }
 
-/** Stand-in for the dedicated advisory-lock connection `withAdvisoryLock` opens. */
 function fakeLockDataSource(tryLockResult: boolean): {
   dataSource: DataSource;
   queryRunner: QueryRunner;

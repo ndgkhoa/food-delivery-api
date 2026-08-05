@@ -1,0 +1,19 @@
+meta {
+  name: Media - get by id
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{gateway}}/media/:id
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: 3f0ca052-5deb-4f9a-b34e-69cbd158a855
+}
+
+auth:bearer {
+  token: {{token}}
+}

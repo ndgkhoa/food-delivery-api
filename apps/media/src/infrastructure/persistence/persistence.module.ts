@@ -6,10 +6,6 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-/**
- * Owns the Postgres connection and binds the media-object repository port to its
- * TypeORM adapter. Any module needing the port imports this one.
- */
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({

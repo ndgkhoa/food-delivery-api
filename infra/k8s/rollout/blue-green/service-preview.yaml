@@ -1,10 +1,3 @@
-# Preview Service for the blue-green Rollout (rollout.yaml's
-# `strategy.blueGreen.previewService`) — points at the candidate ReplicaSet
-# before promotion so it can be smoke-tested without touching the `gateway`
-# Service's live traffic. Same shape as service.yaml, distinct name/no
-# selector override needed: the controller patches both Services'
-# selectors with `rollouts-pod-template-hash` (this one always tracking the
-# newest, not-yet-active ReplicaSet).
 apiVersion: v1
 kind: Service
 metadata:

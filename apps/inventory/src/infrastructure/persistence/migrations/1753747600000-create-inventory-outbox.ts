@@ -1,17 +1,5 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Adds inventory's polling outbox + dedupe ledger so it can reply to saga
- * commands over Kafka reliably.
- *
- * `inventory_outbox` is drained by an in-app relay (`FOR UPDATE SKIP LOCKED`)
- * that publishes each reply and stamps `published_at`; a partial index on
- * unpublished rows keeps that hot path cheap. `id` is the event id, `aggregate_id`
- * (order id) the Kafka key, `tenant_id`/`correlation_id` ride as headers.
- *
- * `processed_events` dedupes consumed command event ids, written in the same
- * transaction as the reply append so a re-delivered command replies at most once.
- */
 export class CreateInventoryOutbox1753747600000 implements MigrationInterface {
   name = 'CreateInventoryOutbox1753747600000';
 

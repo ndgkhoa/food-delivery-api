@@ -11,7 +11,6 @@ import { LogPushChannel } from '@notification/infrastructure/channels/log-push.c
 import { LogSmsChannel } from '@notification/infrastructure/channels/log-sms.channel';
 import { MailpitEmailChannel } from '@notification/infrastructure/channels/mailpit-email.channel';
 
-/** Binds the three channel adapters + assembles the channel-name -> adapter map the worker resolves against. */
 @Module({
   providers: [
     { provide: EMAIL_CHANNEL, useClass: MailpitEmailChannel },

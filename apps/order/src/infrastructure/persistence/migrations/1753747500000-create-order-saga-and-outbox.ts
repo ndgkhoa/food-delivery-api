@@ -1,21 +1,5 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Adds the polling outbox + saga state + dedupe ledger that make the order flow
- * an asynchronous, event-driven saga.
- *
- * `order_outbox` is drained by an in-app relay (`FOR UPDATE SKIP LOCKED`) that
- * publishes each row to Kafka and stamps `published_at`; a partial index on
- * unpublished rows keeps that hot path cheap. `id` is the event id (dedupe key),
- * `aggregate_id` the Kafka key (per-order ordering), `tenant_id`/`correlation_id`
- * ride as headers.
- *
- * `order_saga` holds one row per order; `version` backs the optimistic-lock
- * transition so two concurrently delivered replies can't both advance it.
- *
- * `processed_events` is the reply consumers' dedupe ledger, written in the same
- * transaction as the saga transition so "processed" and "applied" commit together.
- */
 export class CreateOrderSagaAndOutbox1753747500000 implements MigrationInterface {
   name = 'CreateOrderSagaAndOutbox1753747500000';
 

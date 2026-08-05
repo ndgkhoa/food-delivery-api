@@ -28,16 +28,6 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 
-/**
- * Composition root: wires the domain ports (driver-location + assignment) to
- * their Redis adapters, the application handlers/queries, the HTTP read
- * controller, the WebSocket gateway, and the `order.events` driver-assignment
- * consumer. The only file allowed to import across every layer — see the
- * hexagonal rules in `.dependency-cruiser.js`.
- *
- * JWKS/issuer/audience come from config so the same build verifies WS handshake
- * tokens against Keycloak in prod and a test JWKS in e2e.
- */
 @Module({
   imports: [
     SharedConfigModule.forRoot(deliveryEnvSchema),
@@ -60,10 +50,8 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
   ],
   controllers: [DeliveryController],
   providers: [
-    // Domain ports → Redis adapters
     { provide: DRIVER_LOCATION_STORE, useClass: RedisDriverLocationStore },
     { provide: ASSIGNMENT_STORE, useClass: RedisAssignmentStore },
-    // Application use cases
     LocationUpdateHandler,
     AssignDriverHandler,
     GetAssignmentQuery,
@@ -73,9 +61,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
       useFactory: (locations: DriverLocationStore, config: ConfigService) =>
         new NearbyDriversQuery(locations, config.getOrThrow<number>('NEARBY_RADIUS_M')),
     },
-    // WebSocket gateway (authenticated handshake + live location fan-out)
     DeliveryGateway,
-    // Kafka edge: shared client + subscriber + the order.events assignment consumer
     {
       provide: KAFKA_CLIENT,
       useFactory: (config: ConfigService) =>
@@ -87,8 +73,6 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
     },
     KafkaConsumerSubscriber,
     OrderEventsConsumer,
-    // Every HTTP route is tenant-scoped by default — the tenant comes from the
-    // verified identity the gateway propagates (shared-tenancy), never a raw header.
     { provide: APP_INTERCEPTOR, useClass: TrustedIdentityInterceptor },
   ],
 })

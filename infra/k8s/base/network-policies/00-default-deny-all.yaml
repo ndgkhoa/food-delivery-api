@@ -1,8 +1,3 @@
-# Baseline posture: nothing may send or receive traffic unless a more
-# specific policy in this directory explicitly allows it. An attacker landing
-# in one pod can no longer freely pivot to every other service/DB in the
-# namespace — every subsequent file in this directory is a targeted carve-out
-# on top of this deny-everything floor.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

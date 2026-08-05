@@ -8,7 +8,6 @@ import {
   fakeConfig,
 } from '@media/testing/media-test-doubles';
 
-/** Fake resize: returns a strictly smaller buffer so "thumbnail is smaller" is assertable. */
 class HalvingImageProcessor implements ImageProcessorPort {
   async resizeToWidth(input: Buffer): Promise<Buffer> {
     return input.subarray(0, Math.max(1, Math.floor(input.length / 2)));
@@ -66,7 +65,7 @@ describe('GenerateThumbnailHandler', () => {
   it('is idempotent: a READY row is left untouched (no false re-work)', async () => {
     const ready = seedUploaded().markReady(buildThumbnailKey(tenantId, id));
     repository.rows.set(id, ready);
-    storage.objects.delete(buildObjectKey(tenantId, id)); // would throw if re-fetched
+    storage.objects.delete(buildObjectKey(tenantId, id));
 
     await expect(handler.execute(id)).resolves.toBeUndefined();
     expect(repository.rows.get(id)?.status).toBe(MediaStatus.READY);

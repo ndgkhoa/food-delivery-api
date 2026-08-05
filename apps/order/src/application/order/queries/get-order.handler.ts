@@ -11,7 +11,6 @@ export interface GetOrderQuery {
   orderId: string;
 }
 
-/** Tenant-scoped order lookup, restricted to the order's owner or an admin. */
 @Injectable()
 export class GetOrderHandler {
   constructor(@Inject(ORDER_REPOSITORY) private readonly orderRepository: OrderRepository) {}

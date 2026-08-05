@@ -20,7 +20,9 @@
     "typeorm": "tsx --tsconfig tsconfig.base.json ./node_modules/typeorm/cli.js",
     "db:migrate": "nx run-many -t migration-run",
     "docker:core:up": "docker compose --env-file .env -f infra/docker-compose.yml --profile core up -d",
-    "docker:core:down": "docker compose --env-file .env -f infra/docker-compose.yml --profile core down"
+    "docker:core:down": "docker compose --env-file .env -f infra/docker-compose.yml --profile core down",
+    "seed:up": "tsx tools/seed/seed.ts up",
+    "seed:down": "tsx tools/seed/seed.ts down"
   },
   "dependencies": {
     "@clickhouse/client": "1.23.1",
@@ -95,6 +97,7 @@
     "@types/node": "^22.0.0",
     "@types/nodemailer": "8.0.1",
     "@types/opossum": "8.1.9",
+    "@types/pg": "^8.20.3",
     "@types/supertest": "^6.0.2",
     "dependency-cruiser": "18.1.0",
     "dotenv": "^17.4.2",
@@ -118,7 +121,11 @@
   },
   "pnpm": {
     "overrides": {
-      "uuid@<14": "^14.0.0"
+      "uuid@<14": "^14.0.0",
+      "brace-expansion@1": "1.1.18",
+      "brace-expansion@2": "2.1.4",
+      "brace-expansion@5": "5.0.9",
+      "fast-uri@3": "3.1.5"
     }
   }
 }

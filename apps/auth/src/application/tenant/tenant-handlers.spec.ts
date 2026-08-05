@@ -13,7 +13,6 @@ import type { TenantRepository } from '@auth/domain/tenant/tenant.repository';
 import type { UserTenantLink } from '@auth/domain/tenant/user-tenant-link';
 import type { UserTenantLinkRepository } from '@auth/domain/tenant/user-tenant-link.repository';
 
-/** In-memory fake — no DB, exercises the same contract as the TypeORM adapter. */
 class FakeTenantRepository implements TenantRepository {
   private readonly rows = new Map<string, Tenant>();
 
@@ -39,7 +38,6 @@ class FakeTenantRepository implements TenantRepository {
 
 class FakeUserTenantLinkRepository implements UserTenantLinkRepository {
   readonly saved: UserTenantLink[] = [];
-  /** When true, `save` throws to simulate a registry write failing after Keycloak create. */
   failOnSave = false;
 
   async save(link: UserTenantLink): Promise<UserTenantLink> {
@@ -55,7 +53,6 @@ class FakeUserTenantLinkRepository implements UserTenantLinkRepository {
   }
 }
 
-/** Records the exact input the adapter would receive so tests can assert on the tenant_id + role. */
 class FakeKeycloakAdmin implements KeycloakAdminPort {
   readonly calls: CreateKeycloakUserInput[] = [];
   readonly deleted: string[] = [];
@@ -121,14 +118,12 @@ describe('auth application handlers', () => {
         password: 'sup3r-secret',
       });
 
-      // KeycloakAdminPort received a VALID UUID tenant_id + the requested role.
       expect(keycloakAdmin.calls).toHaveLength(1);
       const call = keycloakAdmin.calls[0];
       expect(call.tenantId).toBe(tenant.id);
       expect(call.tenantId).toMatch(UUID_PATTERN);
       expect(call.role).toBe('restaurant-owner');
 
-      // The user↔tenant link is recorded against the returned Keycloak user id.
       expect(link.keycloakUserId).toBe('kc-user-1');
       expect(link.tenantId).toBe(tenant.id);
       expect(link.role).toBe('restaurant-owner');
@@ -149,9 +144,7 @@ describe('auth application handlers', () => {
         }),
       ).rejects.toThrow();
 
-      // The just-created (now orphaned) Keycloak user was deleted...
       expect(keycloakAdmin.deleted).toEqual(['kc-user-1']);
-      // ...and no user_tenant_map row lingers.
       expect(linkRepository.saved).toHaveLength(0);
     });
 
@@ -167,8 +160,6 @@ describe('auth application handlers', () => {
         password,
       });
 
-      // Grep-proof: the persisted registry row carries neither the password value
-      // nor any password-shaped field (Keycloak owns the credential, not the registry).
       const serialized = JSON.stringify(linkRepository.saved[0]);
       expect(serialized).not.toContain(password);
       expect(serialized.toLowerCase()).not.toContain('password');

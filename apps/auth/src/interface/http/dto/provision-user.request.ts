@@ -1,7 +1,6 @@
 import { Transform } from 'class-transformer';
 import { IsEmail, IsIn, IsNotEmpty, IsString, MinLength } from 'class-validator';
 
-/** Realm roles the platform recognises (mirrors infra/keycloak/realm-export.json). */
 export const PROVISIONABLE_ROLES = ['admin', 'restaurant-owner', 'customer', 'driver'] as const;
 
 const trim = ({ value }: { value: unknown }): unknown =>

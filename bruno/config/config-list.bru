@@ -1,0 +1,15 @@
+meta {
+  name: Config - list
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{gateway}}/config
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

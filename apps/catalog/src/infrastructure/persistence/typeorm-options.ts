@@ -26,15 +26,6 @@ export interface CatalogDbEnv {
   DB_NAME: string;
 }
 
-/**
- * Single source of truth for Postgres connection + entity/migration
- * discovery, shared by the runtime `PersistenceModule` (via Nest's
- * `ConfigService`) and the standalone TypeORM CLI `DataSource` used to
- * generate/run migrations outside of Nest's DI container.
- *
- * `synchronize` is always false — schema changes ONLY happen via migrations,
- * never implicit sync (architecture.md §5).
- */
 export function buildDataSourceOptions(env: CatalogDbEnv): DataSourceOptions {
   return {
     type: 'postgres',

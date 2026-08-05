@@ -22,8 +22,6 @@ export class MediaObjectOrmEntity {
   @Column({ name: 'content_type', type: 'varchar', length: 255 })
   contentType!: string;
 
-  // Postgres bigint maps to a JS string in TypeORM (avoids precision loss); the
-  // mapper converts to/from the domain's numeric sizeBytes.
   @Column({ name: 'size_bytes', type: 'bigint' })
   sizeBytes!: string;
 

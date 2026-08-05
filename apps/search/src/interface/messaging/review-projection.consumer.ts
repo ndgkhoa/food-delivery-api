@@ -15,15 +15,8 @@ import {
 } from '@search/domain/restaurant-search/restaurant-search.repository';
 
 const REVIEW_EVENTS_TOPIC = 'review.events';
-/** Independent of `search-catalog-projection`'s group — a different topic with its own offsets. */
 const PROJECTION_GROUP_ID = 'search-review-projection';
 
-/**
- * Consumes `review.events` and updates the ES doc's `rating` field, alongside
- * (not replacing) `CatalogProjectionConsumer`'s `catalog.events` projection.
- * No dedupe ledger, same rationale as that consumer: the ES partial update is
- * idempotent by document id and a redelivery just re-applies the same value.
- */
 @Injectable()
 export class ReviewProjectionConsumer implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(ReviewProjectionConsumer.name);

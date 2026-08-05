@@ -1,0 +1,19 @@
+meta {
+  name: Config - get feature flag
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{gateway}}/config/flags/:key
+  body: none
+  auth: bearer
+}
+
+params:path {
+  key: checkout.new_flow
+}
+
+auth:bearer {
+  token: {{token}}
+}

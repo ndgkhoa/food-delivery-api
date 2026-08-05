@@ -9,18 +9,8 @@ interface AuthAsyncOptions {
   useFactory: (...args: never[]) => JwtVerificationOptions | Promise<JwtVerificationOptions>;
 }
 
-/**
- * Provides the `AccessTokenVerifier` wired to a JWKS resolver + issuer/audience.
- * Use `forRoot` for static config or `forRootAsync` to derive config from
- * `ConfigService`. Tests override `JWKS_KEY_RESOLVER` with a local JWK set.
- */
 @Module({})
 export class JwtVerificationModule {
-  /**
-   * The JWKS resolver is a separate provider (bound to the remote set from the
-   * resolved options) so tests can `overrideProvider(JWKS_KEY_RESOLVER)` with a
-   * local JWK set and verify real signatures without a live IdP.
-   */
   private static resolverProviders() {
     return [
       {

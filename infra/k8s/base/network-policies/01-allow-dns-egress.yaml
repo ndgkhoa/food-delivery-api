@@ -1,8 +1,3 @@
-# Mandatory carve-out on top of default-deny-all: every pod resolves Service
-# DNS names (postgres.food-delivery, catalog.food-delivery, etc.) via
-# kube-dns in kube-system before it can open any other connection. Without
-# this, default-deny-all's egress block breaks DNS for the whole namespace
-# and every downstream connection fails even though its own policy allows it.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

@@ -31,11 +31,6 @@ export class TypeOrmConfigEntryRepository implements ConfigEntryRepository {
     return rows.map(ConfigEntryMapper.toDomain);
   }
 
-  // The handler already resolved the row's identity (existing id, or a fresh
-  // one) before calling this, so `save` performs a plain update-or-insert keyed
-  // by `id` — no ON CONFLICT needed. A concurrent first-write race for the same
-  // (tenant_id, key) is rare (low-frequency admin action) and surfaces as a
-  // unique-violation on the partial index rather than silently duplicating.
   async upsert(entry: ConfigEntry): Promise<ConfigEntry> {
     const saved = await this.repository.save(ConfigEntryMapper.toOrm(entry));
     return ConfigEntryMapper.toDomain(saved);

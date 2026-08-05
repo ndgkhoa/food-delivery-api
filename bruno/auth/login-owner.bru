@@ -13,8 +13,8 @@ post {
 body:form-urlencoded {
   grant_type: password
   client_id: {{client}}
-  username: owner-user
-  password: owner-pass
+  username: demo-acme-owner
+  password: demo-acme-Owner1!
 }
 
 script:post-response {
@@ -22,8 +22,4 @@ script:post-response {
     bru.setEnvVar("token", res.body.access_token);
     bru.setEnvVar("refreshToken", res.body.refresh_token);
   }
-}
-
-docs {
-  Seeded restaurant-owner. Saves access + refresh tokens; run first.
 }

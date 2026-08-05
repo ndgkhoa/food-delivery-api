@@ -1,11 +1,5 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Creates the catalog schema: restaurants, menu_items, audit_log.
- * Every table carries tenant_id (multi-tenant row filtering), created_at/
- * updated_at, and (except audit_log, which is append-only) a soft-delete
- * deleted_at column — see architecture.md §4 cross-cutting concerns.
- */
 export class CreateCatalogTables1753574400000 implements MigrationInterface {
   name = 'CreateCatalogTables1753574400000';
 

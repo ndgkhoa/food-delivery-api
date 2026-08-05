@@ -1,7 +1,3 @@
-# config is an east-west dependency of the gateway AND other services
-# (order/payment/... read CONFIG_SERVICE_URL), so its ingress admits any app
-# pod in the namespace — `part-of: food-delivery` covers every service and the
-# gateway alike.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

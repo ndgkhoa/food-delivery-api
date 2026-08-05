@@ -4,12 +4,6 @@ export interface CacheStats {
   hitRatio: number;
 }
 
-/**
- * In-process hit/miss counter feeding the cache's hit-ratio. One instance is
- * shared by every `cacheAside` call through a given `RedisCache`, so the
- * ratio reflects the whole process's cache traffic. Resets on process
- * restart — this is an operational signal, not a durable metric.
- */
 export class CacheMetrics {
   private hits = 0;
   private misses = 0;

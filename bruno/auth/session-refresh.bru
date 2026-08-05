@@ -22,8 +22,3 @@ script:post-response {
     bru.setEnvVar("refreshToken", res.body.refresh_token);
   }
 }
-
-docs {
-  Rotates the refresh token via the gateway session proxy (Keycloak under the
-  hood). Run a Login first so refreshToken is set.
-}

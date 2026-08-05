@@ -10,25 +10,18 @@ post {
   auth: bearer
 }
 
-auth:bearer {
-  token: {{token}}
-}
-
 headers {
   Idempotency-Key: {{$guid}}
+}
+
+auth:bearer {
+  token: {{token}}
 }
 
 body:json {
   {
     "items": [
-      { "itemId": "PASTE_A_MENU_ITEM_UUID", "qty": 2 }
+      { "itemId": "3745f44b-2a32-42c3-ad41-edc9eefd722e", "qty": 2 }
     ]
   }
-}
-
-docs {
-  Login (customer) first. Put a real menu item UUID (from Menu item - create) in
-  the body; that item also needs an inventory stock row or reserve returns 409.
-  Idempotency-Key is required ({{$guid}} = fresh each send; reuse the SAME value
-  to test idempotent replay). Copy the returned order `id` into the requests below.
 }

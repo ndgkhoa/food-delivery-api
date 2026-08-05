@@ -14,7 +14,6 @@ export class TypeOrmStockRepository implements StockRepository {
     private readonly ormRepository: Repository<StockOrmEntity>,
   ) {}
 
-  /** Enlists in the active transaction when one is open, else the default connection. */
   private get repository(): Repository<StockOrmEntity> {
     return getTransactionalEntityManager()?.getRepository(StockOrmEntity) ?? this.ormRepository;
   }
@@ -28,9 +27,6 @@ export class TypeOrmStockRepository implements StockRepository {
   }
 
   async decrementIfAvailable(tenantId: string, itemId: string, qty: number): Promise<boolean> {
-    // Single atomic conditional decrement — the no-oversell guard. `affected`
-    // (rowCount) is 1 only when available was >= qty; 0 means not enough stock
-    // (or no row), and the row is never touched, so it cannot go negative.
     const result = await this.repository
       .createQueryBuilder()
       .update(StockOrmEntity)

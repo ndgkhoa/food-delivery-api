@@ -7,7 +7,6 @@ import type { NearbyDriver } from '@delivery/domain/delivery/nearby-driver';
 export const TENANT_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 export const TENANT_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
-/** In-memory driver-location store mirroring the tenant-scoped Redis GEO adapter. */
 export class FakeDriverLocationStore implements DriverLocationStore {
   private readonly online = new Map<string, string[]>();
   private readonly near = new Map<string, NearbyDriver[]>();
@@ -41,11 +40,6 @@ export class FakeDriverLocationStore implements DriverLocationStore {
   }
 }
 
-/**
- * In-memory assignment store mirroring the Lua adapter's atomic semantics: an
- * already-assigned order returns its incumbent, otherwise the first candidate
- * NOT already busy is bound (one driver per order AND one order per driver).
- */
 export class FakeAssignmentStore implements AssignmentStore {
   private readonly byOrder = new Map<string, string>();
   private readonly busy = new Map<string, Set<string>>();

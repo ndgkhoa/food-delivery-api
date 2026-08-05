@@ -21,10 +21,8 @@ export const USER_ID = '22222222-2222-4222-8222-222222222222';
 const ITEM_ID = '33333333-3333-4333-8333-333333333333';
 export const RESTAURANT_ID = '77777777-7777-4777-8777-777777777778';
 
-/** Matches the config service's documented defaults so saga test totals stay predictable. */
 const DEFAULT_PRICING = { deliveryFeeCents: 1500, vatRateBps: 1000, discountCents: 0 };
 
-/** Builds an order advanced to the given status via its own state machine. */
 export function buildOrder(orderId: string, status: string): Order {
   const item = OrderItem.create({ itemId: ITEM_ID, qty: 2, unitPriceCents: 500 });
   let order = Order.create({
@@ -44,7 +42,6 @@ export function buildOrder(orderId: string, status: string): Order {
   return order;
 }
 
-/** The saga-wide correlation id the reply test doubles carry by default. */
 export const DEFAULT_CORRELATION_ID = '66666666-6666-4666-8666-666666666666';
 
 export function envelope(
@@ -182,7 +179,6 @@ export class FakeOutboxWriter implements OutboxWriter {
   }
 }
 
-/** Records ids; a second markProcessed for the same id throws — the dedupe signal. */
 export class FakeProcessedEventStore implements ProcessedEventStorePort {
   private readonly seen = new Set<string>();
 

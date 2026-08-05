@@ -31,27 +31,14 @@ export interface ReserveStockResult {
   reservationIds: string[];
 }
 
-/**
- * Lock TTL bounding the reserve critical section. The DB's atomic conditional
- * decrement is what guarantees no oversell, so even if this TTL expires mid-tx
- * the invariant still holds; the lock only reduces contention/retries.
- */
 const RESERVE_LOCK_TTL_MS = 5000;
 
-/** Postgres SQLSTATE for unique_violation — a concurrent duplicate reserve. */
 const PG_UNIQUE_VIOLATION = '23505';
 
 function lockKey(tenantId: string, itemId: string): string {
   return `inventory:lock:${tenantId}:${itemId}`;
 }
 
-/**
- * Validate + collapse a request to one entry per item (summing duplicate line
- * items) sorted by itemId. Summing closes an oversell hole where two line items
- * of the same itemId would otherwise each reserve against the same read; sorting
- * gives a deterministic lock + row-lock order so multi-item reserves can't
- * deadlock.
- */
 function normalizeItems(items: ReserveItem[]): ReserveItem[] {
   if (items.length === 0) {
     throw new InvalidReserveRequestError('no items to reserve');
@@ -70,17 +57,11 @@ function normalizeItems(items: ReserveItem[]): ReserveItem[] {
     .sort((a, b) => a.itemId.localeCompare(b.itemId));
 }
 
-/** True for a Postgres unique_violation, however TypeORM wraps the driver error. */
 function isUniqueViolation(error: unknown): boolean {
   const wrapped = error as { code?: string; driverError?: { code?: string } };
   return (wrapped?.driverError?.code ?? wrapped?.code) === PG_UNIQUE_VIOLATION;
 }
 
-/**
- * An idempotent replay must carry the exact same items/quantities as the stored
- * hold. A reused orderId with different contents is a client bug, not a replay —
- * reject it rather than silently returning the old reservation.
- */
 function assertReplayMatches(
   existing: Reservation[],
   requested: ReserveItem[],
@@ -95,16 +76,6 @@ function assertReplayMatches(
   }
 }
 
-/**
- * Reserve stock atomically with no oversell. Critical section:
- *   1. Acquire a per-item distributed lock for every ordered item, sorted
- *      (deadlock-free) — a contention optimisation, not the correctness guard.
- *   2. In a DB transaction: idempotency re-check, then per item an atomic
- *      conditional decrement (`UPDATE ... WHERE available >= qty`) that is the
- *      real no-oversell guarantee, plus one reservation row.
- * Idempotent: re-reserving an order that already holds active reservations
- * returns the existing ids instead of decrementing again.
- */
 @Injectable()
 export class ReserveStockHandler {
   constructor(
@@ -126,13 +97,9 @@ export class ReserveStockHandler {
         );
         return { ok: true, reservationIds };
       } catch (error) {
-        // No / not enough stock is an expected business outcome, not a fault: the
-        // tx rolled back, so report a clean failed reserve.
         if (error instanceof InsufficientStockError || error instanceof StockNotFoundError) {
           return { ok: false, reservationIds: [] };
         }
-        // A concurrent duplicate reserve that slipped past the read-check is
-        // rejected by the active-reservation unique index → surface as a conflict.
         if (isUniqueViolation(error)) {
           throw new IdempotencyConflictError(orderId);
         }

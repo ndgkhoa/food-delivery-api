@@ -14,11 +14,6 @@ interface MailpitFullMessage {
   Text: string;
 }
 
-/**
- * Polls Mailpit's REST API (`GET /api/v1/messages`) until a message addressed
- * to `recipient` appears, returning its subject + text body. Mailpit lists
- * newest-first; this scans the default page for a matching `To` address.
- */
 export async function pollMailpitMessageTo(
   recipient: string,
   timeoutMs = 20_000,

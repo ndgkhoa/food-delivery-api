@@ -1,11 +1,3 @@
-/**
- * A FIXED RSA key pair (and `kid`) shared by every delivery e2e suite. The
- * delivery service caches the JWKS it fetches keyed by `kid`, and jest isolates
- * each test file's module registry — so if every suite minted a random key
- * under the same kid, only the first suite's tokens would verify. Pinning the
- * key material makes every suite's JWKS byte-identical, so the service's cache
- * stays valid across all of them. Test-only; never a real credential.
- */
 export const FIXED_SIGNING_KID = 'delivery-e2e-fixed';
 
 export const FIXED_PRIVATE_KEY_PEM = `-----BEGIN PRIVATE KEY-----

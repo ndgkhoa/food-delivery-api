@@ -1,8 +1,3 @@
-# Bring up only what a slice needs (see architecture.md §6). This slice only
-# needs the `core` profile: Postgres for catalog + Redis reserved for later
-# caching work. Run with: docker compose -f infra/docker-compose.yml --profile core up -d
-# Explicit project name so this stack never collides with other local compose
-# projects (e.g. a shared `infra` stack) that default to their folder name.
 name: food-delivery
 
 services:
@@ -11,9 +6,6 @@ services:
     container_name: food-delivery-postgres
     profiles: [core]
     restart: unless-stopped
-    # Logical replication (additive flags) so Debezium can tail the WAL via
-    # pgoutput. Harmless to services that don't replicate; slot/sender headroom
-    # covers the catalog outbox connector plus room to grow.
     command:
       - postgres
       - '-c'
@@ -26,18 +18,12 @@ services:
       POSTGRES_USER: ${DB_USERNAME:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_DB: ${DB_NAME:-catalog}
-      # Consumed by infra/postgres/init/02-create-replication-role.sh to create
-      # the least-privilege standby role and open pg_hba for it. Dev creds only.
       REPLICATION_USERNAME: ${REPLICATION_USERNAME:-replicator}
       REPLICATION_PASSWORD: ${REPLICATION_PASSWORD:-replicator}
     ports:
       - '${DB_PORT:-5432}:5432'
     volumes:
-      # Postgres 18+ Docker images store data in a major-version subdirectory and
-      # expect the mount at /var/lib/postgresql (NOT /var/lib/postgresql/data).
       - postgres-data:/var/lib/postgresql
-      # Creates one database per service on first init (catalog/auth/inventory/order),
-      # so no manual `createdb` is needed before running migrations.
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_NAME:-catalog}']
@@ -45,20 +31,6 @@ services:
       timeout: 5s
       retries: 10
 
-  # Streaming physical standby of `postgres`, read-only, for the order service's
-  # replicated data source (writes/read-your-writes → primary, lag-tolerant
-  # list/history reads → this replica). NOT in the `core` profile — the daily
-  # single-node dev loop never needs a second Postgres container; opt in with
-  # BOTH profiles: `docker compose --env-file .env -f infra/docker-compose.yml
-  # --profile core --profile replica up -d`. On a first (empty) data volume,
-  # replica-entrypoint.sh clones the primary via `pg_basebackup -R` (which
-  # writes standby.signal + primary_conninfo) before handing off to the normal
-  # postgres entrypoint; on every later restart the data dir is already a
-  # standby, so it just resumes streaming. Requires the primary's replication
-  # role (created by 02-create-replication-role.sh) to already exist, hence
-  # `depends_on: service_healthy` — the role/pg_hba change is only picked up
-  # once the primary has restarted into its post-init serving state, which
-  # `pg_isready` passing implies.
   postgres-replica:
     image: postgres:18.4
     container_name: food-delivery-postgres-replica
@@ -70,9 +42,6 @@ services:
       PRIMARY_PORT: '5432'
       REPLICATION_USERNAME: ${REPLICATION_USERNAME:-replicator}
       REPLICATION_PASSWORD: ${REPLICATION_PASSWORD:-replicator}
-      # Unused by the standby (pg_basebackup clones the primary's cluster, so
-      # initdb never runs here) — set anyway because the stock postgres image
-      # entrypoint requires SOME auth var to be present before it will start.
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     ports:
       - '${DB_REPLICA_PORT:-5433}:5432'
@@ -104,12 +73,6 @@ services:
       timeout: 5s
       retries: 10
 
-  # Identity provider. Enable with the `auth` profile alongside `core`:
-  #   docker compose -f infra/docker-compose.yml --profile core --profile auth up -d
-  # Boots with `--import-realm`, importing infra/keycloak/realm-export.json (realm
-  # `food-delivery`: roles, the public SPA client with PKCE + direct grants, the
-  # audience + tenant_id mappers, and two seeded test users). Admin console at
-  # http://localhost:8080 (admin/admin — dev only). First boot takes ~30-60s.
   keycloak-postgres:
     image: postgres:18.4
     container_name: food-delivery-keycloak-postgres
@@ -134,7 +97,6 @@ services:
     restart: unless-stopped
     command: ['start-dev', '--import-realm']
     environment:
-      # Bootstrap admin (dev only — never use these in a real deployment).
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       KC_DB: postgres
@@ -151,12 +113,6 @@ services:
       keycloak-postgres:
         condition: service_healthy
 
-  # L7 edge: TLS termination + reverse proxy to the host-run API gateway (:3000).
-  # TLS certs are self-signed local (git-ignored) — see infra/nginx/nginx.conf for
-  # mkcert/openssl generation and the HTTP-only fallback. `host.docker.internal`
-  # lets the container reach the gateway running on the host.
-  # HTTP-only reverse proxy for local dev — no TLS here (see nginx.conf). Real TLS
-  # is terminated at the ingress in the ops phase (P8), not in local compose.
   nginx:
     image: nginx:1.30-alpine
     container_name: food-delivery-nginx
@@ -169,10 +125,6 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
 
-  # Event backbone. Enable with the `messaging` profile alongside `core`:
-  #   docker compose -f infra/docker-compose.yml --profile core --profile messaging up -d
-  # Single-broker KRaft (no separate ZooKeeper) — dev/e2e only. `libs/shared/messaging`
-  # bootstraps topics idempotently on service start; nothing here pre-creates topics.
   kafka:
     image: apache/kafka:4.3.1
     container_name: food-delivery-kafka
@@ -184,10 +136,6 @@ services:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: 'broker,controller'
       KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093'
-      # Dual client listener: HOST (advertised as localhost) so host processes —
-      # the services run via `pnpm dev` — and e2e reach the broker on the 9092
-      # mapping; INTERNAL (advertised by container name) for in-network clients
-      # like Kafka Connect/Debezium added in 3b.
       KAFKA_LISTENERS: 'CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:9094,HOST://0.0.0.0:9092'
       KAFKA_ADVERTISED_LISTENERS: 'INTERNAL://kafka:9094,HOST://localhost:9092'
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,HOST:PLAINTEXT'
@@ -206,10 +154,6 @@ services:
       retries: 5
       start_period: 20s
 
-  # Debezium (Kafka Connect) — tails the catalog `outbox` table via pgoutput and
-  # the Outbox Event Router SMT publishes to `catalog.events`. Enable with the
-  # `messaging` profile alongside `core`. Register the connector after boot with
-  # infra/debezium/register-connectors.sh (REST on :8083). Heap-capped for dev.
   kafka-connect:
     image: quay.io/debezium/connect:3.6.0.Final
     container_name: food-delivery-kafka-connect
@@ -237,13 +181,6 @@ services:
       retries: 5
       start_period: 30s
 
-  # Read-model search index. Enable with the `search` profile alongside
-  # `core` + `messaging` (the search service consumes catalog.events):
-  #   docker compose -f infra/docker-compose.yml --profile core --profile messaging --profile search up -d
-  # Single-node, security disabled — DEV ONLY (TLS + auth land in the ops phase).
-  # Heap capped so it fits alongside core + messaging on a 16GB dev box. The
-  # search service bootstraps the `restaurants` index idempotently on boot; there
-  # is no SQL migration for ES.
   elasticsearch:
     image: elasticsearch:9.4.4
     container_name: food-delivery-elasticsearch
@@ -264,12 +201,6 @@ services:
       retries: 5
       start_period: 30s
 
-  # Object storage for the media service. Enable with the `media` profile
-  # alongside `core` (Postgres for metadata + Redis for the BullMQ thumbnail
-  # queue): docker compose -f infra/docker-compose.yml --profile core --profile media up -d
-  # Single-node, dev creds — DEV ONLY (TLS + real credentials land in the ops
-  # phase). The media service auto-creates the bucket on boot; nothing here
-  # pre-creates it. S3 API on 9000, web console on 9001.
   minio:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: food-delivery-minio
@@ -291,13 +222,6 @@ services:
       retries: 5
       start_period: 10s
 
-  # Durable execution engine for the payment ChargeWorkflow. Enable with the
-  # `workflow` profile alongside `core` + `messaging` (payment consumes
-  # payment.commands and replies via its outbox):
-  #   docker compose -f infra/docker-compose.yml --profile core --profile messaging --profile workflow up -d
-  # auto-setup provisions the Temporal schema on first boot against a DEDICATED
-  # Postgres (never the app Postgres). DEV ONLY — no TLS/auth. The payment worker
-  # (run on the host via `pnpm dev`) connects to the frontend gRPC on :7233.
   temporal-postgresql:
     image: postgres:16-alpine
     container_name: food-delivery-temporal-postgres
@@ -353,11 +277,6 @@ services:
     ports:
       - '${TEMPORAL_UI_PORT:-8233}:8080'
 
-  # Dev SMTP catcher for the notification service's email channel. Enable with
-  # the `notification` profile alongside `core` + `messaging` (order.events
-  # consumer) — the notification worker (run on the host via `pnpm dev`)
-  # connects to SMTP on :1025; the captured messages + REST API used by the
-  # e2e are on the web UI port :8025. DEV ONLY — never reachable from Nginx.
   mailpit:
     image: axllent/mailpit:v1.30.6
     container_name: food-delivery-mailpit
@@ -367,22 +286,12 @@ services:
       - '${MAILPIT_SMTP_PORT:-1025}:1025'
       - '${MAILPIT_UI_PORT:-8025}:8025'
     healthcheck:
-      # The image is a minimal Go binary (no shell/wget) — use its own readyz subcommand.
       test: ['CMD', '/mailpit', 'readyz']
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
 
-  # Columnar OLAP store for the analytics service's read-only dashboards
-  # (revenue, order counts, top restaurants). Enable with the `analytics`
-  # profile alongside `core` + `messaging` (the ingest consumer tails
-  # order.events):
-  #   docker compose -f infra/docker-compose.yml --profile core --profile messaging --profile analytics up -d
-  # Single-node, dev creds ('default' user, no password) — DEV ONLY, never
-  # exposed via Nginx. The low-memory config bounds its resident set so it fits
-  # alongside core + messaging on a 16GB dev box. The analytics service
-  # bootstraps the `orders_fact` table on boot (no SQL migration for ClickHouse).
   clickhouse:
     image: clickhouse/clickhouse-server:25.8
     container_name: food-delivery-clickhouse
@@ -390,19 +299,10 @@ services:
     restart: unless-stopped
     environment:
       CLICKHOUSE_DB: ${CLICKHOUSE_DATABASE:-analytics}
-      # The 25.x image otherwise generates a default-user.xml that restricts the
-      # `default` user to localhost-only networks, which rejects the analytics
-      # service connecting over the docker network. Skip that setup so the built-in
-      # permissive default user applies — dev/e2e only (internal network, this
-      # profile is off by default; real creds land with the secret provider in P8).
       CLICKHOUSE_SKIP_USER_SETUP: 1
-    # Bound to loopback only: with CLICKHOUSE_SKIP_USER_SETUP the `default` user
-    # is unauthenticated, so a 0.0.0.0 bind would let any host on the dev LAN
-    # read/write every tenant's facts. Host-run services + e2e reach it via
-    # localhost; nothing needs it off-box.
     ports:
       - '127.0.0.1:${CLICKHOUSE_HTTP_PORT:-8123}:8123'
-      - '127.0.0.1:${CLICKHOUSE_NATIVE_PORT:-9000}:9000'
+      - '127.0.0.1:${CLICKHOUSE_NATIVE_PORT:-9009}:9000'
     volumes:
       - clickhouse-data:/var/lib/clickhouse
       - ./clickhouse/low-memory-config.xml:/etc/clickhouse-server/config.d/low-memory-config.xml:ro
@@ -413,16 +313,6 @@ services:
       retries: 5
       start_period: 20s
 
-  # Distributed tracing + metrics fan-out. Enable with the `observability`
-  # profile (no `core` dependency needed — every service's OTLP exporter just
-  # needs a reachable endpoint): docker compose -f infra/docker-compose.yml
-  # --profile observability up -d
-  # Every service imports `@food-delivery-api/shared-observability/register`
-  # (first import in its `main.ts`) and exports OTLP traces + metrics to this
-  # collector's HTTP receiver (4318, OTEL_EXPORTER_OTLP_ENDPOINT default);
-  # traces forward to Jaeger over OTLP gRPC, metrics are exposed on :8889 for
-  # Prometheus to scrape. OFF by default — RAM on a 16GB dev box; bring it up
-  # deliberately to inspect a trace/metric.
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.157.0
     container_name: food-delivery-otel-collector
@@ -439,17 +329,12 @@ services:
       jaeger:
         condition: service_healthy
     healthcheck:
-      # The image ships no shell/curl — use the collector binary's own config
-      # validation as the liveness probe instead of an HTTP check.
       test: ['CMD', '/otelcol-contrib', 'validate', '--config=/etc/otelcol/config.yaml']
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
 
-  # Trace storage + query UI (Jaeger v2, OTel-Collector-based — speaks OTLP
-  # natively, receivers enabled by default with no extra config). UI on
-  # :16686; the `otel-collector` above forwards every service's traces here.
   jaeger:
     image: jaegertracing/jaeger:2.19.0
     container_name: food-delivery-jaeger
@@ -464,10 +349,6 @@ services:
       retries: 5
       start_period: 10s
 
-  # Metrics TSDB + alert evaluator. Scrapes the Collector's Prometheus
-  # exporter (:8889) on its own pull interval — see infra/prometheus/prometheus.yml
-  # (scrape config) + alert-rules.yml (minimal SLO rules: 5xx rate, p99
-  # latency, DLQ growth, saga failure ratio). Same `observability` profile.
   prometheus:
     image: prom/prometheus:v3.13.2
     container_name: food-delivery-prometheus
@@ -489,9 +370,6 @@ services:
       retries: 5
       start_period: 10s
 
-  # Single-binary log store (filesystem storage — dev only, see
-  # infra/loki/loki-config.yaml). `alloy` below ships every container's
-  # stdout here; Grafana reads it back, correlated to Jaeger by trace_id.
   loki:
     image: grafana/loki:3.7.4
     container_name: food-delivery-loki
@@ -503,16 +381,7 @@ services:
       - loki-data:/loki
     ports:
       - '${LOKI_PORT:-3100}:3100'
-    # No container healthcheck: the grafana/loki image is distroless (no shell,
-    # no wget/curl), so any CMD/CMD-SHELL HTTP probe can't run. Dependents wait
-    # on `service_started` and retry their own connections (Alloy re-pushes,
-    # Grafana re-checks the datasource) until Loki's /ready serves.
 
-  # Log shipper: tails every Docker container's stdout/stderr (json-file
-  # driver, the compose default) and pushes to Loki, labelled `service_name`
-  # by container name (infra/alloy/config.alloy). Read-only Docker socket
-  # mount — this container only ever READS container metadata/logs, never
-  # controls other containers.
   alloy:
     image: grafana/alloy:v1.18.0
     container_name: food-delivery-alloy
@@ -528,24 +397,15 @@ services:
       - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
-      # `service_started`, not `service_healthy`: Loki is distroless and carries
-      # no healthcheck. Alloy retries its log pushes until Loki is ready.
       loki:
         condition: service_started
-    # No container healthcheck: the grafana/alloy image is distroless (no shell)
-    # so a probe can't run in-container; nothing depends on alloy's health.
 
-  # Dashboards + alert routing UI. Provisioned as-code (no click-ops):
-  # datasources (Prometheus/Loki/Jaeger, infra/grafana/provisioning/datasources)
-  # + dashboards (golden signals + business KPIs, infra/grafana/dashboards).
-  # UI on host :3030 — deliberately NOT :3000, which several app services use.
   grafana:
     image: grafana/grafana:13.1.1
     container_name: food-delivery-grafana
     profiles: [observability]
     restart: unless-stopped
     environment:
-      # Dev-only bootstrap credentials — never reused in a real deployment.
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
     volumes:
@@ -555,15 +415,10 @@ services:
     ports:
       - '${GRAFANA_PORT:-3030}:3000'
     depends_on:
-      # Prometheus has a working (non-distroless) healthcheck, so gate on it;
-      # Loki is distroless (no healthcheck) → `service_started`. Grafana retries
-      # both datasource connections in the UI until they answer.
       prometheus:
         condition: service_healthy
       loki:
         condition: service_started
-    # No container healthcheck: the grafana/grafana image is distroless (no
-    # shell) so an in-container HTTP probe can't run; nothing depends on it.
 
 volumes:
   postgres-data:

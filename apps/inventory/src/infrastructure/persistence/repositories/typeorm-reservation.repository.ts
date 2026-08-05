@@ -33,9 +33,6 @@ export class TypeOrmReservationRepository implements ReservationRepository {
   }
 
   async releaseIfActive(reservation: Reservation): Promise<boolean> {
-    // Conditional flip is the concurrency gate: the row lock serialises two
-    // concurrent releases, and the loser re-evaluates status='ACTIVE' as false
-    // → 0 rows → its caller skips increaseAvailable, so stock is returned once.
     const result = await this.repository
       .createQueryBuilder()
       .update(ReservationOrmEntity)

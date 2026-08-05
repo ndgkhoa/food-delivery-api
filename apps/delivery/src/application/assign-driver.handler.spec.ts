@@ -42,8 +42,8 @@ describe('AssignDriverHandler', () => {
     const { locations, handler } = buildHandler();
     locations.seedOnline(TENANT_A, ['driver-1', 'driver-2']);
 
-    const a = await handler.execute(TENANT_A, 'order-a'); // takes driver-1
-    const b = await handler.execute(TENANT_A, 'order-b'); // driver-1 busy → driver-2
+    const a = await handler.execute(TENANT_A, 'order-a');
+    const b = await handler.execute(TENANT_A, 'order-b');
 
     expect(a?.assignment.driverId).toBe('driver-1');
     expect(b?.assignment.driverId).toBe('driver-2');
@@ -53,23 +53,22 @@ describe('AssignDriverHandler', () => {
     const { locations, handler } = buildHandler();
     locations.seedOnline(TENANT_A, ['driver-1']);
 
-    await handler.execute(TENANT_A, 'order-a'); // driver-1 now busy
-    expect(await handler.execute(TENANT_A, 'order-b')).toBeUndefined(); // no free driver
+    await handler.execute(TENANT_A, 'order-a');
+    expect(await handler.execute(TENANT_A, 'order-b')).toBeUndefined();
 
-    await handler.release(TENANT_A, 'order-a'); // frees driver-1
+    await handler.release(TENANT_A, 'order-a');
     const reassigned = await handler.execute(TENANT_A, 'order-b');
     expect(reassigned?.assignment.driverId).toBe('driver-1');
   });
 
   it('returns undefined when no driver is available', async () => {
     const { handler } = buildHandler();
-    // No online drivers seeded.
     expect(await handler.execute(TENANT_A, ORDER_ID)).toBeUndefined();
   });
 
   it('never assigns a driver from another tenant', async () => {
     const { locations, handler } = buildHandler();
-    locations.seedOnline(TENANT_B, ['driver-b']); // only tenant B has drivers online
+    locations.seedOnline(TENANT_B, ['driver-b']);
 
     expect(await handler.execute(TENANT_A, ORDER_ID)).toBeUndefined();
   });

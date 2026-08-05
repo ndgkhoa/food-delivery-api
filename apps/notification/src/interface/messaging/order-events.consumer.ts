@@ -18,15 +18,8 @@ import {
 } from '@notification/application/dispatch-order-event.handler';
 
 const ORDER_EVENTS_TOPIC = 'order.events';
-/** Notification's own consumer group — tails `order.events` with independent offsets. */
 const CONSUMER_GROUP_ID = 'notification-order-events';
 
-/**
- * Consumes `order.events` and fans a CONFIRMED/CANCELLED lifecycle event out
- * to per-channel notifications (mirrors delivery's driver-assignment consumer
- * on the same topic). Disabled under NODE_ENV=test (no broker) — the compose
- * e2e + real runtime run outside it.
- */
 @Injectable()
 export class OrderEventsConsumer implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(OrderEventsConsumer.name);

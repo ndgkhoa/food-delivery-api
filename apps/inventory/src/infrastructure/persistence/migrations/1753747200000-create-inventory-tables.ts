@@ -1,12 +1,5 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Creates the inventory schema: stock, reservations.
- *
- * `stock` is keyed by (tenant_id, item_id) and carries a CHECK (available >= 0)
- * — a storage-layer backstop so the no-oversell invariant holds even if a bug
- * bypassed the domain. `reservations` records each per-item hold for an order.
- */
 export class CreateInventoryTables1753747200000 implements MigrationInterface {
   name = 'CreateInventoryTables1753747200000';
 

@@ -1,7 +1,3 @@
-# Registers the adapter's implementation of custom.metrics.k8s.io with the
-# main API server's aggregation layer — this is what makes
-# `kubectl get --raw /apis/custom.metrics.k8s.io/v1beta2/...` (and the order
-# HPA's metric lookups) actually route to the adapter Service.
 apiVersion: apiregistration.k8s.io/v1
 kind: APIService
 metadata:

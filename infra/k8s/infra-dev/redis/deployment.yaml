@@ -1,7 +1,3 @@
-# Single-replica Redis for LOCAL k3d verification only — see postgres/deployment.yaml
-# for why this component is dev-overlay-only and slightly less hardened than
-# the app Deployments. No auth configured (matches the docker-compose dev
-# default) — never reachable from outside the cluster network.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

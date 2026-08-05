@@ -1,12 +1,5 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
-/**
- * A single order line item. Items are immutable once inserted — only the
- * parent order's `status`/`version` change. No TypeORM relation to
- * `OrderOrmEntity` on purpose (that would create an import cycle between the
- * two entity files); the join is a plain `order_id` column, and
- * `TypeOrmOrderRepository` loads/saves both sides explicitly.
- */
 @Entity('order_items')
 @Index(['orderId'])
 export class OrderItemOrmEntity {

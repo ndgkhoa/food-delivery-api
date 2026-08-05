@@ -12,11 +12,6 @@ import {
 } from '@catalog/testing/catalog-test-database';
 import type { TenantContextPort, TenantRequestContext } from '@food-delivery-api/shared-tenancy';
 
-/**
- * Integration test for the write+audit atomicity guarantee (real Postgres via
- * testcontainers): when the audit record fails, the aggregate write must roll
- * back so no orphaned row is left behind.
- */
 describe('write + audit atomicity (integration)', () => {
   let db: CatalogTestDatabase;
   let repository: TypeOrmRestaurantRepository;
@@ -37,8 +32,6 @@ describe('write + audit atomicity (integration)', () => {
     },
   };
 
-  // Audit throws before the outbox write is reached, so this is never invoked;
-  // present only to satisfy the handler's constructor.
   const noopOutbox: OutboxWriter = {
     write: async (_entry: OutboxEntry) => {},
   };
@@ -68,7 +61,6 @@ describe('write + audit atomicity (integration)', () => {
 
     await expect(handler.execute({ name: 'Rollback Diner' })).rejects.toThrow(/audit boom/);
 
-    // Nothing was persisted: the failed audit rolled the whole transaction back.
     const { total } = await repository.findAndCount(tenantA, { page: 1, limit: 20 });
     expect(total).toBe(0);
   });

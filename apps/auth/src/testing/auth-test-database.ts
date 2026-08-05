@@ -8,12 +8,6 @@ export interface AuthTestDatabase {
   dataSource: DataSource;
 }
 
-/**
- * Spins up a real, throwaway Postgres via testcontainers and applies the auth
- * migration, so tests assert against the same schema/constraints as production
- * instead of a mock. Migration is passed as a class reference (not a glob) so it
- * loads inside ts-jest without a separate ts-node step.
- */
 export async function startAuthTestDatabase(): Promise<AuthTestDatabase> {
   const container = await new PostgreSqlContainer('postgres:18.4').start();
 

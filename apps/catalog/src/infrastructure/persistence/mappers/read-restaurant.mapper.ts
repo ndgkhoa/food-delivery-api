@@ -3,7 +3,6 @@ import { Restaurant } from '@catalog/domain/restaurant/restaurant';
 import { ReadRestaurantOrmEntity } from '@catalog/infrastructure/persistence/entities/read-restaurant.orm-entity';
 
 export class ReadRestaurantMapper {
-  /** Read rows only ever hold live restaurants, so `deletedAt` is always null. */
   static toDomain(orm: ReadRestaurantOrmEntity): Restaurant {
     return Restaurant.reconstitute({
       id: orm.id,
@@ -20,7 +19,6 @@ export class ReadRestaurantMapper {
     });
   }
 
-  /** Used only for the `catalog.events`-driven columns — rating/reviewCount are deliberately never set here (see `updateRating`). */
   static toOrm(row: ReadRestaurantRow): ReadRestaurantOrmEntity {
     const orm = new ReadRestaurantOrmEntity();
     orm.id = row.id;
