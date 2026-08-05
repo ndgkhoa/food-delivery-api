@@ -391,34 +391,33 @@ All exceptions are caught by `GlobalExceptionFilter` and transformed to a standa
 
 ### Unit Tests (Jest)
 
-- Test **one thing per test** — Single assertion or closely related assertions
-- Use **descriptive test names:** `it('should return empty array when no restaurants found', ...)`
-- Mock external dependencies (database, Kafka, gRPC, Redis)
-- Place factories in `libs/shared/testing/factories/`
+House style — every spec follows the same shape:
+
+- **`describe(...)` names the subject by its identifier** — a class as its PascalCase name (`describe('PlaceOrderHandler', ...)`), a standalone function as its camelCase name (`describe('validateEnv', ...)`). No prose phrases. One flat top-level `describe` per file; nest `describe` only to group a method's scenarios.
+- **`it(...)` is a present-tense behavioral sentence, verb-first, never "should"** — `it('rejects a duplicate slug', ...)`, `it('commits the next offset when the handler succeeds', ...)`.
+- **Build the subject directly with `new Class(deps)`** plus hand-built fakes. Do not use `Test.createTestingModule` for pure unit logic — reserve DI / `createNestApplication` for integration repo/controller specs.
+- **Mocks:** `jest.fn()` collaborators or a `class Fake… implements Port`; reuse shared doubles from `@<service>/testing/*` where they exist. Cast framework stubs with `as unknown as X`.
+- **Fixture/mock factory helpers are prefixed `build*`** — `buildCommand()`, `buildHandler()`, `buildHost()`.
+- **Specs are comment-free** — separate arrange/act/assert with blank lines, not `// Arrange` comments. Intent lives in the `it` description.
+- Test one thing per test; mock external dependencies (database, Kafka, gRPC, Redis).
 
 ```typescript
-describe('OrderService', () => {
-  let service: OrderService;
-  let mockOrderRepo: jest.Mocked<OrderRepository>;
+describe('PlaceOrderHandler', () => {
+  function buildHandler() {
+    const orders = new FakeOrderRepository();
+    const outbox = new FakeOutboxPort();
+    return { orders, outbox, handler: new PlaceOrderHandler(orders, outbox) };
+  }
 
-  beforeEach(() => {
-    mockOrderRepo = {
-      save: jest.fn(),
-      findById: jest.fn(),
-    };
-    service = new OrderService(mockOrderRepo);
-  });
+  it('persists a PENDING order and appends an order_placed event', async () => {
+    const { orders, outbox, handler } = buildHandler();
 
-  it('should place order and save to repository', async () => {
-    // Arrange
-    const command = new PlaceOrderCommand('customer-1', 'restaurant-1', [...]);
+    const orderId = await handler.execute(buildCommand());
 
-    // Act
-    const orderId = await service.placeOrder(command);
-
-    // Assert
-    expect(mockOrderRepo.save).toHaveBeenCalledWith(expect.any(Order));
-    expect(orderId).toBeDefined();
+    expect(orders.findById(orderId)?.status).toBe('PENDING');
+    expect(outbox.appended).toContainEqual(
+      expect.objectContaining({ type: 'order_placed' }),
+    );
   });
 });
 ```
@@ -445,7 +444,7 @@ describe('Order E2E', () => {
     await kafkaContainer.stop();
   });
 
-  it('should complete order saga end-to-end', async () => {
+  it('completes the order saga end-to-end', async () => {
     // POST /api/v1/orders
     const response = await request(app.getHttpServer())
       .post('/api/v1/orders')
