@@ -1,3 +1,4 @@
+import { CORRELATION_ID_HEADER } from '@food-delivery-api/shared-logging';
 import {
   IDENTITY_SIG_HEADER,
   IDENTITY_TS_HEADER,
@@ -153,6 +154,64 @@ describe('HttpForwarder', () => {
     expect(headers[IDENTITY_TS_HEADER]).toMatch(/^\d+$/);
     const expectedSig = signIdentity(key, req.identity!, Number(headers[IDENTITY_TS_HEADER]));
     expect(headers[IDENTITY_SIG_HEADER]).toBe(expectedSig);
+  });
+
+  it('rejects forwarding a request that has no verified identity', async () => {
+    const run = jest.fn();
+    const forwarder = new HttpForwarder(breakersStub(run), configStub());
+    const { res } = resStub();
+
+    await expect(forwarder.forward(reqStub({ identity: undefined }), res, TARGET)).rejects.toThrow(
+      'forward() called without a verified identity',
+    );
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('forwards the correlation id header when present on the inbound request', async () => {
+    const upstream = new Response('ok', { status: 200 });
+    const fetchSpy = jest.fn().mockResolvedValue(upstream);
+    global.fetch = fetchSpy as unknown as typeof fetch;
+    const run = jest.fn((_service: string, action: () => Promise<unknown>) => action());
+    const forwarder = new HttpForwarder(breakersStub(run), configStub());
+    const req = reqStub({ headers: { [CORRELATION_ID_HEADER]: 'corr-123' } });
+    const { res } = resStub();
+
+    await forwarder.forward(req, res, TARGET);
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    expect(headers[CORRELATION_ID_HEADER]).toBe('corr-123');
+  });
+
+  it('forwards the idempotency-key client header when present', async () => {
+    const upstream = new Response('ok', { status: 200 });
+    const fetchSpy = jest.fn().mockResolvedValue(upstream);
+    global.fetch = fetchSpy as unknown as typeof fetch;
+    const run = jest.fn((_service: string, action: () => Promise<unknown>) => action());
+    const forwarder = new HttpForwarder(breakersStub(run), configStub());
+    const req = reqStub({ headers: { 'idempotency-key': 'idem-1' } });
+    const { res } = resStub();
+
+    await forwarder.forward(req, res, TARGET);
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    expect(headers['idempotency-key']).toBe('idem-1');
+  });
+
+  it('attaches a JSON body when forwarding a non-bodyless method', async () => {
+    const upstream = new Response('ok', { status: 200 });
+    const fetchSpy = jest.fn().mockResolvedValue(upstream);
+    global.fetch = fetchSpy as unknown as typeof fetch;
+    const run = jest.fn((_service: string, action: () => Promise<unknown>) => action());
+    const forwarder = new HttpForwarder(breakersStub(run), configStub());
+    const req = reqStub({ method: 'POST', body: { name: 'burger' } });
+    const { res } = resStub();
+
+    await forwarder.forward(req, res, TARGET);
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(init.body).toBe(JSON.stringify({ name: 'burger' }));
   });
 
   it('stamps no signature headers when no signing key is configured (unsigned/local dev)', async () => {

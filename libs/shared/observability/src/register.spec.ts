@@ -1,3 +1,5 @@
+import type { Logger as LoggerType } from '@nestjs/common';
+
 jest.mock('@opentelemetry/sdk-node', () => ({
   NodeSDK: jest.fn().mockImplementation(() => ({
     start: jest.fn(),
@@ -8,6 +10,7 @@ jest.mock('@opentelemetry/sdk-node', () => ({
 interface FreshModules {
   registerTracing: (serviceName: string) => void;
   NodeSdkMock: jest.Mock;
+  Logger: typeof LoggerType;
 }
 
 function loadFreshRegister(): FreshModules {
@@ -15,8 +18,14 @@ function loadFreshRegister(): FreshModules {
   // biome-ignore lint/suspicious/noExplicitAny: dynamic re-require of a mocked module for per-test isolation
   const sdkModule = require('@opentelemetry/sdk-node') as any;
   // biome-ignore lint/suspicious/noExplicitAny: dynamic re-require under jest.resetModules()
+  const commonModule = require('@nestjs/common') as any;
+  // biome-ignore lint/suspicious/noExplicitAny: dynamic re-require under jest.resetModules()
   const registerModule = require('./register') as any;
-  return { registerTracing: registerModule.registerTracing, NodeSdkMock: sdkModule.NodeSDK };
+  return {
+    registerTracing: registerModule.registerTracing,
+    NodeSdkMock: sdkModule.NodeSDK,
+    Logger: commonModule.Logger,
+  };
 }
 
 describe('registerTracing', () => {
@@ -74,5 +83,47 @@ describe('registerTracing', () => {
     });
 
     expect(() => registerTracing('order')).not.toThrow();
+  });
+
+  it('logs a warning without throwing when the SDK start() promise rejects asynchronously', async () => {
+    process.env.NODE_ENV = 'development';
+    delete process.env.TELEMETRY_ENABLED;
+    const { registerTracing, NodeSdkMock, Logger } = loadFreshRegister();
+    NodeSdkMock.mockImplementationOnce(() => ({
+      start: jest.fn().mockRejectedValue(new Error('async start failed')),
+      shutdown: jest.fn().mockResolvedValue(undefined),
+    }));
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+    expect(() => registerTracing('order')).not.toThrow();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('async start failed'));
+    warnSpy.mockRestore();
+  });
+
+  it('logs a warning per target that fails to shut down when SIGTERM triggers cleanup', async () => {
+    process.env.NODE_ENV = 'development';
+    delete process.env.TELEMETRY_ENABLED;
+    const onceSpy = jest.spyOn(process, 'once');
+    const { registerTracing, NodeSdkMock, Logger } = loadFreshRegister();
+    NodeSdkMock.mockImplementationOnce(() => ({
+      start: jest.fn(),
+      shutdown: jest.fn().mockRejectedValue(new Error('collector unreachable')),
+    }));
+
+    registerTracing('order');
+
+    const sigtermCall = onceSpy.mock.calls.find(([event]) => event === 'SIGTERM');
+    expect(sigtermCall).toBeDefined();
+    const handler = sigtermCall?.[1] as () => void;
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+    handler();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('tracing shutdown failed'));
+    onceSpy.mockRestore();
+    warnSpy.mockRestore();
   });
 });

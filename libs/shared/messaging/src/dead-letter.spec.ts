@@ -51,6 +51,24 @@ describe('buildDeadLetterMessage', () => {
     expect(value.sourceOffset).toBe('42');
   });
 
+  it('skips header entries whose value is undefined instead of stringifying them', () => {
+    const raw: RawInboundMessage = {
+      topic: 'inventory.replies',
+      partition: 0,
+      message: {
+        offset: '1',
+        key: null,
+        value: null,
+        headers: { 'x-tenant-id': 'tenant-1', 'x-empty': undefined },
+      },
+    };
+
+    const dlq = buildDeadLetterMessage(raw, 'undecodable', 'x');
+    const value = dlq.value as { headers: Record<string, string> };
+
+    expect(value.headers).toEqual({ 'x-tenant-id': 'tenant-1' });
+  });
+
   it('tolerates a null key and null value (records null, not a crash)', () => {
     const raw: RawInboundMessage = {
       topic: 't',

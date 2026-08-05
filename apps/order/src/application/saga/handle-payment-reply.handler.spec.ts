@@ -5,6 +5,7 @@ import {
   PAYMENT_SUCCEEDED,
 } from '@order/application/saga/handle-payment-reply.handler';
 import { OrderSaga } from '@order/domain/saga/order-saga';
+import { OrderNotFoundError, SagaNotFoundError } from '@order/domain/shared/errors';
 import {
   buildOrder,
   DEFAULT_CORRELATION_ID,
@@ -118,5 +119,37 @@ describe('HandlePaymentReplyHandler', () => {
 
     expect(sagaRepo.rows.get(orderId)?.state).toBe('COMPLETED');
     expect(outbox.entries).toHaveLength(0);
+  });
+
+  it('ignores an unknown payment reply type', async () => {
+    const { sagaRepo, orderRepo, outbox, handler } = buildHandler();
+    const orderId = randomUUID();
+    seedStockReserved(sagaRepo, orderRepo, orderId);
+
+    await handler.execute(envelope('SomeUnknownReply', orderId, randomUUID()), { orderId });
+
+    expect(sagaRepo.rows.get(orderId)?.state).toBe('STOCK_RESERVED');
+    expect(outbox.entries).toHaveLength(0);
+  });
+
+  it('throws SagaNotFoundError when no saga exists for the order', async () => {
+    const { handler } = buildHandler();
+    const orderId = randomUUID();
+
+    await expect(
+      handler.execute(envelope(PAYMENT_SUCCEEDED, orderId, randomUUID()), { orderId }),
+    ).rejects.toThrow(SagaNotFoundError);
+  });
+
+  it('throws OrderNotFoundError when the saga is STOCK_RESERVED but the order row is missing', async () => {
+    const { sagaRepo, handler } = buildHandler();
+    const orderId = randomUUID();
+    sagaRepo.seed(
+      OrderSaga.start({ orderId, tenantId: TENANT_ID }).transition('STOCK_RESERVED', randomUUID()),
+    );
+
+    await expect(
+      handler.execute(envelope(PAYMENT_SUCCEEDED, orderId, randomUUID()), { orderId }),
+    ).rejects.toThrow(OrderNotFoundError);
   });
 });

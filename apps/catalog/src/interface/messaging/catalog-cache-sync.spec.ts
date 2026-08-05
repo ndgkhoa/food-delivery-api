@@ -180,6 +180,21 @@ describe('syncRestaurantCache', () => {
     expect(cache.has(key)).toBe(false);
   });
 
+  it('invalidates a stale cache entry when the read model has no row for a write-through event', async () => {
+    await cache.writeThrough(key, { stale: true }, 1000);
+    expect(cache.has(key)).toBe(true);
+
+    await syncRestaurantCache(
+      'RestaurantCreated',
+      restaurantId,
+      tenantId,
+      cache.asRedisCache(),
+      repository,
+    );
+
+    expect(cache.has(key)).toBe(false);
+  });
+
   it('swallows a read-model read error — never re-drives an already-committed projection', async () => {
     const throwingRepo = {
       findById: jest.fn().mockRejectedValue(new Error('read model unavailable')),

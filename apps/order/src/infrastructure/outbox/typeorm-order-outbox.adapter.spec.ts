@@ -16,12 +16,20 @@ const mockCaptureActiveTraceContext = captureActiveTraceContext as jest.MockedFu
 
 class FakeOutboxRepository {
   readonly saved: OrderOutboxOrmEntity[] = [];
+  incrementCalls: { conditions: unknown; column: unknown; by: unknown }[] = [];
+  updateCalls: { criteria: unknown; partial: unknown }[] = [];
   create(row: Partial<OrderOutboxOrmEntity>): OrderOutboxOrmEntity {
     return row as OrderOutboxOrmEntity;
   }
   async save(row: OrderOutboxOrmEntity): Promise<OrderOutboxOrmEntity> {
     this.saved.push(row);
     return row;
+  }
+  async increment(conditions: unknown, column: unknown, by: unknown): Promise<void> {
+    this.incrementCalls.push({ conditions, column, by });
+  }
+  async update(criteria: unknown, partial: unknown): Promise<void> {
+    this.updateCalls.push({ criteria, partial });
   }
 }
 
@@ -150,6 +158,65 @@ describe('TypeOrmOrderOutboxAdapter', () => {
 
       expect(txRepo.saved).toHaveLength(1);
       expect(fallback.saved).toHaveLength(0);
+    });
+  });
+
+  describe('incrementAttempts', () => {
+    it('does nothing when given an empty id list', async () => {
+      const fallback = new FakeOutboxRepository();
+      const adapter = new TypeOrmOrderOutboxAdapter(
+        fallback as unknown as Repository<OrderOutboxOrmEntity>,
+        fakeDataSource([]),
+        tenantContext,
+      );
+
+      await adapter.incrementAttempts([]);
+
+      expect(fallback.incrementCalls).toHaveLength(0);
+    });
+
+    it('increments the attempts column for the given ids', async () => {
+      const fallback = new FakeOutboxRepository();
+      const adapter = new TypeOrmOrderOutboxAdapter(
+        fallback as unknown as Repository<OrderOutboxOrmEntity>,
+        fakeDataSource([]),
+        tenantContext,
+      );
+
+      await adapter.incrementAttempts(['id-1', 'id-2']);
+
+      expect(fallback.incrementCalls).toHaveLength(1);
+      expect(fallback.incrementCalls[0].column).toBe('attempts');
+      expect(fallback.incrementCalls[0].by).toBe(1);
+    });
+  });
+
+  describe('markPublished', () => {
+    it('does nothing when given an empty id list', async () => {
+      const fallback = new FakeOutboxRepository();
+      const adapter = new TypeOrmOrderOutboxAdapter(
+        fallback as unknown as Repository<OrderOutboxOrmEntity>,
+        fakeDataSource([]),
+        tenantContext,
+      );
+
+      await adapter.markPublished([]);
+
+      expect(fallback.updateCalls).toHaveLength(0);
+    });
+
+    it('sets publishedAt for the given ids', async () => {
+      const fallback = new FakeOutboxRepository();
+      const adapter = new TypeOrmOrderOutboxAdapter(
+        fallback as unknown as Repository<OrderOutboxOrmEntity>,
+        fakeDataSource([]),
+        tenantContext,
+      );
+
+      await adapter.markPublished(['id-1']);
+
+      expect(fallback.updateCalls).toHaveLength(1);
+      expect(fallback.updateCalls[0].partial).toMatchObject({ publishedAt: expect.any(Date) });
     });
   });
 

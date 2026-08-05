@@ -59,6 +59,24 @@ describe('OrdersPartitionMaintenanceService', () => {
     expect(query.mock.calls[1][0]).toContain('"orders_p202608"');
   });
 
+  it('calls onApplicationBootstrap directly and ensures partitions outside test', async () => {
+    const query = jest.fn().mockResolvedValue(undefined);
+    const service = buildService('production', query);
+
+    await service.onApplicationBootstrap();
+
+    expect(query).toHaveBeenCalledTimes(2);
+  });
+
+  it('runs the monthly cron tick and ensures partitions outside test', async () => {
+    const query = jest.fn().mockResolvedValue(undefined);
+    const service = buildService('production', query);
+
+    await service.monthlyMaintenance();
+
+    expect(query).toHaveBeenCalledTimes(2);
+  });
+
   it('pins partition bounds to UTC (+00) so they are session-timezone independent', async () => {
     const query = jest.fn().mockResolvedValue(undefined);
     await buildService('production', query).ensureUpcomingPartitions(
