@@ -1,87 +1,120 @@
 # food-delivery-api
 
-![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
-![Node.js](https://img.shields.io/badge/Node.js-24_LTS-5FA04E?logo=nodedotjs&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white)
-![Redis](https://img.shields.io/badge/Redis-8-FF4438?logo=redis&logoColor=white)
-![Apache Kafka](https://img.shields.io/badge/Apache_Kafka-4.0-231F20?logo=apachekafka&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Kubernetes](https://img.shields.io/badge/Kubernetes-HPA-326CE5?logo=kubernetes&logoColor=white)
-![License: MIT](https://img.shields.io/badge/License-MIT-green)
+![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white&labelColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white&labelColor=black)
+![Node.js](https://img.shields.io/badge/Node.js-24_LTS-5FA04E?logo=nodedotjs&logoColor=white&labelColor=black)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white&labelColor=black)
+![TypeORM](https://img.shields.io/badge/TypeORM-1.0-FE0902?logo=typeorm&logoColor=white&labelColor=black)
+![Apache Kafka](https://img.shields.io/badge/Apache_Kafka-4.0-231F20?logo=apachekafka&logoColor=white&labelColor=black)
+![Redis](https://img.shields.io/badge/Redis-8-FF4438?logo=redis&logoColor=white&labelColor=black)
+![Temporal](https://img.shields.io/badge/Temporal-durable-000000?logo=temporal&logoColor=white&labelColor=black)
+![Elasticsearch](https://img.shields.io/badge/Elasticsearch-9-005571?logo=elasticsearch&logoColor=white&labelColor=black)
+![gRPC](https://img.shields.io/badge/gRPC-east--west-244B5A?logo=grpc&logoColor=white&labelColor=black)
+![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-Traces-425CC7?logo=opentelemetry&logoColor=white&labelColor=black)
+![Docker](https://img.shields.io/badge/Docker-GHCR-2496ED?logo=docker&logoColor=white&labelColor=black)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-HPA-326CE5?logo=kubernetes&logoColor=white&labelColor=black)
+![Jest](https://img.shields.io/badge/Jest-Testcontainers-C21325?logo=jest&logoColor=white&labelColor=black)
+![Biome](https://img.shields.io/badge/Biome-Lint_+_Format-60A5FA?logo=biome&logoColor=white&labelColor=black)
 
-Distributed **food delivery backend** in NestJS — event-driven microservices with CQRS/Saga/Outbox, full-text search, real-time tracking, durable workflows, observability, and Kubernetes ops.
+[![CI](https://github.com/ndgkhoa/food-delivery-api/actions/workflows/ci.yml/badge.svg)](https://github.com/ndgkhoa/food-delivery-api/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ndgkhoa/food-delivery-api?sort=semver&label=release&color=orange)](https://github.com/ndgkhoa/food-delivery-api/releases)
+[![codecov](https://codecov.io/gh/ndgkhoa/food-delivery-api/graph/badge.svg)](https://codecov.io/gh/ndgkhoa/food-delivery-api)
+[![License](https://img.shields.io/badge/License-MIT-blue)](./LICENSE)
+
+Distributed **food delivery microservices backend** in NestJS — services on an Nx monorepo talking over Kafka, coordinated by a saga orchestrator with compensating transactions, a transactional outbox relayed to Elasticsearch via Debezium CDC, database-per-service Postgres, durable payments on Temporal, geo-based driver dispatch on Redis GEO, idempotent APIs, and end-to-end OpenTelemetry tracing — shipped on Kubernetes with cosign-signed images and SLSA provenance.
 
 ## Stack
 
-- **Runtime:** Node.js 24 LTS · TypeScript · NestJS (Nx monorepo, pnpm)
-- **Data:** PostgreSQL · Redis · Elasticsearch · MinIO · ClickHouse
-- **Messaging / async:** Apache Kafka (KRaft) · Debezium (CDC) · Temporal · BullMQ
-- **Edge / security:** Nginx · API Gateway · Keycloak (OAuth2/OIDC) · JWT · RBAC
-- **Observability:** OpenTelemetry · Jaeger · Prometheus/Grafana · Loki
-- **Ops:** Docker Compose · Kubernetes (HPA, canary/blue-green) · GitHub Actions
+- **Runtime:** Node.js 24 LTS · TypeScript 5.9 · NestJS 11 (Nx monorepo · pnpm)
+- **Patterns:** Clean/Hexagonal · CQRS · Saga orchestration · Transactional Outbox · database-per-service
+- **Data:** PostgreSQL 18 (TypeORM) · Redis · Elasticsearch · ClickHouse · MinIO
+- **Messaging / async:** Apache Kafka (KRaft) · Debezium (CDC) · Temporal · BullMQ · gRPC (east-west)
+- **Edge / security:** Nginx · API Gateway · Keycloak (OAuth2/OIDC) · JWT · RBAC · HMAC-signed identity
+- **Observability:** OpenTelemetry · Jaeger · Prometheus / Grafana · Loki · Alloy
+- **Ops:** Docker Compose · Kubernetes (HPA · canary / blue-green) · GitHub Actions · cosign · SLSA
 - **Dev tooling:** Biome · dependency-cruiser · Lefthook · Commitlint · Knip · Renovate · Trivy
 
 ## Architecture
 
-13 bounded-context services: `gateway`, `auth`, `catalog`, `search`, `order`, `inventory`, `payment`, `delivery`, `notification`, `media`, `analytics`, `review`, `config`.
+```
+  ┌───────────────────────────────────────────────┐
+  │              Nginx + API Gateway              │  JWT · RBAC · rate-limit · circuit-breaker · proxy
+  └───────────────────────┬───────────────────────┘
+                          │
+  ┌───────────────────────┼───────────────────────┐
+  │  catalog · order · inventory · payment        │
+  │  delivery · media · search · review           │
+  │  analytics · notification · config · auth     │
+  └───────────────────────┬───────────────────────┘
+                          │  events / commands
+  ┌───────────────────────┴───────────────────────┐
+  │                     Kafka                     │  order.events · <svc>.commands/replies · *.dlq
+  └───────────────────────────────────────────────┘
 
-- 📐 **Design:** [`architecture.md`](./plans/260725-2139-food-delivery-microservices/architecture.md) — layering, service map, event flows, data ownership, versions, dev tooling.
-- 🗺️ **Roadmap:** [`plan.md`](./plans/260725-2139-food-delivery-microservices/plan.md) — phased delivery plan.
-- 🔧 **Workflow:** [`development-workflow.md`](./plans/260725-2139-food-delivery-microservices/development-workflow.md) — Git Flow, Definition of Done, CI gates, commit/PR conventions.
+  place order ─► saga: reserve stock (inventory gRPC) ─► charge (payment → Temporal)
+                 ─► CONFIRMED ─► fan-out: delivery (Redis GEO) · notification · analytics
+  catalog write ─► outbox ─► Debezium CDC ─► Kafka ─► search read-model (Elasticsearch)
+```
+
+- **Gateway** is the only public edge — verifies Keycloak-issued JWTs, enforces RBAC + rate-limiting + a per-service circuit breaker, and reverse-proxies to services with the verified identity attached as trusted headers.
+- **Order saga** orchestrates a distributed transaction (reserve → charge → confirm) with compensation on failure; a reaper re-drives stranded sagas. Idempotency keys + a `processed_events` table keep every step exactly-once.
+- **Outbox + Debezium CDC** ship catalog changes to the search read-model with no dual-write, following the `<service>.events` topic convention.
+- **Temporal** guarantees the payment charge completes across crashes; **Redis GEO** powers nearest-driver dispatch.
 
 ## Getting started
 
-**Prerequisites:** Node.js 24, pnpm, Docker. Currently running services (P0–P2): `gateway` (:3000), `catalog` (:3001 + gRPC :50051), `auth` (:3002), `inventory` (gRPC-only :50052), `order` (:3003). The rest of the 13 services are on the roadmap.
-
 ```bash
+# prerequisites: Node 24.14+, pnpm 10.32+, Docker
 pnpm install
 cp .env.example .env
 
-# 1. Infra (Postgres + Redis + Nginx = core; Keycloak = auth). First Keycloak boot ~30-60s.
-#    Postgres auto-creates the catalog/auth/inventory/order databases on first run.
-#    --env-file .env is REQUIRED: the compose file lives in infra/, so Compose won't
-#    pick up the repo-root .env for ${VAR} interpolation without it.
-docker compose --env-file .env -f infra/docker-compose.yml --profile core --profile auth up -d
+# bring up the full infra stack
+docker compose --env-file .env -f infra/docker-compose.yml \
+  --profile core --profile auth --profile messaging --profile search --profile media \
+  --profile workflow --profile analytics --profile notification up -d
 
-# 2. Migrate every service database
-pnpm db:migrate
+# run migrations, then all services
+pnpm nx run-many -t serve
 
-# 3. Run all services (each on its own port)
-pnpm dev
+# seed demo data
+pnpm --filter @tools/seed seed:up
 ```
 
-**Call the API** through the **gateway** on `:3000` — the single client entry point (`/api/v1/...`). The per-service ports (3001/3002/3003) are internal; in production they sit behind the gateway.
+- **Gateway:** `http://localhost:3000/api/v1` · **Aggregated API reference (Scalar):** `/api/v1/reference`
+- **Keycloak** `:8080` (`admin/admin`) · **MinIO** `:9001` · **Temporal UI** `:8233` · **Mailpit** `:8025`
+- **API collection:** import [`bruno/`](bruno/) into [Bruno](https://usebruno.com) → select the `Local` environment → run **Auth › Login** (stores the token) → any request.
+- **Observability**: add `--profile observability` → Grafana `:3030` · Jaeger `:16686` · Prometheus `:9090`.
 
-Login is delegated to Keycloak (you don't build it). Grab a token for a seeded dev user (`owner-user` / `customer-user` / `admin-user`, password `<role>-pass`):
+## Project structure
+
+```
+apps/         services (+ *-e2e) — hexagonal: domain · application · infrastructure · interface
+libs/shared/  reusable libraries — config · messaging · persistence · observability · jwt · tenancy
+infra/        docker-compose · k8s · keycloak realm · prometheus · grafana · k6 · Dockerfile
+bruno/        HTTP collection
+tools/seed/   API-driven demo-data seeder
+docs/         project documentation
+```
+
+## Testing
 
 ```bash
-TOKEN=$(curl -s -X POST http://localhost:8080/realms/food-delivery/protocol/openid-connect/token \
-  -d grant_type=password -d client_id=food-delivery-spa \
-  -d username=owner-user -d password=owner-pass | jq -r .access_token)
-
-curl -X POST http://localhost:3000/api/v1/catalog/restaurants \
-  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
-  -d '{"name":"Pho 24","description":"..."}'
+pnpm nx affected -t test       # unit tests (Jest)
+pnpm nx run <service>-e2e:e2e  # e2e against real infra (Testcontainers)
+k6 run infra/k6/load-test.js   # load test (SLO-aligned thresholds)
 ```
 
-(Or just use the Bruno collection below — its **Auth › Login** request grabs and stores the token for you.)
+## Documentation
 
-**Explore / test the API:**
-- **Aggregated API reference (Scalar):** `http://localhost:3000/api/v1/reference` — one UI listing every service's OpenAPI (or per-service at `:3001`/`:3002`/`:3003/api/v1/reference`). Click **Authorize** and paste the token.
-- **Bruno collection** (`bruno/`): open it in [Bruno](https://usebruno.com), pick the **Local** environment, run **Auth › Login** (saves the token), then any request — all go through the gateway.
-
-**Tests** (e2e use testcontainers — real Postgres/Redis/Keycloak/gRPC, no manual infra):
-
-```bash
-pnpm test                 # all unit tests
-pnpm nx e2e order-e2e     # place/cancel/idempotency/100-concurrent no-oversell, end-to-end
-```
-
-## Contributing
-
-Git Flow: branch off `develop` → PR into `develop` → squash-merge → delete branch. Conventional Commits with a mandatory scope (`type(scope): subject`). See the workflow doc above.
+| Doc | Purpose |
+|-----|---------|
+| [project-overview-pdr.md](docs/project-overview-pdr.md) | Product overview & requirements |
+| [system-architecture.md](docs/system-architecture.md) | Services, data flow, patterns |
+| [codebase-summary.md](docs/codebase-summary.md) | Module-by-module map |
+| [code-standards.md](docs/code-standards.md) | Conventions & structure |
+| [deployment-guide.md](docs/deployment-guide.md) | Compose & Kubernetes ops |
+| [project-roadmap.md](docs/project-roadmap.md) | Milestones & progress |
 
 ## License
 
-[MIT](./LICENSE) © 2026 ndgkhoa
+[MIT](LICENSE) © 2026 ndgkhoa
