@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { LockContentionError } from './errors';
 import { RedisDistributedLock } from './redis-distributed-lock';
@@ -47,6 +48,16 @@ class FakeRedis {
 
   has(key: string): boolean {
     return this.store.has(key);
+  }
+
+  forceExpire(key: string): void {
+    this.store.delete(key);
+  }
+}
+
+class ThrowingEvalRedis extends FakeRedis {
+  override async eval(): Promise<number> {
+    throw new Error('redis connection reset');
   }
 }
 
@@ -161,6 +172,54 @@ describe('RedisDistributedLock', () => {
 
       expect(redis.has('a')).toBe(false);
       expect(redis.has('b')).toBe(false);
+    });
+
+    it('warns instead of throwing when a held lock already expired before release', async () => {
+      const { lock, redis } = buildLock();
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+      await lock.withLocks(['a'], ttl, async () => {
+        redis.forceExpire('a');
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Lock "a" already expired before this holder released it'),
+      );
+      warnSpy.mockRestore();
+    });
+
+    it('warns and continues when the redis release call itself throws', async () => {
+      const redis = new ThrowingEvalRedis();
+      const lock = new RedisDistributedLock(redis as unknown as Redis);
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+      const result = await lock.withLocks(['a'], ttl, async () => 'done');
+
+      expect(result).toBe('done');
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to release lock "a"; it will expire via TTL'),
+      );
+      warnSpy.mockRestore();
+    });
+  });
+
+  describe('onModuleDestroy', () => {
+    it('disconnects the redis client when it is not already ended', () => {
+      const { lock, redis } = buildLock();
+
+      lock.onModuleDestroy();
+
+      expect(redis.status).toBe('end');
+    });
+
+    it('does nothing when the redis client already ended', () => {
+      const { lock, redis } = buildLock();
+      redis.disconnect();
+      const disconnectSpy = jest.spyOn(redis, 'disconnect');
+
+      lock.onModuleDestroy();
+
+      expect(disconnectSpy).not.toHaveBeenCalled();
     });
   });
 });

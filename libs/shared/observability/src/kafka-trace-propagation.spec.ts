@@ -179,6 +179,20 @@ describe('runWithTraceParent', () => {
     ).rejects.toThrow('db write failed');
     expect(fn).toHaveBeenCalledTimes(1);
   });
+
+  it('runs the function unchanged when activating the captured trace context throws', async () => {
+    const extractSpy = jest.spyOn(propagation, 'extract').mockImplementationOnce(() => {
+      throw new Error('propagator unavailable');
+    });
+    const fn = jest.fn().mockResolvedValue('ran anyway');
+
+    await expect(
+      runWithTraceParent('00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01', fn),
+    ).resolves.toBe('ran anyway');
+    expect(fn).toHaveBeenCalledTimes(1);
+
+    extractSpy.mockRestore();
+  });
 });
 
 describe('runWithExtractedContext', () => {
@@ -231,5 +245,30 @@ describe('runWithExtractedContext', () => {
     const fn = jest.fn().mockRejectedValue(new Error('handler failed'));
     await expect(runWithExtractedContext({}, 'consume', fn)).rejects.toThrow('handler failed');
     expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('exposes the header names to the propagator via the getter keys() contract', async () => {
+    const headers = { traceparent: 'x', 'x-tenant-id': 'tenant-1' };
+    const extractSpy = jest
+      .spyOn(propagation, 'extract')
+      .mockImplementationOnce((ctx, carrier, getter = { keys: () => [], get: () => undefined }) => {
+        expect(getter.keys(carrier)).toEqual(Object.keys(headers));
+        return ctx;
+      });
+
+    await runWithExtractedContext(headers, 'consume', async () => undefined);
+
+    extractSpy.mockRestore();
+  });
+
+  it('runs the handler without a span when extracting the trace context throws', async () => {
+    const extractSpy = jest.spyOn(propagation, 'extract').mockImplementationOnce(() => {
+      throw new Error('propagator unavailable');
+    });
+
+    const result = await runWithExtractedContext({}, 'consume', async () => 'handled anyway');
+
+    expect(result).toBe('handled anyway');
+    extractSpy.mockRestore();
   });
 });

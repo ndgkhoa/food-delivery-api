@@ -38,4 +38,14 @@ describe('SettingsCache', () => {
     expect(cache.get(buildCacheKey('t2', 'k'))).toBeUndefined();
     expect(cache.get(buildCacheKey('t1', 'other'))).toBe(3);
   });
+
+  it('size reports the number of entries currently stored', () => {
+    const cache = new SettingsCache<number>();
+    expect(cache.size).toBe(0);
+
+    cache.set(buildCacheKey('t1', 'k'), 1, 10_000);
+    cache.set(buildCacheKey('t2', 'k'), 2, 10_000);
+
+    expect(cache.size).toBe(2);
+  });
 });
