@@ -1,5 +1,8 @@
 import type { SagaState } from '@order/domain/saga/order-saga';
-import { type StrandedSagaCandidate, selectStrandedSagas } from './stranded-saga-sweep';
+import {
+  type StrandedSagaCandidate,
+  selectStrandedSagas,
+} from '@order/domain/saga/stranded-saga-sweep';
 
 const NOW = new Date('2026-07-28T12:00:00.000Z');
 const TIMEOUT_MS = 60_000;

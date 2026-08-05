@@ -140,7 +140,7 @@ function fakeMenuItem(id: string): MenuItem {
   return { id, toSnapshot: () => ({ id }) } as unknown as MenuItem;
 }
 
-describe('restaurant application handlers', () => {
+describe('RestaurantHandlers', () => {
   const tenantA = '11111111-1111-4111-8111-111111111111';
   const tenantB = '22222222-2222-4222-8222-222222222222';
 

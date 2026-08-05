@@ -1,7 +1,7 @@
 import { loadSync } from '@grpc/proto-loader';
 import { catalogProtoPath, inventoryProtoPath, PROTO_LOADER_OPTIONS } from './proto-paths';
 
-describe('gRPC proto contracts', () => {
+describe('protoDefinitions', () => {
   it('loads the catalog contract with GetMenuItems', () => {
     const definition = loadSync(catalogProtoPath(), PROTO_LOADER_OPTIONS);
     expect(definition['catalog.CatalogService']).toBeDefined();

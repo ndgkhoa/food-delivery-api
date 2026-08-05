@@ -20,6 +20,21 @@ module.exports = {
       },
     },
     {
+      name: 'no-relative-app-imports',
+      severity: 'error',
+      comment:
+        'In-app imports must use the per-service path alias (@<service>/*), not relative paths, so deep hexagonal folders survive moves/refactors. Exceptions: Temporal workflow code (the sandbox bundler cannot resolve tsconfig aliases) and *-e2e harnesses.',
+      from: {
+        path: '^apps/(?!.*-e2e/)[^/]+/src',
+        pathNot: '^apps/[^/]+/src/workflows/',
+      },
+      to: {
+        path: '^apps/',
+        dependencyTypes: ['local'],
+        dependencyTypesNot: ['aliased'],
+      },
+    },
+    {
       name: 'no-lib-importing-app',
       severity: 'error',
       comment: 'Shared libs must stay app-agnostic; apps depend on libs, never the reverse.',

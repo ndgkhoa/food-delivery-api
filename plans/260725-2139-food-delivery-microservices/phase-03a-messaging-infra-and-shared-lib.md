@@ -1,7 +1,7 @@
 # Slice 3a — Messaging infra + `libs/shared/messaging`
 
 Context: [phase-03.md](./phase-03-event-driven-backbone.md) · [architecture.md](./architecture.md) · [hexagonal-service-architecture.md](./hexagonal-service-architecture.md) · [development-workflow.md](./development-workflow.md)
-Report: [researcher-260728-phase-03-event-driven-stack.md](./reports/researcher-260728-phase-03-event-driven-stack.md)
+Report: [researcher-260728-phase-03-event-driven-stack.md](../reports/researcher-260728-phase-03-event-driven-stack.md)
 
 ## Overview
 - **Priority**: P0 — foundation for 3b/3c/3d.

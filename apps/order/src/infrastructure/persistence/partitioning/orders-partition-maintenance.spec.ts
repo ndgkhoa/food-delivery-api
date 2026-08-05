@@ -1,7 +1,7 @@
 import {
   computeMonthPartitionRange,
   OrdersPartitionMaintenanceService,
-} from './orders-partition-maintenance';
+} from '@order/infrastructure/persistence/partitioning/orders-partition-maintenance';
 
 describe('computeMonthPartitionRange', () => {
   it('returns the reference month bounds at offset 0', () => {

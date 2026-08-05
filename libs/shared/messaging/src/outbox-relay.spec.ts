@@ -40,7 +40,7 @@ class FakeProducer implements MessageProducer {
   }
 }
 
-function makeRow(id: string): OutboxRecord {
+function buildRow(id: string): OutboxRecord {
   return {
     id,
     topic: 'order.events',
@@ -53,7 +53,7 @@ function makeRow(id: string): OutboxRecord {
 describe('OutboxRelay.runOnce', () => {
   it('publishes a fetched batch and marks it published', async () => {
     const outbox = new FakeOutboxPort();
-    outbox.rows = [makeRow('1'), makeRow('2')];
+    outbox.rows = [buildRow('1'), buildRow('2')];
     const producer = new FakeProducer();
     const relay = new OutboxRelay(outbox, producer);
 
@@ -78,7 +78,7 @@ describe('OutboxRelay.runOnce', () => {
 
   it('does not mark rows published when the publish batch fails', async () => {
     const outbox = new FakeOutboxPort();
-    outbox.rows = [makeRow('1')];
+    outbox.rows = [buildRow('1')];
     const producer = new FakeProducer();
     producer.failNextBatch = true;
     const relay = new OutboxRelay(outbox, producer);
@@ -89,7 +89,7 @@ describe('OutboxRelay.runOnce', () => {
 
   it('increments the attempts counter for the rows it tried when the publish fails', async () => {
     const outbox = new FakeOutboxPort();
-    outbox.rows = [makeRow('1'), makeRow('2')];
+    outbox.rows = [buildRow('1'), buildRow('2')];
     const producer = new FakeProducer();
     producer.failNextBatch = true;
     const relay = new OutboxRelay(outbox, producer);
@@ -101,7 +101,7 @@ describe('OutboxRelay.runOnce', () => {
 
   it('respects the configured batch size', async () => {
     const outbox = new FakeOutboxPort();
-    outbox.rows = [makeRow('1'), makeRow('2'), makeRow('3')];
+    outbox.rows = [buildRow('1'), buildRow('2'), buildRow('3')];
     const producer = new FakeProducer();
     const relay = new OutboxRelay(outbox, producer, { batchSize: 2 });
 
@@ -114,7 +114,7 @@ describe('OutboxRelay.runOnce', () => {
 describe('OutboxRelay.runOnce with runExclusively', () => {
   it('wraps the drain in runExclusively and returns its result when the lock is won', async () => {
     const outbox = new FakeOutboxPort();
-    outbox.rows = [makeRow('1'), makeRow('2')];
+    outbox.rows = [buildRow('1'), buildRow('2')];
     const producer = new FakeProducer();
     const runExclusively = jest.fn(async (drain: () => Promise<number>) => {
       const result = await drain();
@@ -133,7 +133,7 @@ describe('OutboxRelay.runOnce with runExclusively', () => {
 
   it('returns 0 without publishing when the advisory lock is contended (ran: false)', async () => {
     const outbox = new FakeOutboxPort();
-    outbox.rows = [makeRow('1')];
+    outbox.rows = [buildRow('1')];
     const producer = new FakeProducer();
     outbox.runExclusively = jest.fn().mockResolvedValue({ ran: false });
     const relay = new OutboxRelay(outbox, producer);
@@ -147,7 +147,7 @@ describe('OutboxRelay.runOnce with runExclusively', () => {
 
   it('propagates a publish failure raised inside the exclusively-run drain', async () => {
     const outbox = new FakeOutboxPort();
-    outbox.rows = [makeRow('1')];
+    outbox.rows = [buildRow('1')];
     const producer = new FakeProducer();
     producer.failNextBatch = true;
     outbox.runExclusively = (async (drain: () => Promise<number>) => ({
@@ -172,13 +172,13 @@ describe('OutboxRelay start/stop loop', () => {
 
   it('polls repeatedly at the configured interval while running is true', async () => {
     const outbox = new FakeOutboxPort();
-    outbox.rows = [makeRow('1')];
+    outbox.rows = [buildRow('1')];
     const producer = new FakeProducer();
     const relay = new OutboxRelay(outbox, producer, { intervalMs: 1000 });
 
     relay.start();
     await jest.advanceTimersByTimeAsync(0);
-    outbox.rows = [makeRow('2')];
+    outbox.rows = [buildRow('2')];
     await jest.advanceTimersByTimeAsync(1000);
 
     expect(producer.published.map((m) => m.key)).toEqual(['order-1', 'order-2']);
@@ -193,7 +193,7 @@ describe('OutboxRelay start/stop loop', () => {
     relay.start();
     await jest.advanceTimersByTimeAsync(0);
     relay.stop();
-    outbox.rows = [makeRow('never-published')];
+    outbox.rows = [buildRow('never-published')];
     await jest.advanceTimersByTimeAsync(5000);
 
     expect(producer.published).toHaveLength(0);
@@ -201,7 +201,7 @@ describe('OutboxRelay start/stop loop', () => {
 
   it('backs off exponentially after a failed drain, then resets on success', async () => {
     const outbox = new FakeOutboxPort();
-    outbox.rows = [makeRow('1')];
+    outbox.rows = [buildRow('1')];
     const producer = new FakeProducer();
     producer.failNextBatch = true;
     const relay = new OutboxRelay(outbox, producer, { intervalMs: 1000, maxBackoffMs: 8000 });

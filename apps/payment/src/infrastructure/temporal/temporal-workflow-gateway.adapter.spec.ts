@@ -2,13 +2,13 @@ import { captureActiveTraceContext } from '@food-delivery-api/shared-observabili
 import type { TenantContextPort, TenantRequestContext } from '@food-delivery-api/shared-tenancy';
 import type { OutboxCommandEntry, OutboxWriter } from '@payment/domain/shared/outbox.port';
 import type { TransactionPort } from '@payment/domain/shared/transaction.port';
+import { TemporalWorkflowGatewayAdapter } from '@payment/infrastructure/temporal/temporal-workflow-gateway.adapter';
 import type { ChargeWorkflowInput } from '@payment/workflows/charge-workflow.types';
 import {
   WorkflowClient,
   WorkflowExecutionAlreadyStartedError,
   WorkflowNotFoundError,
 } from '@temporalio/client';
-import { TemporalWorkflowGatewayAdapter } from './temporal-workflow-gateway.adapter';
 
 jest.mock('@food-delivery-api/shared-observability', () => ({
   captureActiveTraceContext: jest.fn(),

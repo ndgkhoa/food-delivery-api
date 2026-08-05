@@ -1,7 +1,7 @@
+import type { RateLimitResult, RateLimitStore } from '@gateway/rate-limit/rate-limit-store';
 import { Injectable, type OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
-import type { RateLimitResult, RateLimitStore } from './rate-limit-store';
 
 @Injectable()
 export class RedisRateLimitStore implements RateLimitStore, OnModuleDestroy {

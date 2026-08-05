@@ -18,7 +18,7 @@ import {
 } from '@catalog/testing/catalog-test-database';
 import type { TenantContextPort, TenantRequestContext } from '@food-delivery-api/shared-tenancy';
 
-describe('optimistic-lock conflict rollback (integration)', () => {
+describe('OptimisticLockConflictRollback (integration)', () => {
   let db: CatalogTestDatabase;
   let repository: TypeOrmRestaurantRepository;
   let transaction: TypeOrmTransactionAdapter;

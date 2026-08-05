@@ -1,7 +1,7 @@
 # Slice 3b — Catalog Outbox (Debezium CDC) + CQRS read model
 
 Context: [phase-03.md](./phase-03-event-driven-backbone.md) · [architecture.md](./architecture.md) · [hexagonal-service-architecture.md](./hexagonal-service-architecture.md)
-Report: [researcher-260728-phase-03-event-driven-stack.md](./reports/researcher-260728-phase-03-event-driven-stack.md)
+Report: [researcher-260728-phase-03-event-driven-stack.md](../reports/researcher-260728-phase-03-event-driven-stack.md)
 
 ## Overview
 - **Priority**: P0
@@ -12,7 +12,7 @@ Report: [researcher-260728-phase-03-event-driven-stack.md](./reports/researcher-
 - **M2 (down migration couldn't DROP ROLE debezium — dependent grants)** — fixed with `DROP OWNED BY debezium` before `DROP ROLE`.
 - **L1** projection-disabled-in-test now `logger.warn` (not silent). **L3** `correlationid` column now `NOT NULL` (matches the always-set, fail-closed invariant). **L4** backfill count uses `RETURNING id` (was always 0).
 - Deferred (documented): **L2** poison-skip read gap → 3d/P5 DLQ; **L5** outbox prune + named slot WAL headroom → P5; **L6** dev connector password kept out of prod config.
-Review report: `reports/code-reviewer-260728-1420-slice-3b-catalog-outbox-cqrs-red-team-review-report.md`. Ready to merge.
+Review report: `../reports/code-reviewer-260728-1420-slice-3b-catalog-outbox-cqrs-red-team-review-report.md`. Ready to merge.
 - **Branch**: `feat/catalog-outbox-cqrs`
 - **Brief**: Add a Debezium-routed outbox to catalog: every restaurant/menu-item write inserts an `outbox` row in the SAME tx as the domain change. Kafka Connect + Debezium tails the WAL and the Outbox Event Router SMT publishes to `catalog.events`. A projection consumer (in catalog) builds a denormalized **read model**; catalog's list/get endpoints are switched to serve from it. Teaches Outbox-via-CDC + CQRS in one vertical slice.
 

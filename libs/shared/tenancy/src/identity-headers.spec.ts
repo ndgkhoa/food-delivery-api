@@ -5,7 +5,7 @@ import {
   USER_ID_HEADER,
 } from './identity-headers';
 
-describe('identity headers (spoof resistance)', () => {
+describe('applyTrustedIdentityHeaders (spoof resistance)', () => {
   const verified = {
     sub: 'user-123',
     tenantId: '11111111-1111-4111-8111-111111111111',

@@ -15,7 +15,7 @@ import {
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
-describe('auth TypeORM repositories (integration)', () => {
+describe('TypeOrmAuthRepositories (integration)', () => {
   let db: AuthTestDatabase;
   let tenantRepository: TypeOrmTenantRepository;
   let linkRepository: TypeOrmUserTenantLinkRepository;

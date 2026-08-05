@@ -4,7 +4,7 @@ import { UpdateRestaurantRequest } from '@catalog/interface/http/dto/update-rest
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
 
-describe('request name trimming', () => {
+describe('RequestNameTrimming', () => {
   it('rejects a whitespace-only restaurant name', () => {
     const dto = plainToInstance(CreateRestaurantRequest, { name: '   ' });
     const errors = validateSync(dto);
