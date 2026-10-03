@@ -2,7 +2,7 @@ name: food-delivery
 
 services:
   postgres:
-    image: postgres:18.4
+    image: postgres:18.6
     container_name: food-delivery-postgres
     profiles: [core]
     restart: unless-stopped
@@ -32,7 +32,7 @@ services:
       retries: 10
 
   postgres-replica:
-    image: postgres:18.4
+    image: postgres:18.6
     container_name: food-delivery-postgres-replica
     profiles: [replica]
     restart: unless-stopped
@@ -59,7 +59,7 @@ services:
       start_period: 20s
 
   redis:
-    image: redis:8.8.0-alpine
+    image: redis:8.10.2-alpine
     container_name: food-delivery-redis
     profiles: [core]
     restart: unless-stopped
@@ -74,7 +74,7 @@ services:
       retries: 10
 
   keycloak-postgres:
-    image: postgres:18.4
+    image: postgres:18.6
     container_name: food-delivery-keycloak-postgres
     profiles: [auth]
     restart: unless-stopped
@@ -91,7 +91,7 @@ services:
       retries: 10
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.7
+    image: quay.io/keycloak/keycloak:26.8
     container_name: food-delivery-keycloak
     profiles: [auth]
     restart: unless-stopped
@@ -114,7 +114,7 @@ services:
         condition: service_healthy
 
   nginx:
-    image: nginx:1.30-alpine
+    image: nginx:1.31-alpine
     container_name: food-delivery-nginx
     profiles: [core]
     restart: unless-stopped
@@ -182,7 +182,7 @@ services:
       start_period: 30s
 
   elasticsearch:
-    image: elasticsearch:9.4.4
+    image: elasticsearch:9.5.3
     container_name: food-delivery-elasticsearch
     profiles: [search]
     restart: unless-stopped
@@ -264,7 +264,7 @@ services:
       start_period: 30s
 
   temporal-ui:
-    image: temporalio/ui:2.52.1
+    image: temporalio/ui:2.55.0
     container_name: food-delivery-temporal-ui
     profiles: [workflow]
     restart: unless-stopped
@@ -278,7 +278,7 @@ services:
       - '${TEMPORAL_UI_PORT:-8233}:8080'
 
   mailpit:
-    image: axllent/mailpit:v1.30.6
+    image: axllent/mailpit:v1.31.4
     container_name: food-delivery-mailpit
     profiles: [notification]
     restart: unless-stopped
@@ -293,7 +293,7 @@ services:
       start_period: 10s
 
   clickhouse:
-    image: clickhouse/clickhouse-server:25.8
+    image: clickhouse/clickhouse-server:25.12
     container_name: food-delivery-clickhouse
     profiles: [analytics]
     restart: unless-stopped
@@ -314,7 +314,7 @@ services:
       start_period: 20s
 
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.157.0
+    image: otel/opentelemetry-collector-contrib:0.161.0
     container_name: food-delivery-otel-collector
     profiles: [observability]
     restart: unless-stopped
@@ -336,7 +336,7 @@ services:
       start_period: 10s
 
   jaeger:
-    image: jaegertracing/jaeger:2.19.0
+    image: jaegertracing/jaeger:2.21.0
     container_name: food-delivery-jaeger
     profiles: [observability]
     restart: unless-stopped
@@ -350,7 +350,7 @@ services:
       start_period: 10s
 
   prometheus:
-    image: prom/prometheus:v3.13.2
+    image: prom/prometheus:v3.15.0
     container_name: food-delivery-prometheus
     profiles: [observability]
     restart: unless-stopped
@@ -371,7 +371,7 @@ services:
       start_period: 10s
 
   loki:
-    image: grafana/loki:3.7.4
+    image: grafana/loki:3.7.8
     container_name: food-delivery-loki
     profiles: [observability]
     restart: unless-stopped
@@ -383,7 +383,7 @@ services:
       - '${LOKI_PORT:-3100}:3100'
 
   alloy:
-    image: grafana/alloy:v1.18.0
+    image: grafana/alloy:v1.20.1
     container_name: food-delivery-alloy
     profiles: [observability]
     restart: unless-stopped
@@ -401,7 +401,7 @@ services:
         condition: service_started
 
   grafana:
-    image: grafana/grafana:13.1.1
+    image: grafana/grafana:13.2.3
     container_name: food-delivery-grafana
     profiles: [observability]
     restart: unless-stopped
