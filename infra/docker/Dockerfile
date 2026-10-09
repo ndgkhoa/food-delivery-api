@@ -1,6 +1,6 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.28
 
-ARG NODE_IMAGE=node:24.14-slim
+ARG NODE_IMAGE=node:24.21-slim
 ARG RUNTIME_IMAGE=gcr.io/distroless/nodejs24-debian12:nonroot
 
 FROM ${NODE_IMAGE} AS builder
